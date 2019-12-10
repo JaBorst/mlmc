@@ -163,7 +163,7 @@ class LabelSpecificAttention(TextClassificationAbstract):
         self.lstm = torch.nn.LSTM(self.embedding_dim, self.lstm_units,num_layers=1,bidirectional=True,batch_first=True)
 
         self.self_attention = LabelSpecificSelfAttention(n_classes=self.n_classes,
-                                                         input_dim=self.lstm_units, hidden_dim=2*self.lstm_units)
+                                                         input_dim=2*self.lstm_units, hidden_dim=200)
 
         self.label_attention = LabelAttention(self.n_classes, self.lstm_units, hidden_dim=self.lstm_units)
 
