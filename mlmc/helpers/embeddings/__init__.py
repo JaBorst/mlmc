@@ -1,3 +1,4 @@
+from .embedding_loaders import load_glove
 try:
     from .embeddings import embed
 except:
