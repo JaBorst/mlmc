@@ -1,19 +1,16 @@
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-from tensorflow.keras.utils import to_categorical
 import numpy as np
-import tensorflow as tf
-
+from torch.nn.functional import one_hot
+import torch
 
 def makesequencelabels(query, maxlen, tagset):
     tagsetmap = dict(zip(tagset, range(len(tagset))))
     labels = [[tagsetmap[token] for token in lseq] for lseq in query]
     length = [len(x) for x in query]
-    labels = [to_categorical(x, len(tagset)) for x in labels]
+    labels = [one_hot(x, len(tagset)) for x in labels]
 
     result = np.full((len(query), maxlen, len(tagset)), 0., dtype="float32")
     for i, e in enumerate(labels):
         result[i, :length[i], :] = e
-
     return np.stack(result)
 
 def makemultilabels(query, maxlen, tagset=None):
@@ -22,7 +19,7 @@ def makemultilabels(query, maxlen, tagset=None):
         labels = [[tagsetmap[token] for token in lseq] for lseq in query]
     else:
         labels = query
-    return tf.concat([[tf.reduce_sum(tf.one_hot(x, maxlen), 0) for x in labels]], axis=0)
+    return torch.stack([torch.sum(one_hot(torch.LongTensor(x), maxlen), 0) for x in labels], dim=0)
 
 def to_scheme(tagset, scheme="iobes", outside="O"):
     scheme = scheme.lower()
