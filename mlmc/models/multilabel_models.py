@@ -160,20 +160,19 @@ class LabelSpecificAttention(TextClassificationAbstract):
         self.embedding_untrainable = torch.nn.Embedding(weights.shape[0], self.embedding_dim)
         self.embedding_untrainable.from_pretrained(torch.FloatTensor(weights), freeze=True)
 
-        self.lstm = torch.nn.LSTM(self.embedding_dim, self.lstm_units,num_layers=1,batch_first=True)
+        self.lstm = torch.nn.LSTM(self.embedding_dim, self.lstm_units,num_layers=1,bidirectional=True,batch_first=True)
 
         self.self_attention = LabelSpecificSelfAttention(n_classes=self.n_classes,
-                                                         input_dim=self.lstm_units, hidden_dim=150)
+                                                         input_dim=self.lstm_units, hidden_dim=2*self.lstm_units)
 
         self.label_attention = LabelAttention(self.n_classes, self.lstm_units, hidden_dim=self.lstm_units)
 
         self.adaptive_combination = AdaptiveCombination(self.lstm_units, self.n_classes)
 
-        self.projection_1 = torch.nn.Linear(in_features=self.lstm_units, out_features=100)
-        self.projection_2 = torch.nn.Linear(in_features=100, out_features=1)
+        self.projection_1 = torch.nn.Linear(in_features=self.lstm_units, out_features=300)
+        self.projection_2 = torch.nn.Linear(in_features=300, out_features=1)
 
         self.dropout = torch.nn.Dropout(0.5)
-        self.prob = Prob(self.n_classes)
         self.build()
 
 
@@ -185,7 +184,7 @@ class LabelSpecificAttention(TextClassificationAbstract):
         sc, _ = self.self_attention(c)
         la, _ = self.label_attention(c)
 
-        combined = self.adaptive_combination([sc,la])
+        combined = self.dropout(self.adaptive_combination([sc,la]))
 
         combined = torch.relu(self.projection_1(combined))
         combined = self.projection_2(combined).squeeze(-1)
@@ -193,7 +192,7 @@ class LabelSpecificAttention(TextClassificationAbstract):
 
     def transform(self, x):
         return torch.nn.utils.rnn.pad_sequence([torch.LongTensor(
-            [self.vocabulary.get(token.lower(), self.vocabulary["<UNK>"])
+            [self.vocabulary.get(token.lower(), self.vocabulary["<UNK_TOKEN>"])
              for token in sentence.split(" ")]) for sentence in x],
             batch_first=True, padding_value=0)
 
