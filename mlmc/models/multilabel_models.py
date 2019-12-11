@@ -89,8 +89,8 @@ class KimCNN(TextClassificationAbstract):
         self.embedding_trainable.from_pretrained(torch.FloatTensor(weights), freeze=False)
         self.embedding_untrainable = torch.nn.Embedding(len(vocabulary) + 1, weights.shape[-1])
         self.embedding_untrainable.from_pretrained(torch.FloatTensor(weights),freeze=True)
-        self.convs = torch.nn.ModuleList([torch.nn.Conv1d(weights.shape[-1], 100, k) for k in [3,4,5]])
-        self.projection = torch.nn.Linear(in_features=600, out_features=self.n_classes)
+        self.convs = torch.nn.ModuleList([torch.nn.Conv1d(weights.shape[-1], 100, k) for k in [3,4,5,6]])
+        self.projection = torch.nn.Linear(in_features=800, out_features=self.n_classes)
         self.dropout = torch.nn.Dropout(0.5)
         self.sf = torch.nn.Sigmoid()
         self.build()
@@ -98,6 +98,10 @@ class KimCNN(TextClassificationAbstract):
     def forward(self, x):
         embedded_1 = self.embedding_trainable(x).permute(0, 2, 1)
         embedded_2 = self.embedding_untrainable(x).permute(0, 2, 1)
+
+        embedded_1 = self.dropout(embedded_1)
+        embedded_2 = self.dropout(embedded_2)
+
         c = [torch.nn.functional.relu(conv(embedded_1).permute(0, 2, 1).max(1)[0]) for conv in self.convs] + \
             [torch.nn.functional.relu(conv(embedded_2).permute(0, 2, 1).max(1)[0]) for conv in self.convs]
 
@@ -165,11 +169,11 @@ class LabelSpecificAttention(TextClassificationAbstract):
         self.self_attention = LabelSpecificSelfAttention(n_classes=self.n_classes,
                                                          input_dim=2*self.lstm_units, hidden_dim=200)
 
-        self.label_attention = LabelAttention(self.n_classes, self.lstm_units, hidden_dim=self.lstm_units)
+        self.label_attention = LabelAttention(self.n_classes, 2*self.lstm_units, hidden_dim=2*self.lstm_units)
 
-        self.adaptive_combination = AdaptiveCombination(self.lstm_units, self.n_classes)
+        self.adaptive_combination = AdaptiveCombination(2*self.lstm_units, self.n_classes)
 
-        self.projection_1 = torch.nn.Linear(in_features=self.lstm_units, out_features=300)
+        self.projection_1 = torch.nn.Linear(in_features=2*self.lstm_units, out_features=300)
         self.projection_2 = torch.nn.Linear(in_features=300, out_features=1)
 
         self.dropout = torch.nn.Dropout(0.5)
