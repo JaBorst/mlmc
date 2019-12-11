@@ -8,18 +8,17 @@ class LabelAttention(torch.nn.Module):
         self.hidden_dim = hidden_dim
         self.n_classes = n_classes
 
-        self.attention = torch.nn.MultiheadAttention(
-            embed_dim=self.hidden_dim, num_heads=1, kdim=self.hidden_dim, vdim=self.hidden_dim)
-
-        self.projection = torch.nn.Linear(self.input_dim, self.hidden_dim)
+        if self.hidden_dim is not None:
+            if self.hidden_dim != self.input_dim:
+                self.projection = torch.nn.Linear(self.input_dim, self.hidden_dim)
 
         self.label_repr = torch.nn.Parameter(torch.Tensor(n_classes, self.hidden_dim))
         torch.nn.init.kaiming_normal_(self.label_repr)
 
     def forward(self, x):
-        ls =  self.label_repr.unsqueeze(0).repeat(x.shape[0],1,1).permute((1, 0, 2))
-        output, att = self.attention( ls, self.projection(x).permute((1, 0, 2)), self.projection(x).permute((1, 0, 2)))
-        return output.permute((1, 0, 2)), att
+        A =  torch.softmax(torch.matmul(x, self.label_repr.permute(1,0)),-1)
+        output = torch.matmul(A.permute(0,2,1), x)
+        return output, A
 
 class LabelSpecificSelfAttention(torch.nn.Module):
     def __init__(self, n_classes, input_dim, hidden_dim):
@@ -62,6 +61,6 @@ class AdaptiveCombination(torch.nn.Module):
 #
 # ac = LabelSpecificSelfAttention(n_classes=10, input_dim=300, hidden_dim=150)
 # ac(torch.randn(2,140,300))[1].shape
-# # la = LabelAttention(10, 200, 300)
-# i = torch.randn(2,140,200)
-# la(i)[0].shape
+la = LabelAttention(10, 200, 200)
+i = torch.randn(2,140,200)
+la(i)[0].shape

@@ -13,20 +13,22 @@ register = {
 from torch.utils.data import Dataset, DataLoader
 import torch
 class MultiLabelDataset(Dataset):
-    def __init__(self, x, y, classes, purpose="train"):
+    def __init__(self, x, y, classes, purpose="train", target_dtype=torch.LongTensor):
         self.classes = classes
         self.purpose = purpose
         self.x = x
         self.y = y
+        self.target_dtype = target_dtype
 
     def __len__(self):
         return len(self.x)
 
     def __getitem__(self, idx):
         labels = [self.classes[tag] for tag in self.y[idx]]
-        return {'text': self.x[idx], 'labels': torch.nn.functional.one_hot(torch.LongTensor(labels), len(self.classes)).sum(0)}
+        labels = torch.nn.functional.one_hot(torch.LongTensor(labels), len(self.classes)).sum(0)
+        return {'text': self.x[idx], 'labels': self.target_dtype(labels)}
 
-def get_dataset_only(name, ensure_valid=False, valid_split=0.25):
+def get_dataset_only(name, ensure_valid=False, valid_split=0.25, target_dtype=torch.LongTensor):
     data, classes = register.get(name, None)()
     if data is None:
         Warning("data not found")
@@ -42,16 +44,18 @@ def get_dataset_only(name, ensure_valid=False, valid_split=0.25):
                 valid = [splits_from_train[1],splits_from_train[3]]
                 data["train"]=train
                 data["valid"]=valid
-
+            else:
+                data["valid"]= None
         datasets = {
             split: MultiLabelDataset(x=data[split][0],
                                      y=data[split][1],
                                      classes=classes,
-                                     purpose=split) for split in data.keys()
+                                     purpose=split,
+                                     target_dtype=target_dtype) for split in data.keys()
         }
         datasets["classes"]=classes
 
         return datasets
-# mlmc.data.get_dataset_only("appd")
+
 
 

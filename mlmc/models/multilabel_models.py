@@ -62,7 +62,7 @@ class TextClassificationAbstract(torch.nn.Module):
                     y = b["labels"].to(self.device)
                     x = self.transform(b["text"]).to(self.device)
                     output = self(x)
-                    l = self.loss(output, torch._cast_Float(y))
+                    l = self.loss(output, y)
                     average.update(l.item())
                     pbar.postfix[0]["loss"] = round(average.compute().item(),6)
                     l.backward()
@@ -164,19 +164,23 @@ class LabelSpecificAttention(TextClassificationAbstract):
         self.embedding_untrainable = torch.nn.Embedding(weights.shape[0], self.embedding_dim)
         self.embedding_untrainable.from_pretrained(torch.FloatTensor(weights), freeze=True)
 
-        self.lstm = torch.nn.LSTM(self.embedding_dim, self.lstm_units,num_layers=1,bidirectional=True,batch_first=True)
+        self.lstm = torch.nn.LSTM(self.embedding_dim,
+                                  self.lstm_units,
+                                  num_layers=1,
+                                  bidirectional=True,
+                                  batch_first=True)
 
         self.self_attention = LabelSpecificSelfAttention(n_classes=self.n_classes,
-                                                         input_dim=2*self.lstm_units, hidden_dim=200)
+                                                         input_dim=self.lstm_units, hidden_dim=200)
 
-        self.label_attention = LabelAttention(self.n_classes, 2*self.lstm_units, hidden_dim=2*self.lstm_units)
+        self.label_attention = LabelAttention(self.n_classes, self.lstm_units, hidden_dim=self.lstm_units)
 
         self.adaptive_combination = AdaptiveCombination(2*self.lstm_units, self.n_classes)
 
         self.projection_1 = torch.nn.Linear(in_features=2*self.lstm_units, out_features=300)
         self.projection_2 = torch.nn.Linear(in_features=300, out_features=1)
 
-        self.dropout = torch.nn.Dropout(0.5)
+        self.dropout = torch.nn.Dropout(0.3)
         self.build()
 
 
@@ -184,12 +188,13 @@ class LabelSpecificAttention(TextClassificationAbstract):
         embedded_1 = self.embedding_untrainable(x)#.permute(0, 2, 1)
 
         c,_ = self.lstm(embedded_1)
+        c = c.view(c.shape[0], c.shape[1], self.lstm_units,2)
+        c = self.dropout(c)
 
-        sc, _ = self.self_attention(c)
-        la, _ = self.label_attention(c)
+        sc = torch.cat([self.self_attention(c[:,:,:,0])[0],self.self_attention(c[:,:,:,1])[0]],-1)
+        la = torch.cat([self.label_attention(c[:,:,:,0])[0],self.label_attention(c[:,:,:,1])[0]],-1)
 
         combined = self.dropout(self.adaptive_combination([sc,la]))
-
         combined = torch.relu(self.projection_1(combined))
         combined = self.projection_2(combined).squeeze(-1)
         return combined

@@ -9,11 +9,11 @@ import mlmc
 
 weights, vocabulary = mlmc.helpers.load_glove(embedding="/disk1/users/jborst/Data/Embeddings/glove/en/glove.6B.50d.txt")
 
-data = mlmc.data.get_dataset_only("rcv1", ensure_valid=True, valid_split=0.25)
-tc = mlmc.models.KimCNN(data["classes"], weights, vocabulary,
-                                        optimizer = torch.optim.SGD,
-                                        optimizer_params = {"lr": 1.},
-                                        loss = torch.nn.BCEWithLogitsLoss,
+data = mlmc.data.get_dataset_only("appd", ensure_valid=True, valid_split=0.25, target_dtype=torch._cast_Float)
+tc = mlmc.models.LabelSpecificAttention(data["classes"], weights, vocabulary,
+                                        optimizer=torch.optim.Adam,
+                                        optimizer_params={"lr": 0.001},
+                                        loss=torch.nn.BCEWithLogitsLoss,
                                         device=device)
 
 
