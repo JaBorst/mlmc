@@ -143,11 +143,9 @@ class BILSTMCNN(Sequence2SequenceAbstract):
         self.c0 = torch.nn.Parameter(c0, requires_grad=True)
         # self.lstm = torch.nn.LSTM(len(self.convs)*self.filters + weights.shape[1], 200,num_layers=1, bidirectional=True, batch_first=True)
         self.lstm = LSTM(sum([self.c_embedding_dim +1 -x  for x in self.kernel_sizes]) + weights.shape[1],
-                                  self.lstm_hidden,num_layers=1, dropoutw=0.5, bidirectional=True, batch_first=True)
-        # torch.nn.init.ones_(self.lstm.bias_hh_l0)
-        # torch.nn.init.ones_(self.lstm.bias_hh_l0_reverse)
-        # torch.nn.init.ones_(self.lstm.bias_ih_l0)
-        # torch.nn.init.ones_(self.lstm.bias_ih_l0_reverse)
+                                  self.lstm_hidden,num_layers=1,
+                         dropoutw=0.6, bidirectional=True, batch_first=True)
+
         self.projection = torch.nn.Linear(in_features=400, out_features=self.n_classes, )
         self.crf = CRF(len(self.classes), batch_first=True)
         self.build()
@@ -162,13 +160,12 @@ class BILSTMCNN(Sequence2SequenceAbstract):
 
     def forward(self, x, truth=None):
         mask = self.get_mask(x[0]).squeeze()
-        #mask2 = torch.arange(x[0].shape[-1])[None, :] < x[2][:, None]
-        #c_mask = self.get_mask(x[1]).squeeze()
 
-        c_embed = self.c_embedding(x[1])
-        char_embeddings = self.do_char_convs(c_embed)#*mask.unsqueeze(-1)
+        c_embed = self.c_embedding(x[1])*mask.unsqueeze(-1).unsqueeze(-1)
+        if self.use_dropout > 0.0:
+            c_embed = self.dropout(c_embed)
 
-
+        char_embeddings = self.do_char_convs(c_embed)*mask.unsqueeze(-1)
         w_embed = self.w_embedding(x[0])
 
         embedding = torch.cat([w_embed, char_embeddings], dim=-1)

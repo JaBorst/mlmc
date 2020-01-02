@@ -5,14 +5,14 @@ import mlmc
 import torch
 import os
 weights, vocabulary = mlmc.helpers.load_glove(embedding="/disk1/users/jborst/Data/Embeddings/glove/en/glove.6B.50d_small.txt")
-data = mlmc.data.get_dataset_sequence("conll2003en", sequence_length=140, target_dtype=torch._cast_Long, sparse=True)
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+data = mlmc.data.get_dataset_sequence("conll2003en", target_dtype=torch._cast_Long)
+os.environ["CUDA_VISIBLE_DEVICES"]=""
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 blc = mlmc.models.BILSTMCNN(vocabulary, weights, data["classes"],optimizer=torch.optim.SGD,
                             optimizer_params={"lr": 0.01}, device=device,
-                            locked_dropout=0. ,word_dropout=0., dropout=0.3
+                            locked_dropout=0. ,word_dropout=0.005, dropout=0.5
                             )
 # blc = mlmc.models.EmbedderBILSTM(data["classes"],"bert_glove",  optimizer=torch.optim.SGD,
 #                             optimizer_params={"lr": 0.01}, device=device,
