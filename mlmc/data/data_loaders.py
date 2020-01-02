@@ -170,3 +170,27 @@ def load_huffpost(path="/disk1/users/jborst/Data/Test/MultiLabel/HuffPost", test
 
     return {"train": tmp[0], "test": tmp[1]}, classes
 
+
+import re
+def read_conll(file, column=3):
+    """Read in the standard tab separated conll format"""
+    with open(file, "r", encoding="utf-8") as file_handler:
+        content = file_handler.read().strip("\n").strip()
+        sentences = [[x.split(" ")[0].strip(" ").strip("\t") for x in sentence.split("\n")] for sentence in re.split(r"\n\s*\n*\s*\n", content)]
+        ner = [[x.split(" ")[column].strip(" ").strip("\t") for x in sentence.split("\n")] for sentence in re.split(r"\n\s*\n*\s*\n", content)]
+    return sentences, ner
+
+
+def load_conll2003en(path="/disk1/users/jborst/Data/Test/NER/CoNLL-2003/eng/BIOES/"):
+    data = _load_from_tmp("conll2003en")
+    if data is not None: return data
+    else:
+        data = {}
+        data["test"]= read_conll(os.path.join(path,"test.txt"))
+        data["valid"]= read_conll(os.path.join(path,"valid.txt"))
+        data["train"]= read_conll(os.path.join(path,"train.txt"))
+        from mlmc.data.tagsets import NER
+        classes = dict(zip(NER, range(len(NER))))
+        _save_to_tmp("conll2003en", (data, classes))
+    return data, classes
+

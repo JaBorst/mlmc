@@ -7,5 +7,5 @@ def charindex(query, maxlen, maxchar, alphabet):
     result = np.full((len(query),maxlen,maxchar), 0., dtype="float32")
     for i, s in enumerate(query):
         indices=pad_sequence([LongTensor([alphabet_map.get(x, len(alphabet)+1)for x in word ]) for word in s.split()],batch_first=True).numpy()
-        result[i, :indices.shape[-2], :indices.shape[-1]] = indices
+        result[i, :min(indices.shape[-2],maxlen), :min(indices.shape[-1], maxchar)] = indices[:maxlen, :maxchar]
     return result

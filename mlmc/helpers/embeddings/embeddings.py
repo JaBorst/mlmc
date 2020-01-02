@@ -9,8 +9,7 @@ from flair.embeddings import BertEmbeddings,\
     BytePairEmbeddings, \
     RoBERTaEmbeddings
 
-
-def embed(query, maxlen, model="glove"):
+def get_embedder(model="glove"):
     if model=="bert": embedder = BertEmbeddings("bert-base-cased")
     if model=="bert1": embedder = BertEmbeddings("bert-base-cased", layers="-2")
     elif model=="distilbert": embedder = BertEmbeddings("distilbert-base-uncased")
@@ -26,10 +25,20 @@ def embed(query, maxlen, model="glove"):
     elif model=="bert_glove": embedder = StackedEmbeddings([BertEmbeddings("bert-base-cased"),WordEmbeddings("glove")])
     elif model=="bert_glove_de": embedder = StackedEmbeddings([BertEmbeddings("bert-base-german-cased"),WordEmbeddings("de")])
     else: Warning("Unknown Model")
+    return embedder
+
+
+
+def embed(query, maxlen, model="glove"):
+    if isinstance(model, str):
+        embedder = get_embedder(model=model)
+    else:
+        embedder = model
 
     length = []
     query_embeddings = []
-    for i, line in tqdm(enumerate(query), total=len(query)):
+    # for i, line in tqdm(enumerate(query), total=len(query)):
+    for i, line in enumerate(query):
         line = line.replace("\n", "")
         sentence = Sentence(line)
         embedder.embed(sentence)
