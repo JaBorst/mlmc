@@ -23,7 +23,7 @@ class VariationalDropout(nn.Module):
 
         is_packed = isinstance(x, PackedSequence)
         if is_packed:
-            x, batch_sizes = x
+            x, batch_sizes, sorted_indices, unsorted_indices = x
             max_batch_size = int(batch_sizes[0])
         else:
             batch_sizes = None
@@ -37,7 +37,7 @@ class VariationalDropout(nn.Module):
         x = x.masked_fill(m == 0, 0) / (1 - self.dropout)
 
         if is_packed:
-            return PackedSequence(x, batch_sizes)
+            return PackedSequence(x, batch_sizes, sorted_indices, unsorted_indices)
         else:
             return x
 
@@ -49,10 +49,8 @@ class LSTM(nn.LSTM):
         super().__init__(*args, **kwargs, batch_first=batch_first)
         self.unit_forget_bias = unit_forget_bias
         self.dropoutw = dropoutw
-        self.input_drop = VariationalDropout(dropouti,
-                                             batch_first=batch_first)
-        self.output_drop = VariationalDropout(dropouto,
-                                              batch_first=batch_first)
+        # self.input_drop = torch.nn.Dropout(dropouti)
+        # self.output_drop = torch.nn.Dropout(dropouto)
         self._init_weights()
 
     def _init_weights(self):
@@ -79,6 +77,5 @@ class LSTM(nn.LSTM):
 
     def forward(self, input, hx=None):
         self._drop_weights()
-        input = self.input_drop(input)
         seq, state = super().forward(input, hx=hx)
-        return self.output_drop(seq), state
+        return seq, state
