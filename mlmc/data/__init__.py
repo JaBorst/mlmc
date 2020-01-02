@@ -45,15 +45,25 @@ def get_dataset_only(name, ensure_valid=False, valid_split=0.25, target_dtype=to
                 valid = [splits_from_train[1],splits_from_train[3]]
                 data["train"]=train
                 data["valid"]=valid
+                datasets = {
+                    split: MultiLabelDataset(x=data[split][0],
+                                             y=data[split][1],
+                                             classes=classes,
+                                             purpose=split,
+                                             target_dtype=target_dtype) for split in data.keys()
+                }
             else:
-                data["valid"]= None
-        datasets = {
-            split: MultiLabelDataset(x=data[split][0],
-                                     y=data[split][1],
-                                     classes=classes,
-                                     purpose=split,
-                                     target_dtype=target_dtype) for split in data.keys()
-        }
+                datasets = {
+                    split: MultiLabelDataset(x=data[split][0],
+                                             y=data[split][1],
+                                             classes=classes,
+                                             purpose=split,
+                                             target_dtype=target_dtype) for split in data.keys()
+                    if data[split] is not None
+                }
+
+                datasets["valid"] = None
+
         datasets["classes"]=classes
 
         return datasets
@@ -73,7 +83,7 @@ class SequenceDataset(Dataset):
     def __getitem__(self, idx):
         return {'text': " ".join(self.x[idx]), 'labels': " ".join([str(x) for x in self.y[idx]])} #self.target_dtype(labels)}
 
-def get_dataset_sequence(name, sequence_length, sparse=True, ensure_valid=False, valid_split=0.25, target_dtype=torch.LongTensor):
+def get_dataset_sequence(name, ensure_valid=False, valid_split=0.25, target_dtype=torch.LongTensor):
     data, classes = register.get(name, None)()
     if data is None:
         Warning("data not found")
@@ -103,5 +113,5 @@ def get_dataset_sequence(name, sequence_length, sparse=True, ensure_valid=False,
         return datasets
 
 
-# d = get_dataset_sequence("conll2003en", target_dtype=torch._cast_Long)
+d = get_dataset_sequence("conll2003en", target_dtype=torch._cast_Long)
 # for b in torch.utils.data.DataLoader(d["train"], batch_size=15): break

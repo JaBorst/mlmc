@@ -4,7 +4,7 @@ sys.path.insert(0,"/tmp/tmp/pycharm_project_765")
 import mlmc
 import torch
 import os
-weights, vocabulary = mlmc.helpers.load_glove(embedding="/disk1/users/jborst/Data/Embeddings/glove/en/glove.6B.50d_small.txt")
+weights, vocabulary = mlmc.helpers.load_glove(embedding="/disk1/users/jborst/Data/Embeddings/glove/en/glove.6B.200d.txt")
 data = mlmc.data.get_dataset_sequence("conll2003en", target_dtype=torch._cast_Long)
 os.environ["CUDA_VISIBLE_DEVICES"]=""
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -19,7 +19,7 @@ blc = mlmc.models.BILSTMCNN(vocabulary, weights, data["classes"],optimizer=torch
 #                             locked_dropout=0. ,word_dropout=0., dropout=0.25
 #                             )
 
-blc.fit(data["train"], data["valid"], epochs=100, batch_size=16)
+blc.fit(data["train"], data["valid"], epochs=100, batch_size=10)
 blc.evaluate(data["test"])
 
 # for b in torch.utils.data.DataLoader(data["train"], batch_size=15): break
