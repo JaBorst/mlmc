@@ -39,6 +39,20 @@ class Sequence2SequenceAbstract(torch.nn.Module):
             mask = torch.as_tensor(mask, dtype=dtype, device=length.device)
         return mask
 
+    def predict(self, sentence):
+        self.eval()
+        reverse_classes = {v: k for k, v in self.classes.items()}
+        single = False
+        if isinstance(sentence, str):
+            single = 1
+            sentence = [sentence, sentence]
+        prediction = self(x=self.transform(sentence))
+        if single:
+            prediction = [prediction[0]]
+
+        labels_predictions = [[reverse_classes[x] for x in sentence] for sentence in prediction]
+        return labels_predictions
+
     def evaluate(self, data, report=False):
         """
         Evaluation, return accuracy and loss
@@ -111,13 +125,13 @@ class BILSTMCNN(Sequence2SequenceAbstract):
         self.vocabulary = vocabulary
         self.word_length=word_length
         self.alphabet = alphabet
-        self.filters=32
+        self.filters=64
         self.use_dropout: float = dropout
         self.use_word_dropout: float = word_dropout
         self.use_locked_dropout: float = locked_dropout
         self.sorted_batches=False
         self.kernel_sizes=[3,4,5]
-        self.c_embedding_dim = 25
+        self.c_embedding_dim = 30
         self.lstm_hidden = 200
 
         if dropout > 0.0:
@@ -135,16 +149,16 @@ class BILSTMCNN(Sequence2SequenceAbstract):
         self.w_embedding = torch.nn.Embedding(*weights.shape)
         self.w_embedding.from_pretrained(torch.FloatTensor(weights), freeze=True)
 
-        h0 = torch.zeros(2, 1, self.lstm_hidden)
-        c0 = torch.zeros(2, 1, self.lstm_hidden)
-        torch.nn.init.xavier_normal_(h0, gain=torch.nn.init.calculate_gain('relu'))
-        torch.nn.init.xavier_normal_(c0, gain=torch.nn.init.calculate_gain('relu'))
-        self.h0 = torch.nn.Parameter(h0, requires_grad=True)  # Parameter() to update weights
-        self.c0 = torch.nn.Parameter(c0, requires_grad=True)
+        # h0 = torch.zeros(2, 1, self.lstm_hidden)
+        # c0 = torch.zeros(2, 1, self.lstm_hidden)
+        # torch.nn.init.xavier_normal_(h0, gain=torch.nn.init.calculate_gain('relu'))
+        # torch.nn.init.xavier_normal_(c0, gain=torch.nn.init.calculate_gain('relu'))
+        #self.h0 = torch.nn.Parameter(h0, requires_grad=True)  # Parameter() to update weights
+        #self.c0 = torch.nn.Parameter(c0, requires_grad=True)
         # self.lstm = torch.nn.LSTM(len(self.convs)*self.filters + weights.shape[1], 200,num_layers=1, bidirectional=True, batch_first=True)
         self.lstm = LSTM(sum([self.c_embedding_dim +1 -x  for x in self.kernel_sizes]) + weights.shape[1],
                                   self.lstm_hidden,num_layers=1,
-                         dropoutw=0.6, bidirectional=True, batch_first=True)
+                         dropoutw=0.3, bidirectional=True, batch_first=True)
 
         self.projection = torch.nn.Linear(in_features=400, out_features=self.n_classes, )
         self.crf = CRF(len(self.classes), batch_first=True)
@@ -167,19 +181,18 @@ class BILSTMCNN(Sequence2SequenceAbstract):
 
         char_embeddings = self.do_char_convs(c_embed)*mask.unsqueeze(-1)
         w_embed = self.w_embedding(x[0])
+        if self.use_word_dropout > 0.0:
+            w_embed = self.word_dropout(w_embed)
 
         embedding = torch.cat([w_embed, char_embeddings], dim=-1)
         if self.use_word_dropout > 0.0:
             embedding = self.word_dropout(embedding)
-        if self.use_dropout > 0.0:
-            embedding = self.dropout(embedding)
         if self.use_locked_dropout > 0.0:
             embedding = self.locked_dropout(embedding)
 
 
         packed_embedding = torch.nn.utils.rnn.pack_padded_sequence(embedding, x[2], batch_first=True, enforce_sorted=self.sorted_batches)
-        r, _ = self.lstm(packed_embedding, (self.h0.repeat(1, x[0].shape[0], 1),
-                                            self.c0.repeat(1, x[0].shape[0], 1)))
+        r, _ = self.lstm(packed_embedding)#, (self.h0.repeat(1, x[0].shape[0], 1),self.c0.repeat(1, x[0].shape[0], 1)))
 
         r, _ = torch.nn.utils.rnn.pad_packed_sequence(r, batch_first=True)
 
@@ -188,23 +201,21 @@ class BILSTMCNN(Sequence2SequenceAbstract):
 
         emissions = self.projection(r)
 
-        if self.training:
+        if self.training and truth is not None:
             return -self.crf(emissions, truth, mask=mask, reduction="mean")
+        elif not self.training and truth is not None:
+            return -self.crf(emissions, truth, mask=mask, reduction="mean"), self.crf.decode(emissions, mask=mask)
         else:
-            return -self.crf(emissions, truth, mask=mask, reduction="mean"),self.crf.decode(emissions, mask=mask)
+            return self.crf.decode(emissions, mask=mask)
 
 
-    def transform(self, x, y, **kwargs):
+    def transform(self, x, y=None, **kwargs):
 
         length = torch.LongTensor([len(s.split()) for s in x])
         if self.sorted_batches:
             order = torch.argsort(length,descending=True)
             x = [x[k] for k in order]
             y = [y[k] for k in order]
-
-        labels = torch.nn.utils.rnn.pad_sequence(
-            [torch.LongTensor([self.classes[token] for token in sentence.split(" ")]) for sentence in y],
-                                                             batch_first=True, padding_value=0).to(self.device)
 
         words = torch.nn.utils.rnn.pad_sequence([torch.LongTensor(
             [self.vocabulary.get(token.lower(),
@@ -215,8 +226,13 @@ class BILSTMCNN(Sequence2SequenceAbstract):
         chars = torch.LongTensor(charindex(x, max([len(s.split()) for s in x]), self.word_length, self.alphabet)).to(
             self.device)
 
-        return (words, chars, length), labels
-
+        if y is not None:
+            labels = torch.nn.utils.rnn.pad_sequence(
+                [torch.LongTensor([self.classes[token] for token in sentence.split(" ")]) for sentence in y],
+                batch_first=True, padding_value=0).to(self.device)
+            return (words, chars, length), labels
+        else:
+            return (words, chars, length)
 
 
 
@@ -300,21 +316,22 @@ class EmbedderBILSTM(Sequence2SequenceAbstract):
             return -self.crf(emissions, truth, mask=mask, reduction="mean"),self.crf.decode(emissions, mask=mask)
 
 
-    def transform(self, x, y, **kwargs):
+    def transform(self, x, y=None, **kwargs):
 
         length = torch.LongTensor([len(s.split()) for s in x])
         if self.sorted_batches:
             order = torch.argsort(length,descending=True)
             x = [x[k] for k in order]
             y = [y[k] for k in order]
-
-
-        labels = torch.nn.utils.rnn.pad_sequence(
-            [torch.LongTensor([self.classes[token] for token in sentence.split(" ")]) for sentence in y],
-                                                             batch_first=True, padding_value=0).to(self.device)
         words = torch.FloatTensor(embed(x, maxlen=max(length), model=self.embedder)).to(self.device)
 
-        return (words, length), labels
+        if y is not None:
+            labels = torch.nn.utils.rnn.pad_sequence(
+                [torch.LongTensor([self.classes[token] for token in sentence.split(" ")]) for sentence in y],
+                                                             batch_first=True, padding_value=0).to(self.device)
+            return (words, length), labels
 
+        else:
+            return (words, length)
 
 

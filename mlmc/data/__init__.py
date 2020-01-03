@@ -29,46 +29,6 @@ class MultiLabelDataset(Dataset):
         labels = torch.nn.functional.one_hot(torch.LongTensor(labels), len(self.classes)).sum(0)
         return {'text': self.x[idx], 'labels': self.target_dtype(labels)}
 
-def get_dataset_only(name, ensure_valid=False, valid_split=0.25, target_dtype=torch.LongTensor):
-    data, classes = register.get(name, None)()
-    if data is None:
-        Warning("data not found")
-        return None
-    else:
-        if "valid" not in data.keys():
-            print("No Validation data found.")
-            if ensure_valid:
-                print("Providing random split...")
-                from sklearn.model_selection import train_test_split
-                splits_from_train = train_test_split(*data["train"], test_size=valid_split)
-                train=[splits_from_train[0],splits_from_train[2]]
-                valid = [splits_from_train[1],splits_from_train[3]]
-                data["train"]=train
-                data["valid"]=valid
-                datasets = {
-                    split: MultiLabelDataset(x=data[split][0],
-                                             y=data[split][1],
-                                             classes=classes,
-                                             purpose=split,
-                                             target_dtype=target_dtype) for split in data.keys()
-                }
-            else:
-                datasets = {
-                    split: MultiLabelDataset(x=data[split][0],
-                                             y=data[split][1],
-                                             classes=classes,
-                                             purpose=split,
-                                             target_dtype=target_dtype) for split in data.keys()
-                    if data[split] is not None
-                }
-
-                datasets["valid"] = None
-
-        datasets["classes"]=classes
-
-        return datasets
-
-
 class SequenceDataset(Dataset):
     def __init__(self, x, y, classes, purpose="train", target_dtype=torch._cast_Long):
         self.classes = classes
@@ -83,7 +43,7 @@ class SequenceDataset(Dataset):
     def __getitem__(self, idx):
         return {'text': " ".join(self.x[idx]), 'labels': " ".join([str(x) for x in self.y[idx]])} #self.target_dtype(labels)}
 
-def get_dataset_sequence(name, ensure_valid=False, valid_split=0.25, target_dtype=torch.LongTensor):
+def get_dataset(name, type, ensure_valid=False, valid_split=0.25, target_dtype=torch.LongTensor):
     data, classes = register.get(name, None)()
     if data is None:
         Warning("data not found")
@@ -102,7 +62,7 @@ def get_dataset_sequence(name, ensure_valid=False, valid_split=0.25, target_dtyp
             else:
                 data["valid"]= None
         datasets = {
-            split: SequenceDataset(x=data[split][0],
+            split: type(x=data[split][0],
                                      y=data[split][1],
                                      classes=classes,
                                      purpose=split,
@@ -113,5 +73,5 @@ def get_dataset_sequence(name, ensure_valid=False, valid_split=0.25, target_dtyp
         return datasets
 
 
-d = get_dataset_sequence("conll2003en", target_dtype=torch._cast_Long)
+# d = get_dataset("conll2003en", type=mlmc.data.SequenceDataset, target_dtype=torch._cast_Long)
 # for b in torch.utils.data.DataLoader(d["train"], batch_size=15): break
