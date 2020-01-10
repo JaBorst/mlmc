@@ -1,8 +1,15 @@
 import os
 import json
 from tqdm import tqdm
-
-
+import numpy as np
+###
+# Repository http://manikvarma.org/downloads/XC/XMLRepository.html
+#
+#
+#
+#
+#
+#
 tmp_dir = os.path.join(os.getenv("HOME"),".mlmc/datasets/")
 
 
@@ -116,12 +123,8 @@ def load_rcv1(path="/disk1/users/jborst/Data/Test/MultiLabel/reuters/corpus-reut
     return data, classes
 
 
-def load_amazon12k(vocabulary, path="/disk1/users/jborst/Data/Test/MultiLabel/Amazon12k/", model=None):
-    import pickle
-    with open(os.path.join(path, "amazon12k_raw_text.p"), "rb") as f: content = pickle.load(f)
 
-
-def load_wiki30k( path="/disk1/users/jborst/Data/Test/MultiLabel/wiki30k"):
+def load_wiki30k(path="/disk1/users/jborst/Data/Test/MultiLabel/wiki30k"):
     import pickle
     with open(os.path.join(path, "wiki30k_raw_text.p"), "rb") as f: content = pickle.load(f)
     train_x = [x["text"] for x in content[0]]
@@ -141,12 +144,16 @@ def load_eurlex(path="/disk1/users/jborst/Data/Test/MultiLabel/EURLex"):
     test_x = [x["text"] for x in content[1]]
     test_y = [x["catgy"] for x in content[1]]
     classes = content[3]
+
+    reverse_classes= {v:k for k,v in classes.items()}
+    train_y = [[reverse_classes[x] for x in labels]  for labels in train_y]
+    test_y = [[reverse_classes[x] for x in labels]  for labels in test_y]
     data = {}
     data["train"] = (train_x, train_y)
     data["test"] = (test_x, test_y)
     return data, classes
 
-def load_huffpost(path="/disk1/users/jborst/Data/Test/MultiLabel/HuffPost", test_split=0.3):
+def load_huffpost(path="/disk1/users/jborst/Data/Test/MultiLabel/HuffPost", test_split=0.25):
     import json
     from sklearn.model_selection import train_test_split
 
@@ -170,8 +177,139 @@ def load_huffpost(path="/disk1/users/jborst/Data/Test/MultiLabel/HuffPost", test
 
     return {"train": tmp[0], "test": tmp[1]}, classes
 
+def load_moviesummaries(path="/disk1/users/jborst/Data/Test/MultiLabel/MovieSummaries", test_split=0.25):
+    data = _load_from_tmp("moviesummaries")
+    if data is not None: return data
+    else:
 
+        from sklearn.model_selection import train_test_split
+        with open(os.path.join(path, "plot_summaries.txt"), "r") as f: content = f.readlines()
+        with open(os.path.join(path, "movie.metadata.tsv"), "r") as f: meta = {x.split("\t")[0]:x.split("\t")[-1].replace("\n","") for x in f.readlines()}#f.readlines()#[x.split("\t")[-1].replace("\n","") for x in f.readlines()]
+        meta = {k:[x.split(": ")[-1].replace("\"","").replace("}","") for x in genre.split(", ")] for k,genre in meta.items()}
+
+        data = [(x.split("\t")[1], meta[str(x.split("\t")[0])]) for x in content if str(x.split("\t")[0]) in meta.keys()]
+        text = [x[0] for x in data]
+        label = [x[1] for x in data]
+
+        data = (text, label)
+        classes = list(set([x for y in label for x in y]))
+        classes = dict(zip(classes, range(len(classes))))
+
+        n_arr = len(data)
+        data = train_test_split(*data, test_size=test_split)
+        tmp = [[], []]
+        for i, arr in enumerate(data):
+            tmp[i % n_arr].append(arr)
+
+        _save_to_tmp("huffpost", (data, classes))
+
+        return {"train": tmp[0], "test": tmp[1]}, classes
+
+
+
+
+################################
+#### Hierarchical Multilabel
+#### see http://kt.ijs.si/DragiKocev/PhD/resources/doku.php?id=hmc_classification
+################################
+
+def load_blurbgenrecollection():
+    url = "https://fiona.uni-hamburg.de/ca89b3cf/blurbgenrecollectionen.zip"
+    data = _load_from_tmp("blurbgenrecollection")
+    if data is not None: return data
+    else:
+        from bs4 import BeautifulSoup
+        from xml.etree import ElementTree
+        from urllib.request import urlopen
+        from zipfile import ZipFile
+        from io import BytesIO
+        import re
+
+        resp = urlopen(url)
+        zipfile = ZipFile(BytesIO(resp.read()))
+
+        data = {}
+        for purpose in ["dev", "train", "test"]:
+            soup = BeautifulSoup("<root>"+ zipfile.open("BlurbGenreCollection_EN_"+purpose+".txt").read().decode("utf-8").replace("\n","") + "</root>")
+            text, labels = [], []
+            for i in soup.findAll("book"):
+                text.append(i.find("body").text)
+                labels.append([x.text for x in i.find("topics").children])
+            if purpose=="dev":
+                data["valid"]=(text,labels)
+            else:
+                data[purpose]=(text,labels)
+
+        edges = [x.decode("utf-8").replace("\n","").split("\t") for x in zipfile.open("hierarchy.txt").readlines()]
+        classes = list(set([x for y in data["train"][1] +data["valid"][1] +data["test"][1]+edges for x in y]))
+        classes = dict(zip(classes, range(len(classes))))
+        edges = [[classes[x] for x in e] for e in edges if len(e)==2]
+        adjacency = np.identity(len(classes))
+        for ind in edges: adjacency[ind[0],ind[1]]=1
+        data["adjacency"] = adjacency
+        _save_to_tmp("blurbgenrecollection", (data, classes))
+        return data, classes
+
+def load_blurbgenrecollection_de():
+    url = "https://www.inf.uni-hamburg.de/en/inst/ab/lt/resources/data/germeval-2019-hmc/germeval2019t1-public-data-final.zip"
+    data = _load_from_tmp("blurbgenrecollection_de")
+    if data is not None:
+        return data
+    else:
+        from bs4 import BeautifulSoup
+        from xml.etree import ElementTree
+        from urllib.request import urlopen
+        from zipfile import ZipFile
+        from io import BytesIO
+        import re
+
+        resp = urlopen(url)
+        zipfile = ZipFile(BytesIO(resp.read()))
+
+        data = {}
+        for purpose in ["dev", "train", "test"]:
+            soup = BeautifulSoup(
+                "<root>" + zipfile.open("blurbs_" + purpose + ".txt").read().decode(
+                    "utf-8").replace("\n", "") + "</root>")
+            text, labels = [], []
+            for i in soup.findAll("book"):
+                text.append(i.find("body").text)
+                labels.append([x.text for x in i.find("categories").findAll("topic")])
+            if purpose == "dev":
+                data["valid"] = (text, labels)
+            else:
+                data[purpose] = (text, labels)
+
+        edges = [x.decode("utf-8").replace("\n", "").split("\t") for x in zipfile.open("hierarchy.txt").readlines()]
+        classes = list(set([x for y in data["train"][1] + data["valid"][1] + data["test"][1] + edges for x in y]))
+        classes = dict(zip(classes, range(len(classes))))
+        edges = [[classes[x] for x in e] for e in edges if len(e) == 2]
+        adjacency = np.identity(len(classes))
+        for ind in edges: adjacency[ind[0], ind[1]] = 1
+        data["adjacency"] = adjacency
+        _save_to_tmp("blurbgenrecollection_de", (data, classes))
+        return data, classes
+
+def load_webofscience():
+    url = "https://data.mendeley.com/datasets/9rw3vkcfy4/6/files/c9ea673d-5542-44c0-ab7b-f1311f7d61df/WebOfScience.zip?dl=1"
+    data = _load_from_tmp("blurbgenrecollection")
+    if data is not None:
+        return data
+    else:
+        from xml.etree import ElementTree
+        from urllib.request import urlopen
+        from zipfile import ZipFile
+        from io import BytesIO
+        import re
+
+        resp = urlopen(url)
+        zipfile = ZipFile(BytesIO(resp.read()))
+
+################################
+# Named Entity Recognition
+################################
 import re
+
 def read_conll(file, column=3):
     """Read in the standard tab separated conll format"""
     with open(file, "r", encoding="utf-8") as file_handler:

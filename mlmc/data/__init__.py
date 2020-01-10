@@ -1,14 +1,16 @@
-from .data_loaders  import load_eurlex,load_amazon12k, load_wiki30k, load_huffpost, load_appd, load_rcv1, load_conll2003en
-
+from .data_loaders  import load_eurlex, load_wiki30k, load_huffpost, load_appd, load_rcv1, load_conll2003en, \
+    load_moviesummaries,load_blurbgenrecollection, load_blurbgenrecollection_de
 # register = {fct.split("load_")[1]:dl.__dict__[fct] for fct in dir(dl) if fct.startswith("load_")}
 register = {
     "appd": load_appd,
     "rcv1": load_rcv1,
     "huffpost": load_huffpost,
     "wiki30k": load_wiki30k,
-    "amazon12k": load_wiki30k,
     "eurlex": load_eurlex,
-    "conll2003en": load_conll2003en
+    "movies_summaries": load_moviesummaries,
+    "conll2003en": load_conll2003en,
+    "blurbgenrecollection": load_blurbgenrecollection,
+    "blurbgenrecollection_de": load_blurbgenrecollection_de
 }
 
 from torch.utils.data import Dataset, DataLoader
@@ -66,7 +68,7 @@ def get_dataset(name, type, ensure_valid=False, valid_split=0.25, target_dtype=t
                                      y=data[split][1],
                                      classes=classes,
                                      purpose=split,
-                                     target_dtype=target_dtype) for split in data.keys()
+                                     target_dtype=target_dtype) for split in ["test","train","valid"]
         }
         datasets["classes"]=classes
 
