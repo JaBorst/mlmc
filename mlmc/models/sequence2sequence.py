@@ -265,8 +265,8 @@ class EmbedderBILSTM(Sequence2SequenceAbstract):
             self.locked_dropout = LockedDropout(locked_dropout)
 
 
-        h0 = torch.zeros(2, 1, self.lstm_hidden)
-        c0 = torch.zeros(2, 1, self.lstm_hidden)
+        h0 = torch.zeros( 1, 2, self.lstm_hidden)
+        c0 = torch.zeros( 1, 2, self.lstm_hidden)
         torch.nn.init.xavier_normal_(h0, gain=torch.nn.init.calculate_gain('relu'))
         torch.nn.init.xavier_normal_(c0, gain=torch.nn.init.calculate_gain('relu'))
         self.h0 = torch.nn.Parameter(h0, requires_grad=True)  # Parameter() to update weights
@@ -300,8 +300,8 @@ class EmbedderBILSTM(Sequence2SequenceAbstract):
 
 
         packed_embedding = torch.nn.utils.rnn.pack_padded_sequence(words, x[1], batch_first=True, enforce_sorted=self.sorted_batches)
-        r, _ = self.lstm(packed_embedding, (self.h0.repeat(1, x[0].shape[0], 1),
-                                            self.c0.repeat(1, x[0].shape[0], 1)))
+        r, _ = self.lstm(packed_embedding, (self.h0.repeat(x[0].shape[0], 1, 1),
+                                            self.c0.repeat(x[0].shape[0], 1, 1)))
 
         r, _ = torch.nn.utils.rnn.pad_packed_sequence(r, batch_first=True)
 
