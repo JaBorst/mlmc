@@ -20,6 +20,37 @@ class LabelAttention(torch.nn.Module):
         output = torch.matmul(A.permute(0,2,1), x)
         return output, A
 
+
+class LabelEmbeddingScoring(torch.nn.Module):
+    def __init__(self, n_classes, input_dim, label_repr, similarity="cosine", label_freeze=True):
+        super(LabelEmbeddingScoring, self).__init__()
+        self.input_dim = input_dim
+        self.n_classes = n_classes
+
+        assert similarity in ["cosine","euclidean"], "Distance metric %s not implemented." % (similarity, )
+        self.similarity=similarity
+
+        self.label_repr = torch.nn.Parameter(torch.from_numpy(label_repr).float())
+        self.label_repr.requires_grad=not label_freeze
+        self.projection = torch.nn.Linear(self.input_dim, self.label_repr.shape[-1])
+
+    def forward(self, x):
+        x = self.projection(x)
+
+        if self.similarity=="cosine":
+            output = torch.matmul(
+                x/torch.norm(x,p=2,dim=-1).unsqueeze(-1),
+                (self.label_repr/torch.norm(self.label_repr, p=2,dim=-1).unsqueeze(-1)).transpose(0,1)
+            )
+        if self.similarity=="euclidean":
+            output = torch.sigmoid(
+                torch.norm((x.unsqueeze(2) - self.label_repr.unsqueeze(0).unsqueeze(1)),p=2,dim=-1)
+            )
+        return output
+
+
+
+
 class LabelSpecificSelfAttention(torch.nn.Module):
     def __init__(self, n_classes, input_dim, hidden_dim):
         super(LabelSpecificSelfAttention, self).__init__()
@@ -27,14 +58,20 @@ class LabelSpecificSelfAttention(torch.nn.Module):
         self.hidden_dim = hidden_dim
         self.n_classes = n_classes
 
-        self.to_hidden = torch.nn.Parameter(torch.Tensor(self.input_dim, self.hidden_dim))
+        # self.to_hidden = torch.nn.Parameter(torch.Tensor(self.input_dim, self.hidden_dim))
         self.to_label = torch.nn.Parameter(torch.Tensor(self.hidden_dim, self.n_classes))
 
-        torch.nn.init.kaiming_normal_(self.to_hidden)
+        self.to_hidden = torch.nn.Linear(self.input_dim, self.hidden_dim)
+        # self.to_label = torch.nn.Linear(self.hidden_dim, self.n_classes)
+
+        # torch.nn.init.kaiming_normal_(self.to_hidden)
         torch.nn.init.kaiming_normal_(self.to_label)
 
     def forward(self,x):
-        att = torch.softmax(torch.matmul(torch.tanh(torch.matmul(x, self.to_hidden)), self.to_label), -1)
+        att = torch.softmax(torch.matmul(
+            torch.tanh(self.to_hidden(x)),self.to_label),
+            -1)
+        # att = torch.softmax(self.to_label(torch.tanh(self.to_hidden(x))), -1)
         return torch.matmul(att.permute(0,2,1),x), att
 
 class AdaptiveCombination(torch.nn.Module):
@@ -43,14 +80,17 @@ class AdaptiveCombination(torch.nn.Module):
         self.input_dim = input_dim
         self.n_classes = n_classes
 
-        self.alpha_weights = torch.nn.Parameter(torch.Tensor(input_dim,1))
-        self.beta_weights = torch.nn.Parameter(torch.Tensor(input_dim,1))
-        torch.nn.init.kaiming_normal_(self.alpha_weights)
-        torch.nn.init.kaiming_normal_(self.beta_weights)
+        self.alpha_weights = torch.nn.Linear(input_dim,1)
+        self.beta_weights = torch.nn.Linear(input_dim,1)
+        # torch.nn.init.kaiming_normal_(self.alpha_weights)
+        # torch.nn.init.kaiming_normal_(self.beta_weights)
 
     def forward(self, x):
-        alpha = torch.sigmoid(torch.matmul(x[0], self.alpha_weights))
-        beta = torch.sigmoid(torch.matmul(x[1], self.beta_weights))
+        # alpha = torch.sigmoid(torch.matmul(x[0], self.alpha_weights))
+        # beta = torch.sigmoid(torch.matmul(x[1], self.beta_weights))
+
+        alpha = torch.sigmoid(self.alpha_weights(x[0]))
+        beta = torch.sigmoid(self.beta_weights(x[1]))
 
         #constrain the sum to one
         alpha = alpha / (alpha + beta)
@@ -61,6 +101,6 @@ class AdaptiveCombination(torch.nn.Module):
 #
 # ac = LabelSpecificSelfAttention(n_classes=10, input_dim=300, hidden_dim=150)
 # ac(torch.randn(2,140,300))[1].shape
-la = LabelAttention(10, 200, 200)
-i = torch.randn(2,140,200)
-la(i)[0].shape
+# la = LabelAttention(10, 200, 200)
+# i = torch.randn(2,140,200)
+# la(i)[0].shape
