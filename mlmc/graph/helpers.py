@@ -1,5 +1,8 @@
 import numpy as np
 import itertools
+import matplotlib.pyplot as plt
+from sklearn.manifold import TSNE
+
 
 def cooc_matrix(labels, classes):
     coocs = np.zeros((len(classes),len(classes)))
@@ -12,13 +15,31 @@ def cooc_matrix(labels, classes):
             frequencies[classes[p[0]], 0] += 1
 
     return 1000 * coocs / frequencies / frequencies.transpose()
-#
-# import mlmc
-# import matplotlib.pyplot as plt
-# import numpy as np
-# import torch
-# import os
-# os.environ["CUDA_VISIBLE_DEVICES"]="1"
-# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-# d, classes = mlmc.data.load_blurbgenrecollection()
-# cooc = cooc_matrix(d["train"][1], classes)
+
+
+def correlate_similarity(coocs, embeddings, n, classwise=False, corr="spearman"):
+    cooc_rank = np.argsort(coocs, -1)[:, -n::-1]
+
+    embed_rank = np.argsort(np.dot(embeddings, embeddings.transpose()), -1, )[:, -n::-1]
+
+    from scipy.stats import spearmanr, kendalltau
+    classcorrelations = []
+    if corr=="spearman": fct = spearmanr
+    if corr=="kendalltau": fct = kendalltau
+    for  a, b in zip(cooc_rank, embed_rank):
+        classcorrelations.append(fct(a, b)[0])
+
+    if classwise:
+        return classcorrelations
+    else:
+        return [np.mean(np.abs(classcorrelations)), np.std(np.abs(classcorrelations))],\
+               [np.mean(classcorrelations), np.std(classcorrelations)]
+
+def show_graph(vectors, classes):
+
+    X_embedded = TSNE(n_components=2).fit_transform(vectors)
+    fig, ax = plt.subplots(figsize=(20, 20))
+    ax.scatter(X_embedded[:, 0], X_embedded[:, 1])
+    for i, txt in enumerate(classes.keys()):
+        ax.annotate(txt, (X_embedded[i, 0], X_embedded[i, 1]))
+    plt.show()
