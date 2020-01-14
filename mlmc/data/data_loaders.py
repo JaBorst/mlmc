@@ -119,9 +119,17 @@ def load_rcv1(path="/disk1/users/jborst/Data/Test/MultiLabel/reuters/corpus-reut
     data = {}
     data["train"] = train
     data["test"] = test
+    with open(os.path.join(path, "rcv1.topics.hier.orig"), "r") as f:
+        content = f.readlines()
+    import re
+    edges = [(re.split(" +", x)[1],re.split(" +", x)[3]) for x in content]
+    adjacency = np.identity(len(classes))
+    for ind in edges:
+        if "Root" not in ind:
+            adjacency[classes[ind[0]], classes[ind[1]]] = 1
+    data["adjacency"] = adjacency
     _save_to_tmp("rcv1", (data, classes))
     return data, classes
-
 
 
 def load_wiki30k(path="/disk1/users/jborst/Data/Test/MultiLabel/wiki30k"):

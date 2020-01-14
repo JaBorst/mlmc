@@ -23,15 +23,13 @@ tc.evaluate(data["test"])
 #
 
 
-for d in [0.001,0.0005, 0.0015]:
-    print(d)
 
-    tc = mlmc.models.LabelSpecificAttention(data["classes"], weights, vocabulary,dropout=0.5,
-                                        optimizer=torch.optim.Adam,
-                                        optimizer_params={"lr": d, "betas": (0.9, 0.99)},
-                                        loss=torch.nn.BCEWithLogitsLoss,
-                                        device=device)
+tc = mlmc.models.LabelSpecificAttention(data["classes"], weights, vocabulary,dropout=0.5,
+                                    optimizer=torch.optim.Adam,
+                                    optimizer_params={"lr": d, "betas": (0.9, 0.99)},
+                                    loss=torch.nn.BCEWithLogitsLoss,
+                                    device=device)
 
 
-    _ = tc.fit(data["train"], data["test"], epochs=40, batch_size=32)
-    tc.evaluate(data["test"])
+_ = tc.fit(data["train"], data["test"], epochs=40, batch_size=32)
+tc.evaluate(data["test"])

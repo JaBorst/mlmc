@@ -5,7 +5,7 @@ import torch
 import os
 os.environ["CUDA_VISIBLE_DEVICES"]="1"
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-d, classes = mlmc.data.load_blurbgenrecollection()
+d, classes = mlmc.data.load_rcv1()
 d["adjacency"]
 
 label_embedding = mlmc.graph.get_nmf(d["adjacency"], 35) + 1e-10
@@ -19,11 +19,11 @@ from sklearn.manifold import TSNE
 #     ax.annotate(txt, (X_embedded[i,0], X_embedded[i,1]))
 # plt.show()
 
-weights, vocabulary = mlmc.helpers.load_glove(embedding="/disk1/users/jborst/Data/Embeddings/glove/en/glove.6B.50d.txt")
+weights, vocabulary = mlmc.helpers.load_glove(embedding="/disk1/users/jborst/Data/Embeddings/glove/en/glove.6B.50d_small.txt")
 
-data = mlmc.data.get_dataset("blurbgenrecollection", type=mlmc.data.MultiLabelDataset, target_dtype=torch._cast_Float)
-tc = mlmc.models.LabelAttentionScoringModel(data["classes"], weights, vocabulary,
-                                   label_embedding=label_embedding,
+data = mlmc.data.get_dataset("rcv1", ensure_valid=True, type=mlmc.data.MultiLabelDataset, target_dtype=torch._cast_Float)
+tc = mlmc.models.LabelScoringModel(data["classes"], weights, vocabulary,
+                                        label_embedding=label_embedding,
                                         optimizer=torch.optim.Adam,
                                         optimizer_params={"lr": 0.001, "betas": (0.9, 0.99)},
                                         loss=torch.nn.BCEWithLogitsLoss,

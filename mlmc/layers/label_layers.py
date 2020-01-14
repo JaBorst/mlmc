@@ -2,7 +2,7 @@ import torch
 
 
 class LabelAttention(torch.nn.Module):
-    def __init__(self, n_classes, input_dim, hidden_dim):
+    def __init__(self, n_classes, input_dim, hidden_dim, label_repr=None):
         super(LabelAttention, self).__init__()
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
@@ -12,8 +12,33 @@ class LabelAttention(torch.nn.Module):
             if self.hidden_dim != self.input_dim:
                 self.projection = torch.nn.Linear(self.input_dim, self.hidden_dim)
 
-        self.label_repr = torch.nn.Parameter(torch.Tensor(n_classes, self.hidden_dim))
-        torch.nn.init.kaiming_normal_(self.label_repr)
+        if label_repr is None:
+            self.label_repr = torch.nn.Parameter(torch.Tensor(n_classes, self.hidden_dim))
+            torch.nn.init.kaiming_normal_(self.label_repr)
+        else:
+            assert label_repr.shape[-1] == hidden_dim," label embedding dimension must equal hidden_dim"
+            self.label_repr = torch._cast_Float(torch.from_numpy(label_repr))
+            self.label_repr.requires_grad=False
+
+    def forward(self, x):
+        if self.hidden_dim is not None:
+            if self.hidden_dim != self.input_dim:
+                x = self.projection(x)
+        A =torch.softmax(torch.matmul(x, self.label_repr.permute(1,0)),-1)
+        output = torch.matmul(A.permute(0,2,1), x)
+        return output, A
+
+class LabelEmbeddingAttention(torch.nn.Module):
+    def __init__(self, n_classes, input_dim, hidden_dim, label_embedding):
+        super(LabelEmbeddingAttention, self).__init__()
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
+        self.n_classes = n_classes
+
+        if self.hidden_dim is not None:
+            if self.hidden_dim != self.input_dim:
+                self.projection = torch.nn.Linear(self.input_dim, self.hidden_dim)
+        self.label_repr = label_embedding
 
     def forward(self, x):
         A =  torch.softmax(torch.matmul(x, self.label_repr.permute(1,0)),-1)
