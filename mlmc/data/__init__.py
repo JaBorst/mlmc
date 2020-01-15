@@ -68,7 +68,8 @@ def get_dataset(name, type, ensure_valid=False, valid_split=0.25, target_dtype=t
                                      y=data[split][1],
                                      classes=classes,
                                      purpose=split,
-                                     target_dtype=target_dtype) for split in ["test","train","valid"]
+                                     target_dtype=target_dtype) if data[split] is not None else None
+        for split in ["test","train","valid"]
         }
         datasets["classes"]=classes
 
