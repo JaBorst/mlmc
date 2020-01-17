@@ -128,6 +128,11 @@ def load_rcv1(path="/disk1/users/jborst/Data/Test/MultiLabel/reuters/corpus-reut
         if "Root" not in ind:
             adjacency[classes[ind[0]], classes[ind[1]]] = 1
     data["adjacency"] = adjacency
+    with open(os.path.join(path,"topic_codes.txt"), "r") as f:
+        topics = [x.replace("\n", "").split("\t") for x in f.readlines() if len(x) > 1][2:]
+    topicmap = {x[0]: x[1] for x in topics}
+    data["topicmap"]=topicmap
+
     _save_to_tmp("rcv1", (data, classes))
     return data, classes
 
