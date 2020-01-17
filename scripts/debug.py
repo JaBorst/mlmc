@@ -13,34 +13,69 @@
 import numpy as np
 import torch
 
-class LabelEmbeddingScoring(torch.nn.Module):
-    def __init__(self, n_classes, input_dim, label_repr, similarity="cosine", label_freeze=True):
-        super(LabelEmbeddingScoring, self).__init__()
-        self.input_dim = input_dim
-        self.n_classes = n_classes
 
-        assert similarity in ["cosine","euclidean"], "Distance metric %s not implemented." % (similarity, )
-        self.similarity=similarity
+class LSTMRD(torch.nn.Module):
+    def __init__(self, input_size, hidden_size, bias=True,
+                 batch_first=False, dropout=0.5, recurrent_dropout=0.5, bidirectional=False):
+        super(LSTMRD,self).__init__()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.bias = bias
+        self.batch_first = batch_first
+        self.dropout = torch.nn.Dropout(dropout)
+        self.recurrent_dropout = torch.nn.Dropout(recurrent_dropout)
+        self.bidirectional = bidirectional
 
-        self.label_repr = torch.nn.Parameter(torch.from_numpy(label_repr).float())
-        self.label_repr.requires_grad=not label_freeze
-        self.projection = torch.nn.Linear(self.input_dim, self.label_repr.shape[-1])
+        self.forward_cell = torch.nn.LSTMCell(self.input_size,self.hidden_size,bias=self.bias)
 
-    def forward(self, x):
-        x = self.projection(x)
+        # self.xo = torch.nn.Linear(in_features=input_size, out_features=self.hidden_size)
+        # self.ho = torch.nn.Linear(in_features=self.hidden_size, out_features=self.hidden_size)
 
-        if self.similarity=="cosine":
-            output = torch.matmul(
-                x/torch.norm(x,p=2,dim=-1).unsqueeze(-1),
-                (self.label_repr/torch.norm(self.label_repr, p=2,dim=-1).unsqueeze(-1)).transpose(0,1)
-            )
-        if self.similarity=="euclidean":
-            output = torch.sigmoid(
-                torch.norm((x.unsqueeze(2) - self.label_repr.unsqueeze(0).unsqueeze(1)),p=2,dim=-1)
-            )
-        return output
+        if bidirectional:
+            self.backward_cell  = torch.nn.LSTMCell(self.input_size,self.hidden_size,bias=self.bias)
+            # self.bxo = torch.nn.Linear(in_features=input_size, out_features=self.hidden_size)
+            # self.bho = torch.nn.Linear(in_features=self.hidden_size, out_features=self.hidden_size)
 
 
 
-l = LabelEmbeddingScoring(52, 400,np.random.rand(52,50))
-l(torch.Tensor(np.random.rand(16,140, 400)))
+    def forward(self, x, hidden=None):
+        if self.batch_first:
+            x = x.permute(1,0,2)
+        if self.dropout.p>0:
+            x = self.dropout(x)
+
+        output = []
+        hx = hidden[0][0]
+        cx = hidden[1][0]
+
+        rec_dp_mask = self.recurrent_dropout(torch.ones_like(hx))
+
+        for i in range(x.shape[0]):
+            hx, cx = self.forward_cell(x[i], (hx, cx))
+            output.append(hx)
+            if self.recurrent_dropout.p >0:
+                cx = cx*rec_dp_mask
+        forward = torch.stack(output,dim=0)
+
+        if self.bidirectional:
+            x = x.flip(0)
+            hx = hidden[0][1]
+            cx = hidden[1][1]
+            output = []
+            for i in range(x.shape[0]):
+                hx, cx = self.backward_cell(x[i], (hx, cx))
+                output.append(hx)
+                if self.recurrent_dropout.p>0:
+                    cx = cx * rec_dp_mask
+
+            output = torch.stack(output, dim=0)
+            forward = torch.cat([forward, output.flip(0)],dim=-1)
+
+        if self.batch_first:
+            forward = forward.permute(1,0,2)
+        return forward
+
+
+
+l = LSTMRD(30,55,bias=True,batch_first=True,bidirectional=True)
+l(torch.rand((16,140,30)), (torch.rand((2,16,55)),torch.rand((2,16,55)))).shape
