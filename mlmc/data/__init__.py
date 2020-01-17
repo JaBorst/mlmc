@@ -71,6 +71,9 @@ def get_dataset(name, type, ensure_valid=False, valid_split=0.25, target_dtype=t
                                      target_dtype=target_dtype) if data[split] is not None else None
         for split in ["test","train","valid"]
         }
+        for k in data.keys():
+            if k not in ["test", "train", "valid"]:
+                datasets[k] = data[k]
         datasets["classes"]=classes
 
         return datasets
