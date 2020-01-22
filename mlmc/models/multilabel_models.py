@@ -1,5 +1,6 @@
 import torch
 from .abstracts import TextClassificationAbstract
+from ..representation import get
 ##############################################################################################
 ##############################################################################################
 #  Implementations
@@ -7,39 +8,64 @@ from .abstracts import TextClassificationAbstract
 
 
 class KimCNN(TextClassificationAbstract):
-    def __init__(self, classes, weights, vocabulary, max_len=600, **kwargs):
+    def __init__(self, classes, mode="trainable", static=None, transformer=None, max_len=500, **kwargs):
         super(KimCNN, self).__init__(**kwargs)
 
         self.classes = classes
         self.n_classes = len(classes)
-        self.vocabulary=vocabulary
         self.max_len = max_len
+        self.modes = ("trainable","untrainable","multichannel","transformer")
+        self.mode = mode
+        self.l = 1
+        self.kernel_sizes = [3,4,5,6]
+        self.filters = 100
+        assert self.mode in self.modes, "%s not in (%s, %s, %s, %s)" % (self.mode, *self.modes)
 
-        self.embedding_trainable = torch.nn.Embedding(len(vocabulary)+1, weights.shape[-1])
-        self.embedding_trainable.from_pretrained(torch.FloatTensor(weights), freeze=False)
-        self.embedding_untrainable = torch.nn.Embedding(len(vocabulary) + 1, weights.shape[-1])
-        self.embedding_untrainable.from_pretrained(torch.FloatTensor(weights),freeze=True)
-        self.convs = torch.nn.ModuleList([torch.nn.Conv1d(weights.shape[-1], 100, k) for k in [3,4,5,6]])
-        self.projection = torch.nn.Linear(in_features=800, out_features=self.n_classes)
+        if self.mode == "trainable":
+            self.embedding_trainable, self.tokenizer = get(static=static, transformer=transformer, freeze=False)
+            self.embeddings_dim = self.embedding_trainable.weight.shape[-1]
+        elif self.mode == "untrainable":
+            self.embedding_untrainable, self.tokenizer = get(static=static, transformer=transformer, freeze=True)
+            self.embeddings_dim= self.embedding_untrainable.weight.shape[-1]
+        elif self.mode =="multichannel":
+            self.l = 2
+            self.embedding_untrainable, self.tokenizer = get(static=static,transformer=transformer, freeze=True)
+            self.embedding_trainable = torch.nn.Embedding(*self.embedding_untrainable.weight.shape)
+            self.embedding_trainable = self.embedding_trainable.from_pretrained(self.embedding_untrainable.weight.clone(),freeze=False)
+            self.embeddings_dim = self.embedding_untrainable.weight.shape[-1]
+        elif self.mode == "transformer":
+            self.transformer, self.tokenizer = get(static=None, transformer=transformer, output_hidden_states=True)
+            self.embeddings_dim = torch.cat(self.transformer(self.transformer.dummy_inputs["input_ids"])[2][-5:-1], -1).shape[-1]
+
+
+        self.convs = torch.nn.ModuleList([torch.nn.Conv1d(self.embeddings_dim, self.filters, k) for k in self.kernel_sizes])
+        self.projection = torch.nn.Linear(in_features=self.l*len(self.kernel_sizes)*self.filters, out_features=self.n_classes)
         self.dropout = torch.nn.Dropout(0.5)
-        self.sf = torch.nn.Sigmoid()
         self.build()
 
     def forward(self, x):
-        embedded_1 = self.embedding_trainable(x).permute(0, 2, 1)
-        embedded_2 = self.embedding_untrainable(x).permute(0, 2, 1)
-        embedded_1 = self.dropout(embedded_1)
-        embedded_2 = self.dropout(embedded_2)
-        c = [torch.nn.functional.relu(conv(embedded_1).permute(0, 2, 1).max(1)[0]) for conv in self.convs] + \
-            [torch.nn.functional.relu(conv(embedded_2).permute(0, 2, 1).max(1)[0]) for conv in self.convs]
+        if self.mode == "trainable":
+            embedded = self.embedding_trainable(x).permute(0, 2, 1)
+            embedded = self.dropout(embedded)
+        elif self.mode == "untrainable":
+            with torch.no_grad():
+                embedded = self.embedding_untrainable(x).permute(0, 2, 1)
+            embedded = self.dropout(embedded)
+        elif self.mode =="multichannel":
+            embedded_1 = self.embedding_trainable(x).permute(0, 2, 1)
+            with torch.no_grad():
+                embedded_2 = self.embedding_untrainable(x).permute(0, 2, 1)
+            embedded_1 = self.dropout(embedded_1)
+            embedded_2 = self.dropout(embedded_2)
+            embedded = torch.cat([embedded_1,embedded_2], dim=-1)
+        elif self.mode == "transformer":
+            with torch.no_grad():
+                embedded = torch.cat(self.transformer(x)[2][-5:-1], -1).permute(0, 2, 1)
+        c = [torch.nn.functional.relu(conv(embedded).permute(0, 2, 1).max(1)[0]) for conv in self.convs]
         output = self.projection(self.dropout(torch.cat(c, 1)))
         return output
 
-    def transform(self, x):
-        return torch.nn.utils.rnn.pad_sequence([torch.LongTensor(
-            [self.vocabulary.get(token.lower(), self.vocabulary["<UNK_TOKEN>"])
-                                                               for token in sentence.split(" ")]) for sentence in x],
-                                                             batch_first=True, padding_value=0)
+
 
 class XMLCNN(TextClassificationAbstract):
     def __init__(self, classes, weights, vocabulary, max_len=600, **kwargs):
