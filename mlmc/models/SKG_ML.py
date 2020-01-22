@@ -5,51 +5,54 @@ Multi-Label Zero-Shot Learning with Structured Knowledge Graphs Lee, Fang, Yeh (
 import torch
 from mlmc.models.abstracts import TextClassificationAbstract
 from mlmc.layers import GatedGraphConv, LabelEmbeddingScoring
-from mlmc.helpers import embed, get_embedder
 import torch_geometric as torch_g
+import logging
+logging.getLogger("transformers.tokenization_utils").setLevel(logging.ERROR)
 
 class SKG(TextClassificationAbstract):
-    def __init__(self, adjacency, label_embed, classes, lm="bert",**kwargs):
+    def __init__(self, adjacency, label_embed, classes, static=None, transformer="bert", **kwargs):
         super(SKG,self).__init__(**kwargs)
         self.classes=classes
         self.n_classes = len(classes)
-        self.adjacency = adjacency
-        self.edge_list = torch.stack(torch.where(torch.from_numpy(adjacency) == 1), dim=0).long()-1
-        self.max_len = 500
+        self.adjacency = torch.nn.Parameter(torch.from_numpy(adjacency).long(),requires_grad=False)
+        self.edge_list = torch.nn.Parameter(torch.stack(torch.where(self.adjacency == 1), dim=0).long(),requires_grad=False)
+        self.max_len = 300
 
-        self.embedder = get_embedder(lm)
-
-
+        self.embedder, self.tokenizer= mlmc.helpers.get(static, transformer, output_hidden_states=True)
+        self.embedder.eval()
+        self.embedding_dim = torch.cat(self.embedder(self.embedder.dummy_inputs["input_ids"])[2][-5:-1],-1).shape[-1]
         self.scorer = LabelEmbeddingScoring(self.n_classes,
-                                            self.embedder.embedding_length,
+                                            self.embedding_dim,
                                             label_embed,
                                             label_freeze=True)
 
-        self.ggc = torch_g.nn.GatedGraphConv(self.n_classes, 5)
+        self.ggc = torch_g.nn.GatedGraphConv(self.n_classes, 10)
         self.build()
+
     def forward(self, x):
-        initial_belief = self.scorer(x).sum(-2)
-        updated_belief= self.ggc(initial_belief, self.edge_list.transpose(0,1))
+        with torch.no_grad():
+            e = torch.cat(self.embedder(x)[2][-5:-1],-1)
+        initial_belief = self.scorer(e).sum(-2)
+        updated_belief = self.ggc(initial_belief, edge_index=self.adjacency)
         return updated_belief
 
-    def transform(self, x):
-        return torch.from_numpy(embed(x, model=self.embedder, maxlen=self.max_len)).float().to(self.device)
 
-import numpy as np
 import mlmc
 import os
 os.environ["CUDA_VISIBLE_DEVICES"]="1"
-device = torch.device("cpu")#"cuda:1" if torch.cuda.is_available() else "cpu")
-import flair
-flair.device=device
-weights, vocabulary = mlmc.helpers.load_glove(embedding="/disk1/users/jborst/Data/Embeddings/fasttext/static/en/wiki-news-300d-10k.vec")
-data = mlmc.data.get_dataset("blurbgenrecollection", type=mlmc.data.MultiLabelDataset, ensure_valid=False, valid_split=0.25, target_dtype=torch._cast_Float)
-le = mlmc.graph.get_nmf(data["adjacency"],dim=200)
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+data = mlmc.data.get_dataset("rcv1", type=mlmc.data.MultiLabelDataset, ensure_valid=False, valid_split=0.25, target_dtype=torch._cast_Float)
+def clean(x):
+    import string
+    return "".join([c for c in x if c in string.ascii_letters + string.punctuation + " "])
+data["train"].transform(clean)
+# data["test"].transform(clean)
 
-skg = SKG(data["adjacency"], le, data["classes"],lm="roberta",
-    optimizer=torch.optim.Adam,
-             optimizer_params={"lr": 0.001, "betas": (0.9, 0.99)},
-             loss=torch.nn.BCEWithLogitsLoss,
-             device=device)
+le = mlmc.graph.get_nmf(data["adjacency"], dim=200)
 
-skg.fit(data["train"], data["test"])
+skg = SKG(data["adjacency"], le, data["classes"], transformer="bert",  #weights=weights, vocabulary=vocabulary,
+          optimizer=torch.optim.Adam,
+          optimizer_params={"lr": 0.001, "betas": (0.9, 0.99)},
+          loss=torch.nn.BCEWithLogitsLoss,
+          device=device)
+skg.fit(data["train"], mlmc.data.sample(data["test"],absolute=5000),64, batch_size=16)
