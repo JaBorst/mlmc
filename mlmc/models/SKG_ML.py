@@ -6,8 +6,7 @@ import torch
 from mlmc.models.abstracts import TextClassificationAbstract
 from mlmc.layers import GatedGraphConv, LabelEmbeddingScoring
 import torch_geometric as torch_g
-import logging
-logging.getLogger("transformers.tokenization_utils").setLevel(logging.ERROR)
+
 
 class SKG(TextClassificationAbstract):
     def __init__(self, adjacency, label_embed, classes, static=None, transformer="bert", **kwargs):
@@ -18,7 +17,7 @@ class SKG(TextClassificationAbstract):
         self.edge_list = torch.nn.Parameter(torch.stack(torch.where(self.adjacency == 1), dim=0).long(),requires_grad=False)
         self.max_len = 300
 
-        self.embedder, self.tokenizer= mlmc.helpers.get(static, transformer, output_hidden_states=True)
+        self.embedder, self.tokenizer= mlmc.embeddings.get(static, transformer, output_hidden_states=True)
         self.embedder.eval()
         self.embedding_dim = torch.cat(self.embedder(self.embedder.dummy_inputs["input_ids"])[2][-5:-1],-1).shape[-1]
         self.scorer = LabelEmbeddingScoring(self.n_classes,

@@ -3,7 +3,7 @@ Few-Shot and Zero-Shot Multi-Label Learning for Structured Label Spaces - Rios &
 """
 import torch
 from mlmc.models.abstracts import TextClassificationAbstract
-from mlmc.helpers.embeddings.representations import get
+from mlmc.representations import get
 
 class ZAGCNN(TextClassificationAbstract):
     def __init__(self, classes,   adjacency, label_embedding=None, static=None, transformer=None, max_len=600, dropout = 0.5, **kwargs):
@@ -54,7 +54,6 @@ class ZAGCNN(TextClassificationAbstract):
     def transform(self, x):
         return self.tokenizer(x,self.max_len)
 
-import numpy as np
 import mlmc
 import os
 os.environ["CUDA_VISIBLE_DEVICES"]="1"
