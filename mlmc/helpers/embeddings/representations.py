@@ -24,7 +24,7 @@ def map_vocab(query, vocab, maxlen):
     return result
 
 
-def get_embedding(name):
+def get_embedding(name, **kwargs):
     weights, vocabulary = load_static(name)
     e = torch.nn.Embedding(weights.shape[0], weights.shape[1])
     e.from_pretrained(torch.Tensor(weights).float(), freeze=True)
@@ -70,9 +70,9 @@ def get_transformer(model="bert", **kwargs):
         return model, list_tokenizer
 
 
-def get(static=None, transformer=None):
+def get(static=None, transformer=None, **kwargs):
     assert static is None == transformer is None, "Exactly one of the arguments has to be not None"
     if static is not None:
-        return get_embedding(static)
+        return get_embedding(static, **kwargs)
     elif transformer is not None:
-        return get_transformer(transformer)
+        return get_transformer(transformer, **kwargs)
