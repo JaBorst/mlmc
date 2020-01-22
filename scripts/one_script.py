@@ -6,15 +6,13 @@ import torch
 import ignite
 from torchcrf import CRF
 from seqeval.metrics import precision_score, recall_score,f1_score, classification_report
-from flair.nn import LockedDropout, WordDropout
 from mlmc.helpers import charindex
-from mlmc.helpers.embeddings.embeddings import get_embedder, embed
 from mlmc.layers import LSTM
 import mlmc
 import torch
 from flair.nn import LockedDropout, WordDropout
 import os
-weights, vocabulary = mlmc.helpers.load_glove(embedding="/disk1/users/jborst/Data/Embeddings/fasttext/static/en/wiki-news-300d-500k.vec")
+weights, vocabulary = mlmc.helpers.load_static(embedding="/disk1/users/jborst/Data/Embeddings/fasttext/static/en/wiki-news-300d-500k.vec")
 data = mlmc.data.get_dataset("conll2003en", mlmc.data.SequenceDataset, target_dtype=torch._cast_Long)
 os.environ["CUDA_VISIBLE_DEVICES"]=""
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

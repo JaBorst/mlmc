@@ -7,7 +7,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 import mlmc
 
 
-weights, vocabulary = mlmc.helpers.load_glove(embedding="/disk1/users/jborst/Data/Embeddings/glove/en/glove.6B.50d_small.txt")
+weights, vocabulary = mlmc.helpers.load_static(embedding="/disk1/users/jborst/Data/Embeddings/glove/en/glove.6B.50d_small.txt")
 data = mlmc.data.get_dataset("rcv1", type=mlmc.data.MultiLabelDataset, ensure_valid=False, valid_split=0.25, target_dtype=torch._cast_Float)
 tc = mlmc.models.LabelSpecificAttention(data["classes"], weights, vocabulary,
                                         optimizer=torch.optim.Adam,

@@ -12,7 +12,7 @@ with open("/disk1/users/jborst/Data/Test/MultiLabel/reuters/corpus-reuters-corpu
 topicmap={x[0]:x[1] for x in topics}
 label_embed = np.stack([np.mean([weights[vocabulary.get(y.lower(),0)] for y in topicmap[x].split(" ") ],0) for x in data["classes"].keys() if len(x)>1])
 
-weights, vocabulary = mlmc.helpers.load_glove(embedding="/disk1/users/jborst/Data/Embeddings/fasttext/static/en/wiki-news-300d-10k.vec")
+weights, vocabulary = mlmc.helpers.load_static(embedding="/disk1/users/jborst/Data/Embeddings/fasttext/static/en/wiki-news-300d-10k.vec")
 data = mlmc.data.get_dataset("blurbgenrecollection", type=mlmc.data.MultiLabelDataset, ensure_valid=False, valid_split=0.25, target_dtype=torch._cast_Float)
 
 label_embed = np.stack([np.mean([weights[vocabulary.get(y.lower(),0)] for y in topicmap[x].split(" ") ],0) for x in data["classes"].keys() if len(x)>1])

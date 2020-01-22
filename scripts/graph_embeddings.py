@@ -19,7 +19,7 @@ from sklearn.manifold import TSNE
 #     ax.annotate(txt, (X_embedded[i,0], X_embedded[i,1]))
 # plt.show()
 
-weights, vocabulary = mlmc.helpers.load_glove(embedding="/disk1/users/jborst/Data/Embeddings/glove/en/glove.6B.100d.txt")
+weights, vocabulary = mlmc.helpers.load_static(embedding="/disk1/users/jborst/Data/Embeddings/glove/en/glove.6B.100d.txt")
 
 data = mlmc.data.get_dataset("appd", ensure_valid=True, type=mlmc.data.MultiLabelDataset, target_dtype=torch._cast_Float)
 tc = mlmc.models.LabelScoringGraphModel(data["classes"], weights, vocabulary,
