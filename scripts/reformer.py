@@ -1,7 +1,7 @@
 import torch
 from reformer_pytorch import ReformerLM
 
-import mlmc.helpers.embeddings.representations
+import mlmc.representations
 
 model = ReformerLM(
     num_tokens= 20000,
@@ -25,6 +25,6 @@ from tqdm import tqdm
 data = mlmc.data.get_dataset("blurbgenrecollection", type=mlmc.data.MultiLabelDataset, ensure_valid=False, valid_split=0.25, target_dtype=torch._cast_Float)
 weights, vocabulary = mlmc.helpers.load_static(embedding="/disk1/users/jborst/Data/Embeddings/fasttext/static/en/wiki-news-300d-10k.vec")
 for x in tqdm(torch.utils.data.DataLoader(data["train"], batch_size=50)):
-    num = mlmc.helpers.embeddings.representations.map_vocab(x["text"], vocabulary, maxlen=256).long().cuda()
+    num = mlmc.embeddings.representations.map_vocab(x["text"], vocabulary, maxlen=256).long().cuda()
     y = model(num) # (1, 8192, 20000)
     y.sum().backward()

@@ -8,7 +8,8 @@ setup(
               'mlmc.models',
               'mlmc.helpers',
               'mlmc.data',
-              'mlmc.helpers.embeddings',
+              'mlmc.helpers',
+              'mlmc.representation'
               #'mlmc.evaluation'
               ],
     url='',
