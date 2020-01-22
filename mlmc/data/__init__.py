@@ -31,6 +31,9 @@ class MultiLabelDataset(Dataset):
         labels = torch.nn.functional.one_hot(torch.LongTensor(labels), len(self.classes)).sum(0)
         return {'text': self.x[idx], 'labels': self.target_dtype(labels)}
 
+    def transform(self, fct):
+        self.x = [fct(sen) for sen in self.x]
+
 class SequenceDataset(Dataset):
     def __init__(self, x, y, classes, purpose="train", target_dtype=torch._cast_Long):
         self.classes = classes
