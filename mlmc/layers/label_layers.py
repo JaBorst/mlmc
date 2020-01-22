@@ -2,7 +2,7 @@ import torch
 
 
 class LabelAttention(torch.nn.Module):
-    def __init__(self, n_classes, input_dim, hidden_dim, label_repr=None):
+    def __init__(self, n_classes, input_dim, hidden_dim, label_repr=None, freeze=True):
         super(LabelAttention, self).__init__()
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
@@ -18,7 +18,7 @@ class LabelAttention(torch.nn.Module):
         else:
             assert label_repr.shape[-1] == hidden_dim," label embedding dimension must equal hidden_dim"
             self.label_repr = torch.nn.Parameter(torch._cast_Float(torch.from_numpy(label_repr)))
-            self.label_repr.requires_grad=False
+            self.label_repr.requires_grad=freeze
 
     def forward(self, x):
         if self.hidden_dim is not None:
