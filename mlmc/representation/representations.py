@@ -26,8 +26,8 @@ def map_vocab(query, vocab, maxlen):
 
 def get_embedding(name, **kwargs):
     weights, vocabulary = load_static(name)
-    e = torch.nn.Embedding(weights.shape[0], weights.shape[1])
-    e.from_pretrained(torch.Tensor(weights).float(), freeze=True)
+    e = torch.nn.Embedding(weights.shape[0], weights.shape[1],)
+    e = e.from_pretrained(torch.Tensor(weights).float(), **kwargs)
     def tokenizer(x, maxlen=500):
         x = [x] if isinstance(x, str) else x
         return map_vocab(x, vocabulary, maxlen).long()
@@ -71,8 +71,11 @@ def get_transformer(model="bert", **kwargs):
 
 
 def get(static=None, transformer=None, **kwargs):
-    assert static is None == transformer is None, "Exactly one of the arguments has to be not None"
+    assert (static is None) != (transformer is None), "Exactly one of the arguments has to be not None"
     if static is not None:
         return get_embedding(static, **kwargs)
     elif transformer is not None:
+        import logging
+        print("Setting transformers.tokenization_utils logger to ERROR.")
+        logging.getLogger("transformers.tokenization_utils").setLevel(logging.ERROR)
         return get_transformer(transformer, **kwargs)
