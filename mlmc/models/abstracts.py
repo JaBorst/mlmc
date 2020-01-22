@@ -94,3 +94,10 @@ class TextClassificationAbstract(torch.nn.Module):
             x_sorted = torch.sort(x,-1)[0]
             thresholds = (x_sorted[:,1:] - x_sorted[:,:-1]).max(-1)[0]
             return (x > thresholds[:, None]).float()
+
+    def transform(self, x):
+        assert hasattr(self, 'tokenizer'), "If the model does not have a tokenizer attribute, please implement the" \
+                                           "transform(self, x)  method yourself. TOkenizer can be allocated with " \
+                                           "embedder, tokenizer = mlmc.helpers.get_embedding() or " \
+                                           "embedder, tokenizer = mlmc.helpers.get_transformer()"
+        return self.tokenizer(x,self.max_len)
