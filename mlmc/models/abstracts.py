@@ -20,7 +20,7 @@ class TextClassificationAbstract(torch.nn.Module):
         self.loss = self.loss().to(self.device)
         self.optimizer = self.optimizer(self.parameters(), **self.optimizer_params)
 
-    def evaluate(self, data, return_report=False):
+    def evaluate(self, data, batch_size=50, return_report=False):
         """
         Evaluation, return accuracy and loss
         """
@@ -32,24 +32,25 @@ class TextClassificationAbstract(torch.nn.Module):
         subset_mcut = ignite.metrics.Accuracy(is_multilabel=True)
         report = MultiLabelReport(self.classes)
         average = ignite.metrics.Average()
-        data_loader = torch.utils.data.DataLoader(data, batch_size=50)
-        for i, b in enumerate(data_loader):
-            y = b["labels"]
-            y[y!=0] = 1
-            x = self.transform(b["text"])
-            output = self(x.to(self.device)).cpu()
-            l = self.loss(output, torch._cast_Float(y))
+        data_loader = torch.utils.data.DataLoader(data, batch_size=batch_size)
+        with torch.no_grad():
+            for i, b in enumerate(data_loader):
+                y = b["labels"]
+                y[y!=0] = 1
+                x = self.transform(b["text"])
+                output = self(x.to(self.device)).cpu()
+                l = self.loss(output, torch._cast_Float(y))
 
-            output = torch.sigmoid(output)
-            average.update(l.item())
-            # accuracy.update((prediction, y))
-            p_1.update((torch.zeros_like(output).scatter(1,torch.topk(output, k=1)[1],1), y))
-            p_3.update((torch.zeros_like(output).scatter(1,torch.topk(output, k=3)[1],1), y))
-            p_5.update((torch.zeros_like(output).scatter(1,torch.topk(output, k=5)[1],1), y))
-            subset_65.update((self.threshold(output,tr=0.65,method="hard"), y))
-            subset_mcut.update((self.threshold(output,tr=0.65,method="mcut"), y))
-            report.update((self.threshold(output,tr=0.65,method="mcut"), y))
-            # auc_roc.update((torch.sigmoid(output),y))
+                output = torch.sigmoid(output)
+                average.update(l.item())
+                # accuracy.update((prediction, y))
+                p_1.update((torch.zeros_like(output).scatter(1,torch.topk(output, k=1)[1],1), y))
+                p_3.update((torch.zeros_like(output).scatter(1,torch.topk(output, k=3)[1],1), y))
+                p_5.update((torch.zeros_like(output).scatter(1,torch.topk(output, k=5)[1],1), y))
+                subset_65.update((self.threshold(output,tr=0.65,method="hard"), y))
+                subset_mcut.update((self.threshold(output,tr=0.65,method="mcut"), y))
+                report.update((self.threshold(output,tr=0.65,method="mcut"), y))
+                # auc_roc.update((torch.sigmoid(output),y))
         self.train()
         return {
             # "accuracy": accuracy.compute(),
