@@ -22,14 +22,14 @@ class KimCNN(TextClassificationAbstract):
         assert self.mode in self.modes, "%s not in (%s, %s, %s, %s)" % (self.mode, *self.modes)
 
         if self.mode == "trainable":
-            self.embedding_trainable, self.tokenizer = get(static=static, transformer=transformer, freeze=False)
+            self.embedding_trainable, self.tokenizer = get(static=static, transformer=None, freeze=False)
             self.embeddings_dim = self.embedding_trainable.weight.shape[-1]
         elif self.mode == "untrainable":
-            self.embedding_untrainable, self.tokenizer = get(static=static, transformer=transformer, freeze=True)
+            self.embedding_untrainable, self.tokenizer = get(static=static, transformer=None, freeze=True)
             self.embeddings_dim= self.embedding_untrainable.weight.shape[-1]
         elif self.mode =="multichannel":
             self.l = 2
-            self.embedding_untrainable, self.tokenizer = get(static=static,transformer=transformer, freeze=True)
+            self.embedding_untrainable, self.tokenizer = get(static=static,transformer=None, freeze=True)
             self.embedding_trainable = torch.nn.Embedding(*self.embedding_untrainable.weight.shape)
             self.embedding_trainable = self.embedding_trainable.from_pretrained(self.embedding_untrainable.weight.clone(),freeze=False)
             self.embeddings_dim = self.embedding_untrainable.weight.shape[-1]
