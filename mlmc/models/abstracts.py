@@ -88,6 +88,15 @@ class TextClassificationAbstract(torch.nn.Module):
                     pbar.postfix[0].update(self.evaluate(valid))
                     pbar.update()
 
+    def predict(self, x):
+        if hasattr(self, "classes_rev"):
+            self.classes_rev = {v: k for k, v in self.classes.items()}
+        x = self.transform(x).to(self.device)
+        output = self(x)
+        prediction = self.threshold(output, tr=0.65, method="hard")
+        return [[self.classes_rev[i.item()]  for i in torch.where(p==1)[0]] for p in prediction]
+
+
     def threshold(self, x, tr=0.5, method="hard"):
         if method=="hard":
             return (torch.sigmoid(x)>tr).int()
