@@ -89,11 +89,13 @@ class TextClassificationAbstract(torch.nn.Module):
                     pbar.update()
 
     def predict(self, x):
+        self.eval()
         if hasattr(self, "classes_rev"):
             self.classes_rev = {v: k for k, v in self.classes.items()}
         x = self.transform(x).to(self.device)
-        output = self(x)
+        with torch.no_grad(): output = self(x)
         prediction = self.threshold(output, tr=0.65, method="hard")
+        self.train()
         return [[self.classes_rev[i.item()]  for i in torch.where(p==1)[0]] for p in prediction]
 
 
