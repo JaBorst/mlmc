@@ -49,7 +49,7 @@ class TextClassificationAbstract(torch.nn.Module):
                 p_5.update((torch.zeros_like(output).scatter(1,torch.topk(output, k=5)[1],1), y))
                 subset_65.update((self.threshold(output,tr=0.65,method="hard"), y))
                 subset_mcut.update((self.threshold(output,tr=0.65,method="mcut"), y))
-                report.update((self.threshold(output,tr=0.65,method="mcut"), y))
+                report.update((self.threshold(output,tr=0.65,method="hard"), y))
                 # auc_roc.update((torch.sigmoid(output),y))
         self.train()
         return {
