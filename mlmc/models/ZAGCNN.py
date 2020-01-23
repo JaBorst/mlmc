@@ -40,7 +40,7 @@ class ZAGCNN(TextClassificationAbstract):
         self.build()
 
     def forward(self, x):
-        embedded = self.embedding(x.to(self.device))
+        embedded = self.embedding(x)
         embedded = self.dropout(embedded)
         c = torch.cat([self.pool(torch.nn.functional.relu(conv(embedded.permute(0,2,1)))) for conv in self.convs], dim=-1).permute(0,2,1)
         c, _ = self.label_attention(c)
