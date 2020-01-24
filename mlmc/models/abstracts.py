@@ -2,8 +2,7 @@ from tqdm import tqdm
 import torch
 import ignite
 from sklearn import metrics as skmetrics
-from ..metrics.multilabel import MultiLabelReport
-
+from ..metrics.multilabel import MultiLabelReport,AUC_ROC
 
 
 class TextClassificationAbstract(torch.nn.Module):
@@ -16,11 +15,13 @@ class TextClassificationAbstract(torch.nn.Module):
         self.optimizer_params = optimizer_params
 
     def build(self):
+        if isinstance(self.loss, type):
+            self.loss = self.loss().to(self.device)
+        if isinstance(self.optimizer, type):
+            self.optimizer = self.optimizer(self.parameters(), **self.optimizer_params)
         self.to(self.device)
-        self.loss = self.loss().to(self.device)
-        self.optimizer = self.optimizer(self.parameters(), **self.optimizer_params)
 
-    def evaluate(self, data, batch_size=50, return_report=False):
+    def evaluate(self, data, batch_size=50, return_roc=False, return_report=False):
         """
         Evaluation, return accuracy and loss
         """
@@ -31,6 +32,7 @@ class TextClassificationAbstract(torch.nn.Module):
         subset_65 = ignite.metrics.Accuracy(is_multilabel=True)
         subset_mcut = ignite.metrics.Accuracy(is_multilabel=True)
         report = MultiLabelReport(self.classes)
+        auc_roc = AUC_ROC(len(self.classes))
         average = ignite.metrics.Average()
         data_loader = torch.utils.data.DataLoader(data, batch_size=batch_size)
         with torch.no_grad():
@@ -49,8 +51,8 @@ class TextClassificationAbstract(torch.nn.Module):
                 p_5.update((torch.zeros_like(output).scatter(1,torch.topk(output, k=5)[1],1), y))
                 subset_65.update((self.threshold(output,tr=0.65,method="hard"), y))
                 subset_mcut.update((self.threshold(output,tr=0.65,method="mcut"), y))
-                report.update((self.threshold(output,tr=0.65,method="hard"), y))
-                # auc_roc.update((torch.sigmoid(output),y))
+                if return_report: report.update((self.threshold(output,tr=0.65,method="hard"), y))
+                auc_roc.update((torch.sigmoid(output).detach(),y.detach()))
         self.train()
         return {
             # "accuracy": accuracy.compute(),
@@ -58,10 +60,10 @@ class TextClassificationAbstract(torch.nn.Module):
             "p@1": round(p_1.compute(),4),
             "p@3": round(p_3.compute(),4),
             "p@5": round(p_5.compute(),4),
+            "auc":  auc_roc.compute() if return_roc else round(auc_roc.compute()[0],4),
             "a@0.65": round(subset_65.compute(),4),
             "a@mcut": round(subset_mcut.compute(),4),
-            "report": report.compute() if return_report else None
-            # "auc": round(auc_roc.compute(),4),
+            "report": report.compute() if return_report else None,
         }
 
     def fit(self, train, valid = None, epochs=1, batch_size=16):

@@ -1,3 +1,6 @@
-from .multilabel_models import KimCNN, KimCNNProb, LabelSpecificAttention, XMLCNN, LabelScoringModel, LabelAttentionScoringModel
+from .multilabel_models import KimCNN, KimCNNProb, XMLCNN, LabelScoringModel, LabelAttentionScoringModel
 from .zeroshot_models import LabelScoringGraphModel
 from .LSAN import LSANOriginal
+from .ZAGCNN import ZAGCNN
+from .SKG_ML import SKG
+from .LSAN_reimplementation import LabelSpecificAttention
