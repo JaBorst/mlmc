@@ -55,5 +55,5 @@ class AUC_ROC():
             tpr=tpr.mean(-1)
             fpr = fpr.mean(-1)
 
-        return skm.auc(fpr, tpr), (fpr, tpr)
+        return skm.auc(fpr, tpr), (fpr.tolist(), tpr.tolist())
 
