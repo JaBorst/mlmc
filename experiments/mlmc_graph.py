@@ -1,2 +1,0 @@
-
-DATASETS = ["blurbgenrecollection", "rcv1",]
