@@ -345,3 +345,52 @@ def load_conll2003en(path="/disk1/users/jborst/Data/Test/NER/CoNLL-2003/eng/BIOE
         _save_to_tmp("conll2003en", (data, classes))
     return data, classes
 
+def load_20newsgroup():
+    url = "http://qwone.com/~jason/20Newsgroups/20news-bydate.tar.gz"
+    data = _load_from_tmp("20newsgroup")
+    if data is not None:
+        return data
+    else:
+        from urllib.request import urlopen
+        import tarfile
+        from io import BytesIO
+        import tempfile
+        import os
+        tmpdir = tempfile.TemporaryDirectory()
+
+        resp = urlopen(url)
+        tf = tarfile.open(fileobj=resp, mode="r|gz")
+        tf.extractall(tmpdir.name)
+        testdir = os.path.join(tmpdir.name,'20news-bydate-test')
+        traindir = os.path.join(tmpdir.name,'20news-bydate-train')
+
+        classes = []
+
+        testdata = {"text": [], "label": []}
+        for catg in os.listdir(testdir):
+            classes.append(catg)
+            for file in os.listdir(os.path.join(testdir, catg)) :
+                with open(os.path.join(testdir, catg, file), 'r', encoding="ISO-8859-1") as f:
+                    testdata["text"].append(f.read())
+                    testdata["label"].append([catg])
+
+        traindata = {"text": [], "label": []}
+        for catg in os.listdir(traindir):
+            classes.append(catg)
+            for file in os.listdir(os.path.join(traindir, catg)):
+                with open(os.path.join(traindir, catg, file), 'r', encoding="ISO-8859-1") as f:
+                    traindata["text"].append(f.read())
+                    traindata["label"].append([catg])
+
+
+        classes = list(set(classes))
+        classes.sort()
+        edges = [
+            (x.split(".")[y], x.split(".")[y+1] if y+2 != len(x.split(".")) else x)
+            for x in classes for y in range(len(x.split("."))-1) ]
+        edges += list(set([("ROOT", x.split(".")[0]) for x in classes]))
+
+        graph =  nx.DiGraph(edges)
+        _save_to_tmp("20newsgroup", (data, classes))
+
+        return {"train": traindata, "test": testdata, "graph": graph}, classes
