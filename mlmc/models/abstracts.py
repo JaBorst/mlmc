@@ -67,6 +67,8 @@ class TextClassificationAbstract(torch.nn.Module):
         }
 
     def fit(self, train, valid = None, epochs=1, batch_size=16):
+        validation=[]
+        train_history = {"loss": []}
         for e in range(epochs):
             losses = {"loss": str(0.)}
             average = ignite.metrics.Average()
@@ -86,9 +88,12 @@ class TextClassificationAbstract(torch.nn.Module):
                     self.optimizer.step()
                     pbar.update()
                 if valid is not None:
-
-                    pbar.postfix[0].update(self.evaluate(valid))
+                    validation.append(self.evaluate(valid))
+                    pbar.postfix[0].update(validation[-1])
                     pbar.update()
+            train_history["loss"].append(average.compute().item())
+        return{"train":train_history, "valid": validation }
+
 
     def predict(self, x):
         self.eval()
