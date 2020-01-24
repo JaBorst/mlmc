@@ -2,6 +2,7 @@ import os
 import json
 from tqdm import tqdm
 import numpy as np
+import networkx as nx
 ###
 # Repository http://manikvarma.org/downloads/XC/XMLRepository.html
 #
@@ -123,11 +124,8 @@ def load_rcv1(path="/disk1/users/jborst/Data/Test/MultiLabel/reuters/corpus-reut
         content = f.readlines()
     import re
     edges = [(re.split(" +", x)[1],re.split(" +", x)[3]) for x in content]
-    adjacency = np.identity(len(classes))
-    for ind in edges:
-        if "Root" not in ind:
-            adjacency[classes[ind[0]], classes[ind[1]]] = 1
-    data["adjacency"] = adjacency
+    graph = nx.DiGraph(edges)
+    data["graph"] = graph
     with open(os.path.join(path,"topic_codes.txt"), "r") as f:
         topics = [x.replace("\n", "").split("\t") for x in f.readlines() if len(x) > 1][2:]
     topicmap = {x[0]: x[1] for x in topics}
@@ -257,9 +255,8 @@ def load_blurbgenrecollection():
         classes = list(set([x for y in data["train"][1] +data["valid"][1] +data["test"][1]+edges for x in y]))
         classes = dict(zip(classes, range(len(classes))))
         edges = [[classes[x] for x in e] for e in edges if len(e)==2]
-        adjacency = np.identity(len(classes))
-        for ind in edges: adjacency[ind[0],ind[1]]=1
-        data["adjacency"] = adjacency
+        graph = nx.DiGraph(edges)
+        data["graph"] = graph
         _save_to_tmp("blurbgenrecollection", (data, classes))
         return data, classes
 
@@ -297,9 +294,8 @@ def load_blurbgenrecollection_de():
         classes = list(set([x for y in data["train"][1] + data["valid"][1] + data["test"][1] + edges for x in y]))
         classes = dict(zip(classes, range(len(classes))))
         edges = [[classes[x] for x in e] for e in edges if len(e) == 2]
-        adjacency = np.identity(len(classes))
-        for ind in edges: adjacency[ind[0], ind[1]] = 1
-        data["adjacency"] = adjacency
+        graph = nx.DiGraph(edges)
+        data["graph"] = graph
         _save_to_tmp("blurbgenrecollection_de", (data, classes))
         return data, classes
 
