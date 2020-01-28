@@ -4,3 +4,4 @@ from .LSAN import LSANOriginal
 from .ZAGCNN import ZAGCNN
 from .SKG_ML import SKG
 from .LSAN_reimplementation import LabelSpecificAttention
+from .LSANOriginalTransformer import LSANOriginalTransformer

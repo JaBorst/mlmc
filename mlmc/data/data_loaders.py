@@ -254,7 +254,7 @@ def load_blurbgenrecollection():
         edges = [x.decode("utf-8").replace("\n","").split("\t") for x in zipfile.open("hierarchy.txt").readlines()]
         classes = list(set([x for y in data["train"][1] +data["valid"][1] +data["test"][1]+edges for x in y]))
         classes = dict(zip(classes, range(len(classes))))
-        edges = [[classes[x] for x in e] for e in edges if len(e)==2]
+        edges = [e for e in edges if len(e)==2]
         graph = nx.DiGraph(edges)
         data["graph"] = graph
         _save_to_tmp("blurbgenrecollection", (data, classes))
@@ -293,7 +293,7 @@ def load_blurbgenrecollection_de():
         edges = [x.decode("utf-8").replace("\n", "").split("\t") for x in zipfile.open("hierarchy.txt").readlines()]
         classes = list(set([x for y in data["train"][1] + data["valid"][1] + data["test"][1] + edges for x in y]))
         classes = dict(zip(classes, range(len(classes))))
-        edges = [[classes[x] for x in e] for e in edges if len(e) == 2]
+        edges = [e for e in edges if len(e) == 2]
         graph = nx.DiGraph(edges)
         data["graph"] = graph
         _save_to_tmp("blurbgenrecollection_de", (data, classes))
@@ -362,31 +362,53 @@ def load_20newsgroup():
 
         classes = []
 
-        testdata = {"text": [], "label": []}
+        text, label= [], []
         for catg in os.listdir(testdir):
             classes.append(catg)
             for file in os.listdir(os.path.join(testdir, catg)) :
                 with open(os.path.join(testdir, catg, file), 'r', encoding="ISO-8859-1") as f:
-                    testdata["text"].append(f.read())
-                    testdata["label"].append([catg])
+                    text.append(f.read())
+                    label.append([catg])
+        testdata = (text, label)
 
-        traindata = {"text": [], "label": []}
+        text, label = [], []
         for catg in os.listdir(traindir):
             classes.append(catg)
             for file in os.listdir(os.path.join(traindir, catg)):
                 with open(os.path.join(traindir, catg, file), 'r', encoding="ISO-8859-1") as f:
-                    traindata["text"].append(f.read())
-                    traindata["label"].append([catg])
-
+                    text.append(f.read())
+                    label.append([catg])
+        traindata = (text, label)
 
         classes = list(set(classes))
         classes.sort()
+        classes = dict(zip(classes, range(len(classes))))
+
         edges = [
             (x.split(".")[y], x.split(".")[y+1] if y+2 != len(x.split(".")) else x)
             for x in classes for y in range(len(x.split("."))-1) ]
         edges += list(set([("ROOT", x.split(".")[0]) for x in classes]))
 
-        graph =  nx.DiGraph(edges)
+        graph = nx.DiGraph(edges)
+        data = {"train": traindata, "test": testdata, "graph": graph}
         _save_to_tmp("20newsgroup", (data, classes))
 
-        return {"train": traindata, "test": testdata, "graph": graph}, classes
+        return data, classes
+
+
+def export(data, classes, path=os.path.join("./export")):
+    if not os.path.exists(path):
+        os.makedirs(path)
+    for k, v in data.items():
+        if k in ("test","valid","train"):
+            with open(os.path.join(path,k+"_x.txt"),"w") as o:
+                o.writelines([x.replace("\n","\t")+"\n" for x in v[0]])
+            with open(os.path.join(path, k + "_y.txt"), "w") as o:
+                o.writelines(["\t".join(x) +"\n" for x in v[1]])
+        elif k == "graph":
+            edgelist = [t[0] +"\t" + t[1] +"\n" for t in v.edges]
+            with open(os.path.join(path, "edge_list.txt"), "w") as o:
+                o.writelines(edgelist)
+
+    with open(os.path.join(path, "classes.txt"), "w") as o:
+        o.writelines([x+"\n" for x in classes.keys()])

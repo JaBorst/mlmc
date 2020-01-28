@@ -18,7 +18,7 @@ def get_node2vec(graph, classes, dim, return_all=False):
     node2vec = Node2Vec(graph, dimensions=dim, walk_length=30, num_walks=500, workers=4)
     model = node2vec.fit(window=50, min_count=1, batch_words=4)
     W = model.wv.vectors
-    if return_all: W=subgraph_extract(W,graph, dict(zip(graph.nodes, len(range(graph.nodes)))))
+    if return_all: W=subgraph_extract(W,graph, dict(zip(list(graph.nodes), range(len(graph.nodes)))))
     else: W=subgraph_extract(W,graph,classes)
     return W
 

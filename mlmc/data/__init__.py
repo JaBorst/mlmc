@@ -1,5 +1,5 @@
 from .data_loaders  import load_eurlex, load_wiki30k, load_huffpost, load_appd, load_rcv1, load_conll2003en, \
-    load_moviesummaries,load_blurbgenrecollection, load_blurbgenrecollection_de
+    load_moviesummaries,load_blurbgenrecollection, load_blurbgenrecollection_de, load_20newsgroup,export
 # register = {fct.split("load_")[1]:dl.__dict__[fct] for fct in dir(dl) if fct.startswith("load_")}
 register = {
     "appd": load_appd,
@@ -10,7 +10,8 @@ register = {
     "movies_summaries": load_moviesummaries,
     "conll2003en": load_conll2003en,
     "blurbgenrecollection": load_blurbgenrecollection,
-    "blurbgenrecollection_de": load_blurbgenrecollection_de
+    "blurbgenrecollection_de": load_blurbgenrecollection_de,
+    "20newsgroup": load_20newsgroup
 }
 
 from torch.utils.data import Dataset, DataLoader

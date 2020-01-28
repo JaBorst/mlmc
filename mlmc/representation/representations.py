@@ -35,13 +35,12 @@ def get_embedding(name, **kwargs):
 
 
 def get_transformer(model="bert", **kwargs):
-
-
     # Transformers has a unified API
     # for 10 transformer architectures and 30 pretrained weights.
     #          Model          | Tokenizer          | Pretrained weights shortcut
-    MODELS = {"bert": (BertModel, BertTokenizer, 'bert-base-uncased'),
-              "albert": (AlbertModel, AlbertTokenizer, 'albert-base-v2'),
+    MODELS = {"bert": (BertModel, BertTokenizer, 'bert-large-uncased'),
+              "bert_cased": (BertModel, BertTokenizer, 'bert-base-cased'),
+              "albert": (AlbertModel, AlbertTokenizer, 'albert-large-v2'),
               "gpt": (OpenAIGPTModel, OpenAIGPTTokenizer, 'openai-gpt'),
               "gpt2": (GPT2Model, GPT2Tokenizer, 'gpt2'),
               "ctrl": (CTRLModel, CTRLTokenizer, 'ctrl'),

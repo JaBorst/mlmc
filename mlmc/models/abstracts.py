@@ -6,7 +6,7 @@ from ..metrics.multilabel import MultiLabelReport,AUC_ROC
 
 
 class TextClassificationAbstract(torch.nn.Module):
-    def __init__(self, loss, optimizer, optimizer_params = {"lr": 1.0}, device="cpu", **kwargs):
+    def __init__(self, loss, optimizer, optimizer_params = {"lr": 1.0}, device="cpu",**kwargs):
         super(TextClassificationAbstract,self).__init__(**kwargs)
 
         self.device = device
@@ -66,7 +66,7 @@ class TextClassificationAbstract(torch.nn.Module):
             "report": report.compute() if return_report else None,
         }
 
-    def fit(self, train, valid = None, epochs=1, batch_size=16):
+    def fit(self, train, valid = None, epochs=1, batch_size=16, _run=None):
         validation=[]
         train_history = {"loss": []}
         for e in range(epochs):
@@ -91,6 +91,7 @@ class TextClassificationAbstract(torch.nn.Module):
                     validation.append(self.evaluate(valid))
                     pbar.postfix[0].update(validation[-1])
                     pbar.update()
+
             train_history["loss"].append(average.compute().item())
         return{"train":train_history, "valid": validation }
 
