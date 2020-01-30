@@ -220,6 +220,15 @@ class ConceptScoresCNNAttention(TextClassificationAbstract):
         self.scaling= torch.nn.Parameter(torch.FloatTensor([1./math.sqrt(self.embedding_dim)]))
         self.scaling.requires_grad=False
 
+        self.attention_linear_query = torch.nn.Linear(
+            in_features=self.embedding_dim,
+            out_features=self.embedding_dim//2
+        )
+        self.attention_linear_key = torch.nn.Linear(
+            in_features=self.embedding_dim,
+            out_features=self.embedding_dim//2
+        )
+
 
         self.convs = torch.nn.ModuleList(
             [torch.nn.Conv1d(self.embedding_dim, self.filters, k) for k in self.kernel_sizes])
@@ -227,7 +236,7 @@ class ConceptScoresCNNAttention(TextClassificationAbstract):
 
         # self.concepts = torch.FloatTensor(label_embed)
         self.concepts = torch.nn.Parameter(torch.FloatTensor(label_embed))
-        self.concepts.requires_grad=False
+        self.concepts.requires_grad=True
 
 
         self.concepts_dim = label_embed.shape[-1]
@@ -249,7 +258,11 @@ class ConceptScoresCNNAttention(TextClassificationAbstract):
             else:
                 embeddings = self.embedding(x)
 
-        self_att = torch.softmax(self.scaling*torch.matmul(embeddings,embeddings.permute(0,2,1)).sum(-1), dim = -1) #/self.scaling.to(self.device), dim=-1)
+        self_att = torch.softmax(
+            self.scaling*torch.matmul(
+                self.attention_linear_query(embeddings),
+                self.attention_linear_key(embeddings).permute(0,2,1)).sum(-1),
+            dim = -1)
 
         c = [torch.nn.functional.relu(self.dynpool(conv(embeddings.permute(0,2,1)))) for conv in self.convs]
         concat = self.dropout(torch.cat(c, 1))  # .view(x.shape[0], -1))
@@ -258,12 +271,12 @@ class ConceptScoresCNNAttention(TextClassificationAbstract):
                                                 cp*self.scaling,
                                                 self.concepts*self.scaling[0])
 
-        concept_att = F.relu(concept_att)
+        concept_att = F.sigmoid(concept_att)
 
         concept_scores = (self_att[:,:,None]*concept_att).sum(-2)
         output = self.output_projection(concept_scores)
         if return_scores:
-            return output, concept_scores
+            return output, concept_scores, self_att
         return output
 
 
