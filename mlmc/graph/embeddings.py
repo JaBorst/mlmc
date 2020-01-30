@@ -26,13 +26,13 @@ def get_nmf(graph, classes, dim, return_all=False):
     model = NMF(n_components=dim, init='random', random_state=0)
     W = model.fit_transform(nx.to_numpy_array(graph))
     H = model.components_
-    if return_all: W=subgraph_extract(W,graph, dict(zip(graph.nodes, len(range(graph.nodes)))))
+    if return_all: W=subgraph_extract(W,graph, dict(zip(list(graph.nodes), range(len(graph.nodes)))))
     else: W=subgraph_extract(W,graph,classes)
     return W
 
 def get_random_projection(graph, classes, dim, return_all=False):
     transformer = random_projection.GaussianRandomProjection(n_components=dim)
     W = transformer.fit_transform(nx.to_numpy_array(graph))
-    if return_all: W=subgraph_extract(W,graph, dict(zip(graph.nodes, len(range(graph.nodes)))))
+    if return_all: W=subgraph_extract(W,graph, dict(zip(list(graph.nodes), range(len(graph.nodes)))))
     else: W=subgraph_extract(W,graph,classes)
     return W
