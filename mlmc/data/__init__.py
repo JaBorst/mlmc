@@ -88,7 +88,7 @@ def sample(dataset, fraction=None, absolute=None):
     ind = choice(range(len(dataset)), n_samples)
     x = [dataset.x[i] for i in ind]
     y = [dataset.y[i] for i in ind]
-    return type(dataset)(x=x, y=y, classes=dataset.classes)
+    return type(dataset)(x=x, y=y, classes=dataset.classes, target_dtype=dataset.target_dtype)
 
 # d = get_dataset("conll2003en", type=mlmc.data.SequenceDataset, target_dtype=torch._cast_Long)
 # for b in torch.utils.data.DataLoader(d["train"], batch_size=15): break

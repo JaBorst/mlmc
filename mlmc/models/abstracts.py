@@ -66,7 +66,7 @@ class TextClassificationAbstract(torch.nn.Module):
             "report": report.compute() if return_report else None,
         }
 
-    def fit(self, train, valid = None, epochs=1, batch_size=16, _run=None):
+    def fit(self, train, valid = None, epochs=1, batch_size=16, valid_batch_size=50):
         validation=[]
         train_history = {"loss": []}
         for e in range(epochs):
@@ -87,11 +87,12 @@ class TextClassificationAbstract(torch.nn.Module):
                     l.backward()
                     self.optimizer.step()
                     pbar.update()
+                torch.cuda.empty_cache()
                 if valid is not None:
-                    validation.append(self.evaluate(valid))
+                    validation.append(self.evaluate(valid,batch_size=valid_batch_size))
                     pbar.postfix[0].update(validation[-1])
                     pbar.update()
-
+                torch.cuda.empty_cache()
             train_history["loss"].append(average.compute().item())
         return{"train":train_history, "valid": validation }
 

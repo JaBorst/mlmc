@@ -61,7 +61,7 @@ def get_transformer(model="bert", **kwargs):
             l = len(x.split()) if isinstance(x, str) else max([len(s.split()) for s in x])
             x = [x] if isinstance(x, str) else x
             i = torch.nn.utils.rnn.pad_sequence(
-                [torch.tensor([tokenizer.encode(sentence, add_special_tokens=False)][0]) for sentence in x], batch_first=True)
+                [torch.tensor([tokenizer.encode(sentence, add_special_tokens=False, pad_to_max_length=True)][0]) for sentence in x], batch_first=True)
             i = i[:, :min(maxlen, i.shape[-1])]
             return i
 
