@@ -1,12 +1,11 @@
 from tqdm import tqdm
 import torch
 import ignite
-from sklearn import metrics as skmetrics
 from ..metrics.multilabel import MultiLabelReport,AUC_ROC
-
+from ..representation import is_transformer,get
 
 class TextClassificationAbstract(torch.nn.Module):
-    def __init__(self, loss, optimizer, optimizer_params = {"lr": 1.0}, device="cpu",**kwargs):
+    def __init__(self, loss=torch.nn.BCEWithLogitsLoss, optimizer=torch.optim.Adam, optimizer_params = {"lr": 5e-5}, device="cpu",**kwargs):
         super(TextClassificationAbstract,self).__init__(**kwargs)
 
         self.device = device
@@ -15,9 +14,9 @@ class TextClassificationAbstract(torch.nn.Module):
         self.optimizer_params = optimizer_params
 
     def build(self):
-        if isinstance(self.loss, type):
+        if isinstance(self.loss, type) and self.loss is not None:
             self.loss = self.loss().to(self.device)
-        if isinstance(self.optimizer, type):
+        if isinstance(self.optimizer, type) and self.optimizer is not None:
             self.optimizer = self.optimizer(self.parameters(), **self.optimizer_params)
         self.to(self.device)
 
@@ -97,20 +96,26 @@ class TextClassificationAbstract(torch.nn.Module):
         return{"train":train_history, "valid": validation }
 
 
-    def predict(self, x):
+    def predict(self, x, tr=0.65, method="hard"):
         self.eval()
-        if hasattr(self, "classes_rev"):
+        if not hasattr(self, "classes_rev"):
             self.classes_rev = {v: k for k, v in self.classes.items()}
         x = self.transform(x).to(self.device)
         with torch.no_grad(): output = self(x)
-        prediction = self.threshold(output, tr=0.65, method="hard")
+        prediction = self.threshold(torch.sigmoid(output), tr=tr, method=method)
         self.train()
-        return [[self.classes_rev[i.item()]  for i in torch.where(p==1)[0]] for p in prediction]
+        return [[self.classes_rev[i.item()] for i in torch.where(p==1)[0]] for p in prediction]
 
+    def predict_dataset(self, data, batch_size, tr=0.65, method="hard"):
+        train_loader = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=True)
+        predictions = []
+        for b in tqdm(train_loader):
+            predictions.extend(self.predict(b["text"], tr=tr, method=method))
+        return predictions
 
     def threshold(self, x, tr=0.5, method="hard"):
         if method=="hard":
-            return (torch.sigmoid(x)>tr).int()
+            return (x>tr).int()
         if method=="mcut":
             x_sorted = torch.sort(x,-1)[0]
             thresholds = (x_sorted[:,1:] - x_sorted[:,:-1]).max(-1)[0]
@@ -122,3 +127,38 @@ class TextClassificationAbstract(torch.nn.Module):
                                            "embedder, tokenizer = mlmc.helpers.get_embedding() or " \
                                            "embedder, tokenizer = mlmc.helpers.get_transformer()"
         return self.tokenizer(x,self.max_len)
+
+    def _init_input_representations(self):
+        if is_transformer(self.representation):
+            self.transformer=True
+            self.n_layers=4
+            self.embedding, self.tokenizer = get(self.representation, output_hidden_states=True)
+            self.embedding_dim = self.embedding(torch.LongTensor([[0]]))[0].shape[-1]*self.n_layers
+        else:
+            self.transformer=False
+            self.embedding, self.tokenizer = get(self.representation, freeze=True)
+            self.embedding_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
+
+
+    def save(self, path, only_inference=True):
+        if only_inference:
+            #Simple Variables
+            optimizer_tmp = self.optimizer
+            loss_tmp = self.loss
+
+            self.optimizer = None
+            self.loss = None
+
+            if self.transformer is not None:
+                embedding_tmp, tokenizer_tmp = self.embedding, self.tokenizer
+
+            torch.save(self, path)
+
+            if self.transformer is not None:
+                self.embedding, self.tokenizer = embedding_tmp, tokenizer_tmp
+
+            self.loss = loss_tmp
+            self.optimizer = optimizer_tmp
+        else:
+            raise NotImplemented
+

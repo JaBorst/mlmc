@@ -11,17 +11,18 @@ class LSANOriginalTransformer(TextClassificationAbstract):
     """
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
-    def __init__(self, classes, static=None, transformer=None, label_embed=None, label_freeze=True, use_lstm=True, d_a=200, max_len=400, **kwargs):
+    def __init__(self, classes, representation=None, label_embed=None, label_freeze=True, use_lstm=True, d_a=200, max_len=400, **kwargs):
         super(LSANOriginalTransformer, self).__init__(**kwargs)
         #My Stuff
         self.classes = classes
         self.max_len = max_len
         self.use_lstm = use_lstm
         self.n_layers = 4
+        self.representation=representation
 
         # Original
         self.n_classes = len(classes)
-        self.embedding, self.tokenizer = get(static=static, transformer=transformer, output_hidden_states=True)
+        self.embedding, self.tokenizer = get(representation, output_hidden_states=True)
         self.embedding_dim = self.embedding(torch.LongTensor([[0]]))[0].shape[-1]*self.n_layers
 
         if label_embed is not None:

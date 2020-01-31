@@ -1,12 +1,13 @@
 import torch
 from ..layers.label_layers import LabelAttention, AdaptiveCombination, LabelSpecificSelfAttention
 from ..models.abstracts import TextClassificationAbstract
-from ..representation import get
+from ..representation import get_embedding
+
 class LabelSpecificAttention(TextClassificationAbstract):
     """
     Reimplementation of https://github.com/EMNLP2019LSAN/LSAN
     """
-    def __init__(self, classes, static=None, transformers=None, label_embedding=None, max_len=600,dropout = 0.5, **kwargs):
+    def __init__(self, classes, representation, label_embedding=None, max_len=600,dropout = 0.5, **kwargs):
         super(LabelSpecificAttention, self).__init__(**kwargs)
 
         self.classes = classes
@@ -15,9 +16,9 @@ class LabelSpecificAttention(TextClassificationAbstract):
         self.lstm_units = self.embedding_dim
         self.use_dropout = dropout
 
-        self.embedding_trainable, self.tokenizer = get(static=static, transformer=None, freeze=False)
-        if static is not None: self.embeddings_dim = self.embedding_trainable.weight.shape[-1]
-        else: self.embeddings_dim = torch.cat(self.transformer(self.transformer.dummy_inputs["input_ids"])[2][-5:-1], -1).shape[-1]
+        self.embedding_trainable, self.tokenizer = get_embedding(representation, freeze=False)
+        self.embedding_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
+
 
         self.lstm = torch.nn.LSTM(self.embedding_dim,
                                   self.lstm_units,

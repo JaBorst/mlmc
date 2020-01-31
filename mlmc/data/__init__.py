@@ -49,6 +49,9 @@ class SequenceDataset(Dataset):
     def __getitem__(self, idx):
         return {'text': " ".join(self.x[idx]), 'labels': " ".join([str(x) for x in self.y[idx]])} #self.target_dtype(labels)}
 
+def get_multilabel_dataset(name, type=MultiLabelDataset, ensure_valid=False, valid_split=0.25, target_dtype=torch._cast_Float):
+    return get_dataset(name, type, ensure_valid=ensure_valid, valid_split=valid_split, target_dtype=target_dtype)
+
 def get_dataset(name, type, ensure_valid=False, valid_split=0.25, target_dtype=torch.LongTensor):
     data, classes = register.get(name, None)()
     if data is None:

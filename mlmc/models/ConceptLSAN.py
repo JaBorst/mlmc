@@ -4,14 +4,14 @@ https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
 import torch
 import torch.nn.functional as F
 from .abstracts import TextClassificationAbstract
-from ..representation import get
+from ..representation import get, is_transformer
 
 
 class ConceptLSAN(TextClassificationAbstract):
     """
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
-    def __init__(self, classes, static=None, transformer=None, label_embed=None, label_freeze=True, use_lstm=True, d_a=200, max_len=400, **kwargs):
+    def __init__(self, classes, representation="roberta", label_embed=None, label_freeze=True, use_lstm=True, d_a=200, max_len=400, **kwargs):
         super(ConceptLSAN, self).__init__(**kwargs)
         #My Stuff
         self.classes = classes
@@ -20,17 +20,18 @@ class ConceptLSAN(TextClassificationAbstract):
         self.n_layers = 4
         self.concept_embedding_dim = label_embed.shape[-1]
         self.n_concepts = label_embed.shape[0]
+        self.representation = representation
 
         # Original
         self.n_classes = len(classes)
-        if static is not None:
-            self.embedding, self.tokenizer = get(static=static, transformer=transformer, freeze=True)
+        if not is_transformer(self.representation):
+            self.embedding, self.tokenizer = get(representation, freeze=True)
             self.embedding_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
             self.lstm = torch.nn.LSTM(self.embedding_dim, self.concept_embedding_dim // 2, 1, bidirectional=True)
             self.static=True
         else:
             self.static=False
-            self.embedding, self.tokenizer = get(static=static, transformer=transformer, output_hidden_states=True)
+            self.embedding, self.tokenizer = get(representation, output_hidden_states=True)
             self.embedding_dim = self.embedding(torch.LongTensor([[0]]))[0].shape[-1]*self.n_layers
             self.input_projection = torch.nn.Linear(self.embedding_dim, self.concept_embedding_dim)
 
@@ -51,9 +52,7 @@ class ConceptLSAN(TextClassificationAbstract):
 
         self.output_layer = torch.nn.Linear(self.concept_embedding_dim, self.n_classes)
         self.embedding_dropout = torch.nn.Dropout(p=0.5)
-
         self.connection = torch.nn.Linear(self.n_concepts, self.n_concepts)
-
         self.build()
 
     def init_hidden(self, size):
@@ -62,11 +61,10 @@ class ConceptLSAN(TextClassificationAbstract):
 
     def forward(self, x, return_scores=False):
         with torch.no_grad():
-            if self.static:
+            if is_transformer(self.representation):
                 embeddings = self.embedding(x)
                 embeddings = self.embedding_dropout(embeddings)
                 outputs = self.lstm(embeddings)[0]
-
             else:
                 embeddings = torch.cat(self.embedding(x)[2][(-1-self.n_layers):-1], -1)
                 outputs = self.input_projection(embeddings)

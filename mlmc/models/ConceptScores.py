@@ -4,7 +4,7 @@ https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
 import torch
 import torch.nn.functional as F
 from mlmc.models.abstracts import TextClassificationAbstract
-from mlmc.representation import get
+from mlmc.representation import get, is_transformer
 import mlmc
 
 
@@ -13,13 +13,15 @@ class ConceptScores(TextClassificationAbstract):
     """
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
-    def __init__(self, classes, layers=4, static=None, transformer=None, label_embed=None, label_freeze=True, use_lstm=True, d_a=200, max_len=400, **kwargs):
+    def __init__(self, classes, layers=4, representation="roberta", label_embed=None, label_freeze=True, use_lstm=True, d_a=200, max_len=400, **kwargs):
         super(ConceptScores, self).__init__(**kwargs)
         #My Stuff
         self.classes = classes
         self.max_len = max_len
         self.use_lstm = use_lstm
         self.n_layers = layers
+        self.representation=representation
+        self._init_input_representations()
 
         # Original
         self.n_classes = len(classes)
@@ -61,7 +63,7 @@ class ConceptScoresCNN(TextClassificationAbstract):
     """
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
-    def __init__(self, classes, layers=4, static=None, transformer=None, label_embed=None, label_freeze=True, use_lstm=True, d_a=200, max_len=400, **kwargs):
+    def __init__(self, classes, layers=4, representation="roberta", label_embed=None, label_freeze=True, use_lstm=True, d_a=200, max_len=400, **kwargs):
         super(ConceptScoresCNN, self).__init__(**kwargs)
         #My Stuff
         self.classes = classes
@@ -71,19 +73,11 @@ class ConceptScoresCNN(TextClassificationAbstract):
         self.kernel_sizes = [3, 4, 5, 6]
         self.filters = 100
         self.window=5
+        self.representation=representation
+        self._init_input_representations()
 
         # Original
         self.n_classes = len(classes)
-
-        if transformer is not None:
-            self.transformer=True
-            self.embedding, self.tokenizer = get(static=static, transformer=transformer, output_hidden_states=True)
-            self.embedding_dim = self.embedding(torch.LongTensor([[0]]))[0].shape[-1]*self.n_layers
-        elif static is not None:
-            self.transformer=False
-            self.embedding, self.tokenizer = get(static=static, transformer=transformer, freeze=True)
-            self.embedding_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
-
 
         self.convs = torch.nn.ModuleList(
             [torch.nn.Conv1d(self.embedding_dim, self.filters, k) for k in self.kernel_sizes])
@@ -125,7 +119,7 @@ class ConceptScoresCNN(TextClassificationAbstract):
     """
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
-    def __init__(self, classes, layers=4, static=None, transformer=None, label_embed=None, label_freeze=True, use_lstm=True, d_a=200, max_len=400, **kwargs):
+    def __init__(self, classes, layers=4, representation="roberta", label_embed=None, label_freeze=True, use_lstm=True, d_a=200, max_len=400, **kwargs):
         super(ConceptScoresCNN, self).__init__(**kwargs)
         #My Stuff
         self.classes = classes
@@ -135,6 +129,9 @@ class ConceptScoresCNN(TextClassificationAbstract):
         self.kernel_sizes = [3, 4, 5, 6]
         self.filters = 100
         self.window=5
+
+        self.representation=representation
+        self._init_input_representations()
 
         # Original
         self.n_classes = len(classes)
@@ -192,7 +189,7 @@ class ConceptScoresCNNAttention(TextClassificationAbstract):
     """
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
-    def __init__(self, classes, layers = 4, static=None, transformer=None, label_embed=None, label_freeze=True, use_lstm=True, d_a=200, max_len=400, **kwargs):
+    def __init__(self, classes, layers = 4, representation="roberta", label_embed=None, label_freeze=True, use_lstm=True, d_a=200, max_len=400, **kwargs):
         super(ConceptScoresCNNAttention, self).__init__(**kwargs)
         #My Stuff
         self.classes = classes
@@ -202,19 +199,11 @@ class ConceptScoresCNNAttention(TextClassificationAbstract):
         self.kernel_sizes = [3, 4, 5, 6]
         self.filters = 100
         self.window=5
+        self.representation=representation
+        self._init_input_representations()
 
         # Original
         self.n_classes = len(classes)
-
-
-        if transformer is not None:
-            self.transformer=True
-            self.embedding, self.tokenizer = get(static=static, transformer=transformer, output_hidden_states=True)
-            self.embedding_dim = self.embedding(torch.LongTensor([[0]]))[0].shape[-1]*self.n_layers
-        elif static is not None:
-            self.transformer=False
-            self.embedding, self.tokenizer = get(static=static, transformer=transformer, freeze=True)
-            self.embedding_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
 
         import math
         self.query_projection = torch.nn.Linear(self.embedding_dim, 512)
@@ -286,7 +275,7 @@ class ConceptScoresAttention(TextClassificationAbstract):
     """
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
-    def __init__(self, classes, layers = 4,static=None, transformer=None, label_embed=None, label_freeze=True, use_lstm=True, d_a=200, max_len=400, **kwargs):
+    def __init__(self, classes, layers = 4,representation="roberta", label_embed=None, label_freeze=True, use_lstm=True, d_a=200, max_len=400, **kwargs):
         super(ConceptScoresAttention, self).__init__(**kwargs)
         #My Stuff
         self.classes = classes
@@ -297,19 +286,14 @@ class ConceptScoresAttention(TextClassificationAbstract):
         self.filters = 100
         self.window=5
 
+        self.representation=representation
+        self._init_input_representations()
+
+
         # Original
         self.n_classes = len(classes)
         self.concepts_dim = label_embed.shape[-1]
         self.n_concepts = label_embed.shape[0]
-
-        if transformer is not None:
-            self.transformer=True
-            self.embedding, self.tokenizer = get(static=static, transformer=transformer, output_hidden_states=True)
-            self.embedding_dim = self.embedding(torch.LongTensor([[0]]))[0].shape[-1]*self.n_layers
-        elif static is not None:
-            self.transformer=False
-            self.embedding, self.tokenizer = get(static=static, transformer=transformer, freeze=True)
-            self.embedding_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
 
         self.concepts = torch.nn.Parameter(torch.FloatTensor(label_embed))
         self.concepts.requires_grad= not label_freeze
@@ -358,7 +342,7 @@ class ConceptScoresRelevance(TextClassificationAbstract):
     """
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
-    def __init__(self, classes, layers = 4, static=None, transformer=None, label_embed=None, label_freeze=True, use_lstm=True, d_a=200, max_len=400, **kwargs):
+    def __init__(self, classes, layers = 4, representation="roberta", label_embed=None, label_freeze=True, use_lstm=True, d_a=200, max_len=400, **kwargs):
         super(ConceptScoresRelevance, self).__init__(**kwargs)
         #My Stuff
         self.classes = classes
@@ -369,19 +353,14 @@ class ConceptScoresRelevance(TextClassificationAbstract):
         self.filters = 256
         self.window=5
 
+
+        self.representation=representation
+        self._init_input_representations()
+
         # Original
         self.n_classes = len(classes)
         self.concepts_dim = label_embed.shape[-1]
         self.n_concepts = label_embed.shape[0]
-
-        if transformer is not None:
-            self.transformer=True
-            self.embedding, self.tokenizer = get(static=static, transformer=transformer, output_hidden_states=True)
-            self.embedding_dim = self.embedding(torch.LongTensor([[0]]))[0].shape[-1]*self.n_layers
-        elif static is not None:
-            self.transformer=False
-            self.embedding, self.tokenizer = get(static=static, transformer=transformer, freeze=True)
-            self.embedding_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
 
         self.concepts = torch.nn.Parameter(torch.FloatTensor(label_embed))
         self.concepts.requires_grad= not label_freeze
@@ -430,7 +409,7 @@ class KimCNN2Branch(TextClassificationAbstract):
     """
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
-    def __init__(self, classes, layers = 4, static=None, transformer=None, label_embed=None, label_freeze=True, use_lstm=True, d_a=200, max_len=400, **kwargs):
+    def __init__(self, classes, layers = 4, representation="roberta", label_embed=None, label_freeze=True, use_lstm=True, d_a=200, max_len=400, **kwargs):
         super(KimCNN2Branch, self).__init__(**kwargs)
         #My Stuff
         self.classes = classes
@@ -440,21 +419,14 @@ class KimCNN2Branch(TextClassificationAbstract):
         self.kernel_sizes = [3, 4, 5, 6]
         self.filters = 256
         self.window=5
+        self.representation = representation
 
         # Original
         self.n_classes = len(classes)
         self.concepts_dim = label_embed.shape[-1]
         self.n_concepts = label_embed.shape[0]
 
-        if transformer is not None:
-            self.transformer=True
-            self.embedding, self.tokenizer = get(static=static, transformer=transformer, output_hidden_states=True)
-            self.embedding_dim = self.embedding(torch.LongTensor([[0]]))[0].shape[-1]*self.n_layers
-        elif static is not None:
-            self.transformer=False
-            self.embedding, self.tokenizer = get(static=static, transformer=transformer, freeze=True)
-            self.embedding_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
-
+        self._init_input_representations()
         self.concepts = torch.nn.Parameter(torch.FloatTensor(label_embed))
         self.concepts.requires_grad=not label_freeze
 
@@ -494,10 +466,7 @@ class KimCNN2Branch(TextClassificationAbstract):
 
 
 class ConceptProjection(TextClassificationAbstract):
-    """
-    https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
-    """
-    def __init__(self, classes, layers = 4, static=None, transformer=None, label_embed=None, label_freeze=True, use_lstm=True, d_a=200, max_len=400, **kwargs):
+    def __init__(self, classes, layers = 4, representation="roberta", label_embed=None, label_freeze=True, use_lstm=True, d_a=200, max_len=400, **kwargs):
         super(ConceptProjection, self).__init__(**kwargs)
         #My Stuff
         self.classes = classes
@@ -507,31 +476,23 @@ class ConceptProjection(TextClassificationAbstract):
         self.kernel_sizes = [3, 4, 5, 6]
         self.filters = 256
         self.window=5
+        self.representation = representation
+        self.n_classes = len(classes)
 
         # Original
-        self.n_classes = len(classes)
+        self._init_input_representations()
+
         self.concepts_dim = label_embed.shape[-1]
         self.n_concepts = label_embed.shape[0]
-
-        if transformer is not None:
-            self.transformer=True
-            self.embedding, self.tokenizer = get(static=static, transformer=transformer, output_hidden_states=True)
-            self.embedding_dim = self.embedding(torch.LongTensor([[0]]))[0].shape[-1]*self.n_layers
-        elif static is not None:
-            self.transformer=False
-            self.embedding, self.tokenizer = get(static=static, transformer=transformer, freeze=True)
-            self.embedding_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
 
         self.concepts = torch.nn.Parameter(torch.FloatTensor(label_embed))
         self.concepts.requires_grad=not label_freeze
 
         self.convs = torch.nn.ModuleList([torch.nn.Conv1d(self.embedding_dim, self.filters, k) for k in self.kernel_sizes])
-
         self.projection_to_concepts = torch.nn.Linear(in_features=len(self.kernel_sizes) * self.filters,
                                           out_features=self.n_concepts)
         self.projection_concepts_to_classes = torch.nn.Linear(in_features=self.concepts_dim,
                                           out_features=self.n_classes)
-
         self.concept_projection_up = torch.nn.Linear(
             self.embedding_dim,
             self.concepts_dim
@@ -540,23 +501,16 @@ class ConceptProjection(TextClassificationAbstract):
         self.output_projection = torch.nn.Linear(self.n_concepts, self.n_classes)
         self.build()
 
-
     def forward(self, x, return_scores=False):
         with torch.no_grad():
             if self.transformer:
                 embeddings = torch.cat(self.embedding(x)[2][(-1-self.n_layers):-1], -1).permute(0,2,1)
             else:
                 embeddings = self.embedding(x).permute(0,2,1)
-
         c = torch.cat([torch.nn.functional.relu(conv(embeddings).permute(0, 2, 1).max(1)[0]) for conv in self.convs], -1)
-        # prediction1 = self.projection(c)
-
-        # embeddings = embeddings.permute(0, 2, 1)
         concept_scores = torch.softmax(self.projection_to_concepts(c),dim=-1)
         concept_vector = torch.matmul(concept_scores, self.concepts)
-
         prediction2 = self.projection_concepts_to_classes(concept_vector)
-
         output = prediction2
         if return_scores:
             return output, concept_scores

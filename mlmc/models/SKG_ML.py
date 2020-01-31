@@ -17,6 +17,8 @@ class SKG(TextClassificationAbstract):
         self.adjacency = torch.nn.Parameter(torch.from_numpy(adjacency).long(),requires_grad=False)
         self.edge_list = torch.nn.Parameter(torch.stack(torch.where(self.adjacency == 1), dim=0).long(),requires_grad=False)
         self.max_len = max_len
+        self.static=static
+        self.transformer=transformer
 
         self.embedder, self.tokenizer = get(static, transformer, output_hidden_states=True)
         self.embedder.eval()

@@ -3,10 +3,10 @@ Few-Shot and Zero-Shot Multi-Label Learning for Structured Label Spaces - Rios &
 """
 import torch
 from ..models.abstracts import TextClassificationAbstract
-from ..representation import get
+from ..representation import get, is_transformer
 
 class ZAGCNN(TextClassificationAbstract):
-    def __init__(self, classes,   adjacency, label_embedding=None, static=None, transformer=None, max_len=600, dropout = 0.5, **kwargs):
+    def __init__(self, classes,   adjacency, label_embedding=None, representation="roberta", max_len=600, dropout = 0.5, **kwargs):
         super(ZAGCNN, self).__init__(**kwargs)
 
         self.classes = classes
@@ -19,11 +19,9 @@ class ZAGCNN(TextClassificationAbstract):
         self.adjacency = torch.nn.Parameter(torch.from_numpy(adjacency))
         self.adjacency.requires_grad = False
 
-
-        self.embedding, self.tokenizer = get(static, transformer)
+        assert not is_transformer(representation), "This model wont work with a transformer Model at the moment"
+        self.embedding, self.tokenizer = get(representation)
         self.embedding_dim = self.embedding.weight.shape[-1]
-
-
 
         self.convs = torch.nn.ModuleList(
             [torch.nn.Conv1d(self.embedding_dim, self.filters, k) for k in self.kernel_sizes])
@@ -50,6 +48,3 @@ class ZAGCNN(TextClassificationAbstract):
         labelgcn = self.gcn2(labelgcn, torch.stack(torch.where(self.adjacency==1),dim=0))
         labelvectors = torch.cat([self.label_attention.label_repr, labelgcn], dim=-1)
         return (torch.relu(self.projection(c))*labelvectors).sum(-1)
-
-    def transform(self, x):
-        return self.tokenizer(x,self.max_len)
