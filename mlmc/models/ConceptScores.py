@@ -25,6 +25,16 @@ class ConceptScores(TextClassificationAbstract):
 
         # Original
         self.n_classes = len(classes)
+
+        if transformer is not None:
+            self.transformer=True
+            self.embedding, self.tokenizer = get(static=static, transformer=transformer, output_hidden_states=True)
+            self.embedding_dim = self.embedding(torch.LongTensor([[0]]))[0].shape[-1]*self.n_layers
+        elif static is not None:
+            self.transformer=False
+            self.embedding, self.tokenizer = get(static=static, transformer=transformer, freeze=True)
+            self.embedding_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
+
         self.concepts = torch.nn.Parameter(torch.FloatTensor(label_embed))
         self.concepts_dim = label_embed.shape[-1]
         self.n_concepts = label_embed.shape[0]
@@ -125,6 +135,17 @@ class ConceptScoresCNN(TextClassificationAbstract):
 
         # Original
         self.n_classes = len(classes)
+
+        if transformer is not None:
+            self.transformer=True
+            self.embedding, self.tokenizer = get(static=static, transformer=transformer, output_hidden_states=True)
+            self.embedding_dim = self.embedding(torch.LongTensor([[0]]))[0].shape[-1]*self.n_layers
+        elif static is not None:
+            self.transformer=False
+            self.embedding, self.tokenizer = get(static=static, transformer=transformer, freeze=True)
+            self.embedding_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
+
+
 
         self.convs = torch.nn.ModuleList(
             [torch.nn.Conv1d(self.embedding_dim, self.filters, k) for k in self.kernel_sizes])

@@ -17,3 +17,21 @@ prediction = tc.predict_dataset(mlmc.data.sampler(data["test"], absolute=100), b
 
 
 
+
+
+#
+#
+#
+#
+#
+# # tc.predict([data["test"][0]["text"]] + [data["test"][1]["text"]])
+# # _ = tc.fit(data["train"], mlmc.data.sample(data["test"],absolute=10000), epochs=100, batch_size=32)
+# results1 = tc.evaluate(mlmc.data.sample(data["test"],absolute=1000), return_roc=True)
+#
+#
+#
+#
+# results2 = tc.evaluate(mlmc.data.sample(data["test"],absolute=1000), return_roc=True)
+# import matplotlib.pyplot as plt
+# plt.plot(*results2["auc"][1])
+# plt.plot(*results1["auc"][1]); plt.show()
