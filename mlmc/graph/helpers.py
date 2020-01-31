@@ -1,6 +1,5 @@
 import numpy as np
 import itertools
-import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 
 
@@ -36,7 +35,7 @@ def correlate_similarity(coocs, embeddings, n, classwise=False, corr="spearman")
                [np.mean(classcorrelations), np.std(classcorrelations)]
 
 def show_graph(vectors, classes):
-
+    import matplotlib.pyplot as plt
     X_embedded = TSNE(n_components=2).fit_transform(vectors)
     fig, ax = plt.subplots(figsize=(20, 20))
     ax.scatter(X_embedded[:, 0], X_embedded[:, 1])
