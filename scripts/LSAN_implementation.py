@@ -28,5 +28,5 @@ tc = mlmc.models.LSANOriginal(lstm_hid_dim=300,
                                         device=device)
 # tc.evaluate(mlmc.data.sample(data["test"],absolute=10000))
 
-_ = tc.fit(data["train"], mlmc.data.sample(data["test"],absolute=10000), epochs=50, batch_size=32)
+_ = tc.fit(data["train"], mlmc.data.sampler(data["test"], absolute=10000), epochs=50, batch_size=32)
 tc.evaluate(data["test"], return_report=True)
