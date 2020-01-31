@@ -3,6 +3,7 @@ import torch
 
 
 class MultiLabelReport():
+    """Multilabel iterative F1/Precision/Recall. Ignite API like"""
     def __init__(self, classes):
         self.classes = classes
         self.truth = []
@@ -15,10 +16,12 @@ class MultiLabelReport():
         return skm.classification_report(torch.cat(self.truth), torch.cat(self.pred), output_dict=True, target_names=list(self.classes.keys()))
 
 class AUC_ROC():
-    def __init__(self,n_classes):
+    """Multilabel iterative AUC_ROC. Ignite API like"""
+    def __init__(self,n_classes, reduction="macro"):
         self.values = torch.arange(0,1.01, 0.01)
         self.n_classes = n_classes
         self.reset()
+        self.reduction = reduction
 
     def reset(self):
         self.true_positives = torch.zeros((len(self.values), self.n_classes, ))
@@ -30,7 +33,6 @@ class AUC_ROC():
     def update(self, batch):
         assert isinstance(batch, tuple), "batch needs to be a tuple"
         self.n += batch[0].shape[0]
-        self.reduction = "macro"
         positives_mask = batch[1]==1
         negatives_mask = batch[1]==0
         self.all_positives += (positives_mask).sum(0)
@@ -43,7 +45,6 @@ class AUC_ROC():
             self.false_positives[i] += ((prediction / positives_mask) == float("inf")).sum(0)
 
     def compute(self):
-
         if self.reduction == "micro":
             tpr = self.true_positives.sum(-1) / self.all_positives.sum()
             fpr = self.false_positives.sum(-1) / self.all_negatives.sum()

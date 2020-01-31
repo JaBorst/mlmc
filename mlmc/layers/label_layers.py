@@ -1,7 +1,12 @@
+"""Layers that are concerned with scoring labels"""
+
 import torch
 
 
 class LabelAttention(torch.nn.Module):
+    """Reimplementation of label attention as described in paper: Label-specific Document representations.
+    Might be deprecated.
+    """
     def __init__(self, n_classes, input_dim, hidden_dim, label_repr=None, freeze=True):
         super(LabelAttention, self).__init__()
         self.input_dim = input_dim
@@ -16,7 +21,7 @@ class LabelAttention(torch.nn.Module):
             self.label_repr = torch.nn.Parameter(torch.Tensor(n_classes, self.hidden_dim))
             torch.nn.init.kaiming_normal_(self.label_repr)
         else:
-            assert label_repr.shape[-1] == hidden_dim," label embedding dimension must equal hidden_dim"
+            assert label_repr.shape[-1] == hidden_dim,"label embedding dimension must equal hidden_dim"
             self.label_repr = torch.nn.Parameter(torch._cast_Float(torch.from_numpy(label_repr)))
             self.label_repr.requires_grad=freeze
 
@@ -47,6 +52,9 @@ class LabelEmbeddingAttention(torch.nn.Module):
 
 
 class LabelEmbeddingScoring(torch.nn.Module):
+    """Layer that keeps a representation (static Embedding) and compares the input to all vectors. The metric
+        should be freely choosable
+    """
     def __init__(self, n_classes, input_dim, label_repr, similarity="cosine", label_freeze=True):
         super(LabelEmbeddingScoring, self).__init__()
         self.input_dim = input_dim
@@ -61,7 +69,6 @@ class LabelEmbeddingScoring(torch.nn.Module):
 
     def forward(self, x):
         x = self.projection(x)
-
         if self.similarity=="cosine":
             output = torch.matmul(
                 x/torch.norm(x,p=2,dim=-1).unsqueeze(-1),

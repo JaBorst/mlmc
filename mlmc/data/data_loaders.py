@@ -1,3 +1,5 @@
+"""A Collection of function to load, export and cache various datasets."""
+
 import os
 import json
 from tqdm import tqdm
@@ -5,12 +7,7 @@ import numpy as np
 import networkx as nx
 ###
 # Repository http://manikvarma.org/downloads/XC/XMLRepository.html
-#
-#
-#
-#
-#
-#
+
 tmp_dir = os.path.join(os.getenv("HOME"),".mlmc/datasets/")
 
 

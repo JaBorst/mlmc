@@ -6,7 +6,7 @@ data.keys()
 
 def sample(dataset, fraction=None, absolute=None):
 
-    
+
     from numpy.random import choice
     n_samples = absolute if absolute is not None else  int(fraction*len(dataset))
     ind = choice(range(len(dataset)), n_samples)

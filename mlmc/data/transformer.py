@@ -1,3 +1,5 @@
+"""A collection of frequently used tranforming functions for strings or tensors"""
+
 import torch
 
 def clean(x):

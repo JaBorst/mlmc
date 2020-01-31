@@ -43,6 +43,7 @@ class VariationalDropout(nn.Module):
 
 
 class LSTM(nn.LSTM):
+    """A copy of the better LSTM github repository"""
     def __init__(self, *args, dropouti: float = 0.,
                  dropoutw: float = 0., dropouto: float = 0.,
                  batch_first=True, unit_forget_bias=True, **kwargs):
@@ -84,6 +85,10 @@ class LSTM(nn.LSTM):
 
 
 class LSTMRD(torch.nn.Module):
+    """
+    A self implementation of the LSTM with a tensorflow like recurrent dropout on the activations of the
+    reccurrent cell
+    """
     def __init__(self, input_size, hidden_size, bias=True,
                  batch_first=False, dropout=0.5, recurrent_dropout=0.5, bidirectional=False):
         super(LSTMRD,self).__init__()
@@ -100,15 +105,11 @@ class LSTMRD(torch.nn.Module):
         if bidirectional:
             self.backward_cell  = torch.nn.LSTMCell(self.input_size,self.hidden_size,bias=self.bias)
 
-
-
     def forward(self, x, hidden=None):
         if self.batch_first:
             x = x.permute(1,0,2)
         if self.dropout.p>0:
             x = self.dropout(x)
-
-
         output = []
         hx = hidden[0][0]
         cx = hidden[1][0]
@@ -118,8 +119,6 @@ class LSTMRD(torch.nn.Module):
                 cx = self.recurrent_dropout(cx)
             output.append(hx)
         forward = torch.stack(output,dim=0)
-
-
         if self.bidirectional:
             x = x.flip(0)
             hx = hidden[0][1]
