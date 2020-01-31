@@ -1,6 +1,6 @@
 from tqdm import tqdm
 import torch
-import ignite
+from ignite.metrics import Precision, Accuracy, Average
 from ..metrics.multilabel import MultiLabelReport,AUC_ROC
 from ..representation import is_transformer,get
 
@@ -33,14 +33,14 @@ class TextClassificationAbstract(torch.nn.Module):
         Evaluation, return accuracy and loss
         """
         self.eval()  # set mode to evaluation to disable dropout
-        p_1 = ignite.metrics.Precision(is_multilabel=True,average=True)
-        p_3 = ignite.metrics.Precision(is_multilabel=True,average=True)
-        p_5 = ignite.metrics.Precision(is_multilabel=True,average=True)
-        subset_65 = ignite.metrics.Accuracy(is_multilabel=True)
-        subset_mcut = ignite.metrics.Accuracy(is_multilabel=True)
+        p_1 = Precision(is_multilabel=True,average=True)
+        p_3 = Precision(is_multilabel=True,average=True)
+        p_5 = Precision(is_multilabel=True,average=True)
+        subset_65 = Accuracy(is_multilabel=True)
+        subset_mcut = Accuracy(is_multilabel=True)
         report = MultiLabelReport(self.classes)
         auc_roc = AUC_ROC(len(self.classes))
-        average = ignite.metrics.Average()
+        average = Average()
         data_loader = torch.utils.data.DataLoader(data, batch_size=batch_size)
         with torch.no_grad():
             for i, b in enumerate(data_loader):
@@ -78,7 +78,7 @@ class TextClassificationAbstract(torch.nn.Module):
         train_history = {"loss": []}
         for e in range(epochs):
             losses = {"loss": str(0.)}
-            average = ignite.metrics.Average()
+            average = Average()
             train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size, shuffle=True)
 
             with tqdm(train_loader,
