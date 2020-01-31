@@ -21,28 +21,17 @@ class ConceptLSAN(TextClassificationAbstract):
         self.concept_embedding_dim = label_embed.shape[-1]
         self.n_concepts = label_embed.shape[0]
         self.representation = representation
-
+        self._init_input_representations()
         # Original
         self.n_classes = len(classes)
+
         if not is_transformer(self.representation):
-            self.embedding, self.tokenizer = get(representation, freeze=True)
-            self.embedding_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
             self.lstm = torch.nn.LSTM(self.embedding_dim, self.concept_embedding_dim // 2, 1, bidirectional=True)
-            self.static=True
         else:
-            self.static=False
-            self.embedding, self.tokenizer = get(representation, output_hidden_states=True)
-            self.embedding_dim = self.embedding(torch.LongTensor([[0]]))[0].shape[-1]*self.n_layers
             self.input_projection = torch.nn.Linear(self.embedding_dim, self.concept_embedding_dim)
 
-        if label_embed is not None:
-            self.concept_embedding = torch.nn.Embedding(label_embed.shape[0], label_embed.shape[1])
-            self.concept_embedding.from_pretrained(torch.FloatTensor(label_embed), freeze=label_freeze)
-        else:
-            self.concept_embedding = torch.nn.Embedding(label_embed.shape[0], self.embedding_dim)
-
-
-
+        self.concept_embedding = torch.nn.Embedding(label_embed.shape[0], label_embed.shape[1])
+        self.concept_embedding.from_pretrained(torch.FloatTensor(label_embed), freeze=label_freeze)
 
         self.linear_first = torch.nn.Linear(self.concept_embedding_dim, d_a)
         self.linear_second = torch.nn.Linear(d_a, self.n_concepts)
@@ -62,12 +51,12 @@ class ConceptLSAN(TextClassificationAbstract):
     def forward(self, x, return_scores=False):
         with torch.no_grad():
             if is_transformer(self.representation):
+                embeddings = torch.cat(self.embedding(x)[2][(-1 - self.n_layers):-1], -1)
+                outputs = self.input_projection(embeddings)
+            else:
                 embeddings = self.embedding(x)
                 embeddings = self.embedding_dropout(embeddings)
                 outputs = self.lstm(embeddings)[0]
-            else:
-                embeddings = torch.cat(self.embedding(x)[2][(-1-self.n_layers):-1], -1)
-                outputs = self.input_projection(embeddings)
 
 
         # step2 get self-attention
