@@ -5,6 +5,14 @@ from ..metrics.multilabel import MultiLabelReport,AUC_ROC
 from ..representation import is_transformer,get
 
 class TextClassificationAbstract(torch.nn.Module):
+    """
+    Abstract class for Multilabel Models. Defines fit, evaluate, predict and threshold methods for virtually any
+    multilabel training.
+    Also provides a few default functions:
+        _init_input_representations(): if self.representations exists, the default will load a embedding and corresponding tokenizer
+        transform(): If self.tokenizer exists the default method wil use this to transform text into the models input
+
+    """
     def __init__(self, loss=torch.nn.BCEWithLogitsLoss, optimizer=torch.optim.Adam, optimizer_params = {"lr": 5e-5}, device="cpu",**kwargs):
         super(TextClassificationAbstract,self).__init__(**kwargs)
 
@@ -138,27 +146,3 @@ class TextClassificationAbstract(torch.nn.Module):
             self.transformer=False
             self.embedding, self.tokenizer = get(self.representation, freeze=True)
             self.embedding_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
-
-
-    def save(self, path, only_inference=True):
-        if only_inference:
-            #Simple Variables
-            optimizer_tmp = self.optimizer
-            loss_tmp = self.loss
-
-            self.optimizer = None
-            self.loss = None
-
-            if self.transformer is not None:
-                embedding_tmp, tokenizer_tmp = self.embedding, self.tokenizer
-
-            torch.save(self, path)
-
-            if self.transformer is not None:
-                self.embedding, self.tokenizer = embedding_tmp, tokenizer_tmp
-
-            self.loss = loss_tmp
-            self.optimizer = optimizer_tmp
-        else:
-            raise NotImplemented
-

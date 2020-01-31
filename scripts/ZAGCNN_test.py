@@ -16,5 +16,5 @@ model=mlmc.models.ZAGCNN(
     loss=torch.nn.BCEWithLogitsLoss,
     device="cuda:0")
 
-model.fit(data["train"], mlmc.data.sample(data["test"],absolute=1000), epochs=50,batch_size=50)
+model.fit(data["train"], mlmc.data.sampler(data["test"], absolute=1000), epochs=50, batch_size=50)
 model.evaluate(data["test"], return_report=True)

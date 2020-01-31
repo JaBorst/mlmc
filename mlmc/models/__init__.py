@@ -1,13 +1,12 @@
+# Well Tested
 from .XMLCNN import XMLCNN
-from .LSAN import LSANOriginal
-
-from .LSAN_reimplementation import LabelSpecificAttention
-from .LSANOriginalTransformer import LSANOriginalTransformer
-from .ConceptScores import ConceptScores, ConceptScoresCNN,ConceptScoresCNNAttention,KimCNN2Branch,ConceptProjection,ConceptScoresAttention, ConceptScoresRelevance
-from .ConceptLSAN import ConceptLSAN
 from .KimCNN import KimCNN
 
-from .save_and_load import load,save
+#LSAN Variants
+from .LSAN import LSANOriginal
+from .LSAN_reimplementation import LabelSpecificAttention
+from .LSANOriginalTransformer import LSANOriginalTransformer
+
 
 #geomtric models
 
@@ -18,4 +17,9 @@ try:
 except:
     pass
 
+#Experimental Models
+from .ConceptScores import ConceptScores, ConceptScoresCNN,ConceptScoresCNNAttention,KimCNN2Branch,ConceptProjection,ConceptScoresAttention, ConceptScoresRelevance
+from .ConceptLSAN import ConceptLSAN
 
+# Save and load models for inference without the language models representaiton to save disc space
+from .save_and_load import load,save

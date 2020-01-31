@@ -11,7 +11,7 @@ tc = mlmc.models.KimCNN(classes=data["classes"],
                         device=device)
 history = tc.fit(train=data["train"], valid=data["valid"], epochs=1, batch_size=50)
 evaluation = tc.evaluate(data["test"], batch_size=50)
-prediction = tc.predict_dataset(mlmc.data.sample(data["test"],absolute=100),batch_size=32, tr=0.65, method="mcut")
+prediction = tc.predict_dataset(mlmc.data.sampler(data["test"], absolute=100), batch_size=32, tr=0.65, method="mcut")
 
 
 

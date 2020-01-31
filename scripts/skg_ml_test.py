@@ -18,5 +18,5 @@ skg = SKG(data["adjacency"], le, data["classes"], transformer="bert",  #weights=
           optimizer_params={"lr": 0.001, "betas": (0.9, 0.99)},
           loss=torch.nn.BCEWithLogitsLoss,
           device=device)
-skg.fit(data["train"], mlmc.data.sample(data["test"],absolute=5000),64, batch_size=16)
+skg.fit(data["train"], mlmc.data.sampler(data["test"], absolute=5000), 64, batch_size=16)
 skg.evaluate(data["test"])

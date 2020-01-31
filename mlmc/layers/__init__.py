@@ -1,6 +1,8 @@
 from .probability import Prob
 from .lstm import LSTM, LSTMRD
 from .label_layers import LabelEmbeddingScoring,AdaptiveCombination,LabelAttention, LabelSpecificSelfAttention
+
+# Make pytorch_geometric effectively optional
 try:
     from .graph import GatedGraphConv
 except:

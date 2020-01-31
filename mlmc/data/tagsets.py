@@ -1,3 +1,5 @@
+"""A Collection of frequently used tagsets for reproducability"""
+
 NER = ["O"] + [y for x in  ["PER", "ORG", "MISC", "LOC"] for y in ["B-"+x,"I-"+x,"E-"+x,"S-"+x]]
 
 POS = ['KOKOM', '$.', 'APPR', 'VMFIN', 'VAPP', 'PRF', 'PPOSAT', 'PIDAT', 'PRELAT', 'PTKANT', 'APPO', 'VVPP',

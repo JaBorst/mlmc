@@ -40,7 +40,7 @@ tc = mlmc.models.KimCNN2Branch(
     device=device)
 
 if data["valid"] is None:
-    data["valid"] = mlmc.data.sample(data["test"], absolute=100)
+    data["valid"] = mlmc.data.sampler(data["test"], absolute=100)
 
 # history=tc.evaluate(data["valid"], batch_size=batch_size,
 #                     return_report=True, return_roc=True)
