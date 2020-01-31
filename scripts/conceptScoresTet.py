@@ -12,6 +12,7 @@ graph = mlmc.graph.load_wordnet()
 tc2 = mlmc.models.load("KimCNN2Branch_rcv1_62.pt")
 tc2.to(tc2.device)
 
+
 output, scores = tc2(tc2.transform("Hello, this is a text about science and fiction").to(tc2.device), return_scores=True)
 
-[list(graph.nodes)[x.item()] for x in torch.sigmoid(scores).topk(3).indices]
+[list(graph.nodes)[x.item()] for x in torch.sigmoid(scores).topk(3).indices[0]]
