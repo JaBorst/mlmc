@@ -1,4 +1,7 @@
 from setuptools import setup
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
+    
 
 setup(
     name='mlmc',
@@ -16,5 +19,6 @@ setup(
     license='',
     author='jb',
     author_email='',
-    description=''
+    description='',
+    install_requires=requirements
 )
