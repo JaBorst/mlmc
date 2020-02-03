@@ -1,33 +1,33 @@
-"""A Collection of function to load, export and cache various datasets."""
+"""A Collection of function to load, export and cache various datasets.
+Repository for later use: http://manikvarma.org/downloads/XC/XMLRepository.html
+"""
 
 import os
 import json
 from tqdm import tqdm
-import numpy as np
 import networkx as nx
-###
-# Repository http://manikvarma.org/downloads/XC/XMLRepository.html
+from pathlib import Path
 
-tmp_dir = os.path.join(os.getenv("HOME"),".mlmc/datasets/")
 
+CACHE = Path.home() / ".mlmc" / "datasets"
 
 def _load_from_tmp(dataset):
-    if not os.path.exists(tmp_dir):
-        os.makedirs(tmp_dir)
-    if os.path.isfile(os.path.join(tmp_dir,dataset)):
+    if not Path.exists(CACHE):
+        Path.mkdir(CACHE)
+    if Path.is_file(CACHE / dataset):
         import pickle
         print("Loading from cache...")
-        with open(os.path.join(tmp_dir, dataset), "rb") as f: data = pickle.load(f)
+        with open(CACHE / dataset, "rb") as f: data = pickle.load(f)
         return data
     else:
         return None
 
 def _save_to_tmp(dataset, data):
-    if not os.path.exists(tmp_dir):
-        os.makedirs(tmp_dir)
-    if not os.path.isfile(os.path.join(tmp_dir,dataset)):
+    if not Path.exists(CACHE):
+        Path.mkdir(CACHE)
+    if not Path.is_file(CACHE / dataset):
         import pickle
-        with open(os.path.join(tmp_dir, dataset), "wb") as f: pickle.dump(data, f)
+        with open(CACHE / dataset, "wb") as f: pickle.dump(data, f)
         return True
     else:
         return False
@@ -35,37 +35,39 @@ def _save_to_tmp(dataset, data):
 #============================================================================
 #============================================================================
 
-def load_appd(path="/disk1/users/jborst/Data/Test/MultiLabel/AAPD/"):
-
-    dataset=os.path.abspath(path)
-    data = _load_from_tmp("appd")
+def load_aapd():
+    # GEt dataset from the serverdataset=os.path.abspath(path)
+    dataset = Path(".")
+    data = _load_from_tmp("aapd")
     if data is not None: return data
     else:
-        with open(os.path.join(dataset,"aapd.json"))as f: classes = json.load(f)
+        assert path is not None, "RCV1 must be input with a path to the downloaded corpus"
+        with open(dataset / "aapd.json")as f: classes = json.load(f)
         data = {}
         for x in ("test","val", "train"):
-            with open(os.path.join(dataset,"text_"+x)) as f:test_x = f.readlines()
-            with open(os.path.join(dataset,"label_"+x)) as f:
+            with open(dataset / dataset,"text_"+x) as f:test_x = f.readlines()
+            with open(dataset / dataset,"label_"+x) as f:
                 test_y = [[y.lower() for y in x.replace("\n","").split(" ")] for x in f.readlines()]
             if x == "val":
                 data["valid"] = [test_x,test_y]
             else:
                 data[x] =[test_x,test_y]
-        _save_to_tmp("appd", (data, classes))
+        _save_to_tmp("aapd", (data, classes))
     return data, classes
 
 
 
-def load_rcv1(path="/disk1/users/jborst/Data/Test/MultiLabel/reuters/corpus-reuters-corpus-vol1/"):
+def load_rcv1(path=None):
     import zipfile
     from xml.etree import ElementTree
     import tempfile
 
-    dataset=os.path.abspath(path)
+    dataset = Path(path)
     data = _load_from_tmp("rcv1")
     if data is not None: return data
 
-    with open(os.path.join(dataset,"categories.txt"))as f:
+    assert path is not None, "RCV1 must be input with a path to the downloaded corpus"
+    with open(dataset / "categories.txt")as f:
         labels={}
         needed_zips = set()
         for x in f.readlines():
@@ -73,32 +75,32 @@ def load_rcv1(path="/disk1/users/jborst/Data/Test/MultiLabel/reuters/corpus-reut
                 needed_zips.add(x.split()[0])
                 labels[x.split()[1]] = x.replace("\n","").split()[2:]
 
-    with open(os.path.join(dataset, "train.split"))as f: train_ids = [x.replace("\n","") for x in f.readlines()]
-    with open(os.path.join(dataset, "test.split"))as f: test_ids = [x.replace("\n","") for x in f.readlines()]
+    with open(dataset / "train.split") as f: train_ids = [x.replace("\n","") for x in f.readlines()]
+    with open(dataset / "test.split") as f: test_ids = [x.replace("\n","") for x in f.readlines()]
 
-    with open(os.path.join(dataset,"topic_codes.txt"))as f:
+    with open(dataset / "topic_codes.txt") as f:
         classes = [(x.split("\t")[0], x.replace("\n","").split("\t")[1:]) for x in f.readlines()[2:-1]]
         classes = set([x[0] for x in classes])
 
     with tempfile.TemporaryDirectory() as tempdir:
         for file in tqdm(needed_zips):
-            zipfile.ZipFile(os.path.join(dataset,file)).extractall(tempdir)
+            zipfile.ZipFile(dataset / file).extractall(Path(tempdir.name))
 
         def _get(ids):
             errors=0
             documents = []
             labelsets = []
             for id in tqdm(ids):
-                file = id+"newsML.xml"
+                file = id + "newsML.xml"
                 try:
-                    with open(os.path.join(tempdir, file)) as f:
+                    with open(Path(tempdir.name)/ file) as f:
                         xml = ElementTree.fromstring(f.read())
                         text = ElementTree.tostring(xml, method='text').decode().replace("\n"," ").replace("  "," ").strip()
                         documents.append(text)
                         labelsets.append([x for x in labels[file] if x in classes])
                 except Exception as e:
                     try:
-                        with open(os.path.join(tempdir, file), encoding="iso-8859-1") as f:
+                        with open(Path(tempdir.name) / file, encoding="iso-8859-1") as f:
                             xml = ElementTree.fromstring(f.read())
                             text = ElementTree.tostring(xml, method='text').decode().replace("\n"," ").replace("  "," ").strip()
                             documents.append(text)
@@ -117,13 +119,13 @@ def load_rcv1(path="/disk1/users/jborst/Data/Test/MultiLabel/reuters/corpus-reut
     data = {}
     data["train"] = train
     data["test"] = test
-    with open(os.path.join(path, "rcv1.topics.hier.orig"), "r") as f:
+    with open(dataset / "rcv1.topics.hier.orig", "r") as f:
         content = f.readlines()
     import re
     edges = [(re.split(" +", x)[1],re.split(" +", x)[3]) for x in content]
     graph = nx.DiGraph(edges)
     data["graph"] = graph
-    with open(os.path.join(path,"topic_codes.txt"), "r") as f:
+    with open(dataset / "topic_codes.txt", "r") as f:
         topics = [x.replace("\n", "").split("\t") for x in f.readlines() if len(x) > 1][2:]
     topicmap = {x[0]: x[1] for x in topics}
     data["topicmap"]=topicmap
@@ -132,21 +134,22 @@ def load_rcv1(path="/disk1/users/jborst/Data/Test/MultiLabel/reuters/corpus-reut
     return data, classes
 
 
-def load_wiki30k(path="/disk1/users/jborst/Data/Test/MultiLabel/wiki30k"):
-    import pickle
-    with open(os.path.join(path, "wiki30k_raw_text.p"), "rb") as f: content = pickle.load(f)
-    train_x = [x["text"] for x in content[0]]
-    train_y = [x["catgy"] for x in content[0]]
-    test_x = [x["text"] for x in content[1]]
-    test_y = [x["catgy"] for x in content[1]]
-    data = {}
-    data["train"] = (train_x, train_y)
-    data["test"] = (test_x, test_y)
-    return data, content[3]
+# def load_wiki30k(path="/disk1/users/jborst/Data/Test/MultiLabel/wiki30k"):
+#     import pickle
+#     with open(os.path.join(path, "wiki30k_raw_text.p"), "rb") as f: content = pickle.load(f)
+#     train_x = [x["text"] for x in content[0]]
+#     train_y = [x["catgy"] for x in content[0]]
+#     test_x = [x["text"] for x in content[1]]
+#     test_y = [x["catgy"] for x in content[1]]
+#     data = {}
+#     data["train"] = (train_x, train_y)
+#     data["test"] = (test_x, test_y)
+#     return data, content[3]
 
-def load_eurlex(path="/disk1/users/jborst/Data/Test/MultiLabel/EURLex"):
-    import pickle
-    with open(os.path.join(path, "eurlex_raw_text.p"), "rb") as f: content = pickle.load(f)
+def load_eurlex(path=None):
+    assert path is not None, "Path is None, automatic download not yet implemented."
+    dataset = Path(path)
+    with open(dataset / "eurlex_raw_text.p", "rb") as f: content = pickle.load(f)
     train_x = [x["text"] for x in content[0]]
     train_y = [x["catgy"] for x in content[0]]
     test_x = [x["text"] for x in content[1]]
@@ -161,15 +164,15 @@ def load_eurlex(path="/disk1/users/jborst/Data/Test/MultiLabel/EURLex"):
     data["test"] = (test_x, test_y)
     return data, classes
 
-def load_huffpost(path="/disk1/users/jborst/Data/Test/MultiLabel/HuffPost", test_split=0.25):
+def load_huffpost(path=None, test_split=0.25):
     import json
     from sklearn.model_selection import train_test_split
-
+    dataset = Path(path)
     data = _load_from_tmp("huffpost")
     if data is not None: return data
     else:
-
-        with open(os.path.join(path, "News_Category_Dataset_v2.json"), "r") as f: content = json.loads("["+",".join(f.readlines())+"]")
+        assert path is not None, "Path is None, automatic download not yet implemented."
+        with open(dataset / "News_Category_Dataset_v2.json", "r") as f: content = json.loads("["+",".join(f.readlines())+"]")
         headlines = [x["headline"] for x in content]
         label = [x["category"] for x in content]
         data = (headlines, label)
@@ -186,13 +189,16 @@ def load_huffpost(path="/disk1/users/jborst/Data/Test/MultiLabel/HuffPost", test
     return {"train": tmp[0], "test": tmp[1]}, classes
 
 def load_moviesummaries(path="/disk1/users/jborst/Data/Test/MultiLabel/MovieSummaries", test_split=0.25):
+
     data = _load_from_tmp("moviesummaries")
     if data is not None: return data
     else:
 
+        assert path is not None, "Path is None, automatic download not yet implemented."
+        path = Path(path)
         from sklearn.model_selection import train_test_split
-        with open(os.path.join(path, "plot_summaries.txt"), "r") as f: content = f.readlines()
-        with open(os.path.join(path, "movie.metadata.tsv"), "r") as f: meta = {x.split("\t")[0]:x.split("\t")[-1].replace("\n","") for x in f.readlines()}#f.readlines()#[x.split("\t")[-1].replace("\n","") for x in f.readlines()]
+        with open(path / "plot_summaries.txt", "r") as f: content = f.readlines()
+        with open(path / "movie.metadata.tsv", "r") as f: meta = {x.split("\t")[0]:x.split("\t")[-1].replace("\n","") for x in f.readlines()}#f.readlines()#[x.split("\t")[-1].replace("\n","") for x in f.readlines()]
         meta = {k:[x.split(": ")[-1].replace("\"","").replace("}","") for x in genre.split(", ")] for k,genre in meta.items()}
 
         data = [(x.split("\t")[1], meta[str(x.split("\t")[0])]) for x in content if str(x.split("\t")[0]) in meta.keys()]
@@ -297,19 +303,20 @@ def load_blurbgenrecollection_de():
         return data, classes
 
 def load_webofscience():
-    url = "https://data.mendeley.com/datasets/9rw3vkcfy4/6/files/c9ea673d-5542-44c0-ab7b-f1311f7d61df/WebOfScience.zip?dl=1"
-    data = _load_from_tmp("blurbgenrecollection")
-    if data is not None:
-        return data
-    else:
-        from xml.etree import ElementTree
-        from urllib.request import urlopen
-        from zipfile import ZipFile
-        from io import BytesIO
-        import re
-
-        resp = urlopen(url)
-        zipfile = ZipFile(BytesIO(resp.read()))
+    raise NotImplementedError
+    # url = "https://data.mendeley.com/datasets/9rw3vkcfy4/6/files/c9ea673d-5542-44c0-ab7b-f1311f7d61df/WebOfScience.zip?dl=1"
+    # data = _load_from_tmp("blurbgenrecollection")
+    # if data is not None:
+    #     return data
+    # else:
+    #     from xml.etree import ElementTree
+    #     from urllib.request import urlopen
+    #     from zipfile import ZipFile
+    #     from io import BytesIO
+    #     import re
+    #
+    #     resp = urlopen(url)
+    #     zipfile = ZipFile(BytesIO(resp.read()))
 
 ################################
 # Named Entity Recognition
@@ -326,13 +333,14 @@ def read_conll(file, column=3):
 
 
 def load_conll2003en(path="/disk1/users/jborst/Data/Test/NER/CoNLL-2003/eng/BIOES/"):
+    path = Path(path)
     data = _load_from_tmp("conll2003en")
     if data is not None: return data
     else:
         data = {}
-        data["test"]= read_conll(os.path.join(path,"test.txt"))
-        data["valid"]= read_conll(os.path.join(path,"valid.txt"))
-        data["train"]= read_conll(os.path.join(path,"train.txt"))
+        data["test"]= read_conll(path / "test.txt")
+        data["valid"]= read_conll(path / "valid.txt")
+        data["train"]= read_conll(path / "train.txt")
         from mlmc.data.tagsets import NER
         classes = dict(zip(NER, range(len(NER))))
         _save_to_tmp("conll2003en", (data, classes))
@@ -353,26 +361,26 @@ def load_20newsgroup():
 
         resp = urlopen(url)
         tf = tarfile.open(fileobj=resp, mode="r|gz")
-        tf.extractall(tmpdir.name)
-        testdir = os.path.join(tmpdir.name,'20news-bydate-test')
-        traindir = os.path.join(tmpdir.name,'20news-bydate-train')
+        tf.extractall(Path(tmpdir.name))
+        testdir = Path(tmpdir.name)/'20news-bydate-test'
+        traindir = Path(tmpdir.name)/'20news-bydate-train'
 
         classes = []
 
         text, label= [], []
-        for catg in os.listdir(testdir):
-            classes.append(catg)
-            for file in os.listdir(os.path.join(testdir, catg)) :
-                with open(os.path.join(testdir, catg, file), 'r', encoding="ISO-8859-1") as f:
+        for catg in testdir.iterdir():
+            classes.append(catg.name)
+            for file in catg.iterdir():
+                with open(file, 'r', encoding="ISO-8859-1") as f:
                     text.append(f.read())
                     label.append([catg])
         testdata = (text, label)
 
         text, label = [], []
-        for catg in os.listdir(traindir):
-            classes.append(catg)
-            for file in os.listdir(os.path.join(traindir, catg)):
-                with open(os.path.join(traindir, catg, file), 'r', encoding="ISO-8859-1") as f:
+        for catg in traindir.iterdir():
+            classes.append(catg.name)
+            for file in catg.iterdir():
+                with open(file, 'r', encoding="ISO-8859-1") as f:
                     text.append(f.read())
                     label.append([catg])
         traindata = (text, label)
@@ -393,19 +401,20 @@ def load_20newsgroup():
         return data, classes
 
 
-def export(data, classes, path=os.path.join("./export")):
-    if not os.path.exists(path):
-        os.makedirs(path)
+def export(data, classes, path=Path("./export")):
+    path = Path(path)
+    if not path.exists():
+        path.mkdir()
     for k, v in data.items():
         if k in ("test","valid","train"):
-            with open(os.path.join(path,k+"_x.txt"),"w") as o:
+            with open(path / k+"_x.txt","w") as o:
                 o.writelines([x.replace("\n","\t")+"\n" for x in v[0]])
-            with open(os.path.join(path, k + "_y.txt"), "w") as o:
+            with open(path / k + "_y.txt", "w") as o:
                 o.writelines(["\t".join(x) +"\n" for x in v[1]])
         elif k == "graph":
             edgelist = [t[0] +"\t" + t[1] +"\n" for t in v.edges]
-            with open(os.path.join(path, "edge_list.txt"), "w") as o:
+            with open(path / "edge_list.txt", "w") as o:
                 o.writelines(edgelist)
 
-    with open(os.path.join(path, "classes.txt"), "w") as o:
+    with open(path /  "classes.txt", "w") as o:
         o.writelines([x+"\n" for x in classes.keys()])
