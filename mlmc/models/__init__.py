@@ -18,7 +18,7 @@ except:
     pass
 
 #Experimental Models
-from .ConceptScores import ConceptScores, ConceptScoresCNN,ConceptScoresCNNAttention,KimCNN2Branch,ConceptProjection,ConceptScoresAttention, ConceptScoresRelevance
+from .ConceptScores import ConceptScores, ConceptScoresCNN,ConceptScoresCNNAttention,KimCNN2Branch,ConceptProjection,ConceptScoresAttention, ConceptScoresRelevance, ConceptScoresRelevanceWithImportanceWeights
 from .ConceptLSAN import ConceptLSAN
 
 # Save and load models for inference without the language models representaiton to save disc space
