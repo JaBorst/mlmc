@@ -10,7 +10,7 @@ def save(model, path, only_inference=True):
         model.optimizer = None
         model.loss = None
 
-        if is_transformer(model.transformer) is not None:
+        if is_transformer(model.representation) is not None:
             embedding_tmp, tokenizer_tmp = model.embedding, model.tokenizer
             model.embedding, model.tokenizer = None, None
 

@@ -37,7 +37,7 @@ class ConceptScores(TextClassificationAbstract):
 
     def forward(self, x, return_scores=False):
         with torch.no_grad():
-            if self.transformer:
+            if self.embedding:
                 embeddings = torch.cat(self.embedding(x)[2][(-1 - self.n_layers):-1], -1)
             else:
                 embeddings = self.embedding(x)
@@ -91,7 +91,7 @@ class ConceptScoresCNN(TextClassificationAbstract):
 
     def forward(self, x, return_scores=False):
         with torch.no_grad():
-            if self.transformer:
+            if self.embedding:
                 embeddings = torch.cat(self.embedding(x)[2][(-1 - self.n_layers):-1], -1)
             else:
                 embeddings = self.embedding(x)
@@ -149,7 +149,7 @@ class ConceptScoresCNN(TextClassificationAbstract):
 
     def forward(self, x, return_scores=False):
         with torch.no_grad():
-            if self.transformer:
+            if self.embedding:
                 embeddings = torch.cat(self.embedding(x)[2][(-1 - self.n_layers):-1], -1)
             else:
                 embeddings = self.embedding(x)
@@ -223,7 +223,7 @@ class ConceptScoresCNNAttention(TextClassificationAbstract):
 
     def forward(self, x, return_scores=False):
         with torch.no_grad()  :
-            if self.transformer:
+            if self.embedding:
                 embeddings = torch.cat(self.embedding(x)[2][(-1-self.n_layers):-1], -1)
             else:
                 embeddings = self.embedding(x)
@@ -295,7 +295,7 @@ class ConceptScoresAttention(TextClassificationAbstract):
 
     def forward(self, x, return_scores=False):
         with torch.no_grad()  :
-            if self.transformer:
+            if self.embedding:
                 embeddings = torch.cat(self.embedding(x)[2][(-1-self.n_layers):-1], -1).permute(1,0,2)
             else:
                 embeddings = self.embedding(x)
@@ -427,7 +427,7 @@ class ConceptScoresRelevance(TextClassificationAbstract):
 
     def forward(self, x, return_scores=False):
         with torch.no_grad()  :
-            if self.transformer:
+            if self.embedding:
                 embeddings = torch.cat(self.embedding(x)[2][(-1-self.n_layers):-1], -1).permute(1,0,2)
             else:
                 embeddings = self.embedding(x).permute(1,0,2)
@@ -485,7 +485,7 @@ class KimCNN2Branch(TextClassificationAbstract):
 
     def forward(self, x, return_scores=False):
         with torch.no_grad():
-            if self.transformer:
+            if self.embedding:
                 embeddings = torch.cat(self.embedding(x)[2][(-1-self.n_layers):-1], -1).permute(0,2,1)
             else:
                 embeddings = self.embedding(x).permute(0,2,1)
@@ -542,7 +542,7 @@ class ConceptProjection(TextClassificationAbstract):
 
     def forward(self, x, return_scores=False):
         with torch.no_grad():
-            if self.transformer:
+            if self.embedding:
                 embeddings = torch.cat(self.embedding(x)[2][(-1-self.n_layers):-1], -1).permute(0,2,1)
             else:
                 embeddings = self.embedding(x).permute(0,2,1)
