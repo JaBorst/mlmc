@@ -9,11 +9,14 @@ data = mlmc.data.get_multilabel_dataset("blurbgenrecollection")
 tc = mlmc.models.KimCNN(classes=data["classes"],
                         mode="transformer",
                         device=device)
-history = tc.fit(train=data["train"], valid=data["valid"], epochs=1, batch_size=50)
-evaluation = tc.evaluate(data["test"], batch_size=50)
-prediction = tc.predict_dataset(mlmc.data.sampler(data["test"], absolute=100), batch_size=32, tr=0.65, method="mcut")
-
-
-
+# mlmc.save(tc, "test.pt",only_inference=False)
+# tc2 = mlmc.load("test.pt",only_inference=False)
+#
+history = tc2.fit(train=data["train"], valid=data["valid"], epochs=1, batch_size=50)
+# evaluation = tc.evaluate(data["test"], batch_size=50)
+# prediction = tc.predict_dataset(mlmc.data.sampler(data["test"], absolute=100), batch_size=32, tr=0.65, method="mcut")
+#
+#
+#
 
 
