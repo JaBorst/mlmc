@@ -1,5 +1,6 @@
 import torch
-from ..representation import get, is_transformer
+from mlmc.representation import get, is_transformer
+import warnings
 
 def save(model, path, only_inference=True):
     if only_inference:
@@ -10,11 +11,12 @@ def save(model, path, only_inference=True):
         model.optimizer = None
         model.loss = None
 
-        if is_transformer(model.transformer) is not None:
+        if is_transformer(model.representation) is not None:
             embedding_tmp, tokenizer_tmp = model.embedding, model.tokenizer
             model.embedding, model.tokenizer = None, None
-
-        torch.save(model, path)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            torch.save(model, path)
 
         if is_transformer(model.representation) is not None:
             model.embedding, model.tokenizer = embedding_tmp, tokenizer_tmp
