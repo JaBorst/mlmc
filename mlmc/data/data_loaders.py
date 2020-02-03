@@ -36,7 +36,7 @@ def _save_to_tmp(dataset, data):
 #============================================================================
 
 def load_aapd(path=None):
-    # GEt dataset from the serverdataset=os.path.abspath(path)
+    # GEt dataset from the serverdataset=os.path.abspath(path) https://aspra29.informatik.uni-leipzig.de:9090/AAPD.zip
 
     data = _load_from_tmp("aapd")
     if data is not None: return data
