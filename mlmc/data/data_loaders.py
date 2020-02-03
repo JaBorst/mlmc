@@ -35,13 +35,14 @@ def _save_to_tmp(dataset, data):
 #============================================================================
 #============================================================================
 
-def load_aapd():
+def load_aapd(path=None):
     # GEt dataset from the serverdataset=os.path.abspath(path)
-    dataset = Path(".")
+
     data = _load_from_tmp("aapd")
     if data is not None: return data
     else:
         assert path is not None, "RCV1 must be input with a path to the downloaded corpus"
+        dataset = Path(path)
         with open(dataset / "aapd.json")as f: classes = json.load(f)
         data = {}
         for x in ("test","val", "train"):
@@ -134,17 +135,17 @@ def load_rcv1(path=None):
     return data, classes
 
 
-# def load_wiki30k(path="/disk1/users/jborst/Data/Test/MultiLabel/wiki30k"):
-#     import pickle
-#     with open(os.path.join(path, "wiki30k_raw_text.p"), "rb") as f: content = pickle.load(f)
-#     train_x = [x["text"] for x in content[0]]
-#     train_y = [x["catgy"] for x in content[0]]
-#     test_x = [x["text"] for x in content[1]]
-#     test_y = [x["catgy"] for x in content[1]]
-#     data = {}
-#     data["train"] = (train_x, train_y)
-#     data["test"] = (test_x, test_y)
-#     return data, content[3]
+def load_wiki30k(path="/disk1/users/jborst/Data/Test/MultiLabel/wiki30k"):
+    import pickle
+    with open(os.path.join(path, "wiki30k_raw_text.p"), "rb") as f: content = pickle.load(f)
+    train_x = [x["text"] for x in content[0]]
+    train_y = [x["catgy"] for x in content[0]]
+    test_x = [x["text"] for x in content[1]]
+    test_y = [x["catgy"] for x in content[1]]
+    data = {}
+    data["train"] = (train_x, train_y)
+    data["test"] = (test_x, test_y)
+    return data, content[3]
 
 def load_eurlex(path=None):
     assert path is not None, "Path is None, automatic download not yet implemented."
