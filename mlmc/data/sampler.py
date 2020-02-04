@@ -38,10 +38,9 @@ def successive_sampler(dataset, classes, separate_dataset):
         for key in selectedKeys:
             if key in classes :
                 del classes[key]
-        
         l_list = dataset.y
         
-        #Object to store which data point belong to already defined classes
+        #Object to store which data point belongs to already defined classes
         candidate_idx = []
 
         for index, (c_list) in enumerate(dataset.y):
@@ -59,7 +58,10 @@ def successive_sampler(dataset, classes, separate_dataset):
         x_new = [dataset.x[i] for i in ind]
         y_new = [l_list[i] for i in ind]
 
-        n_result.append({'train' : type(dataset)(x=x, y=y, classes = already_select_class, target_dtype = dataset.target_dtype),'test':type(dataset)(x=x_new, y=y_new, classes = already_select_class, target_dtype = dataset.target_dtype)})
+        n_result.append({
+            'train' : type(dataset)(x=x, y=y, classes = already_select_class, target_dtype = dataset.target_dtype),
+            'test':type(dataset)(x=x_new, y=y_new, classes = already_select_class, target_dtype = dataset.target_dtype)
+        })
         n_idx.append(list(already_select_id))
 
         print("--- LENGTH DATASET: ",len(already_select_id))
