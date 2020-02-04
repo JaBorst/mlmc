@@ -231,7 +231,7 @@ def load_huffpost(path=None, test_split=0.25):
     return {"train": tmp[0], "test": tmp[1]}, classes
 
 
-def load_moviesummaries(path=None, test_split=0.25):
+def load_moviesummaries(test_split=0.25):
     data = _load_from_tmp("moviesummaries")
     if data is not None:
         return data
@@ -268,9 +268,10 @@ def load_moviesummaries(path=None, test_split=0.25):
         for i, arr in enumerate(data):
             tmp[i % n_arr].append(arr)
 
-        _save_to_tmp("moviesummaries", (data, classes))
+        dataset=  {"train": tmp[0], "test": tmp[1]}
+        _save_to_tmp("moviesummaries", (dataset, classes))
 
-        return {"train": tmp[0], "test": tmp[1]}, classes
+        return dataset, classes
 
 
 # ----------------------------------------------
