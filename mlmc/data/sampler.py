@@ -1,10 +1,10 @@
-from numpy.random import choice
+import numpy as np
 
 
 def sampler(dataset, fraction=None, absolute=None):
     '''Sample a Random subsample of fixed size or fixed fraction of a dataset.'''
     n_samples = absolute if absolute is not None else  int(fraction*len(dataset))
-    ind = choice(range(len(dataset)), n_samples)
+    ind = np.random.choice(range(len(dataset)), n_samples)
     x = [dataset.x[i] for i in ind]
     y = [dataset.y[i] for i in ind]
     return type(dataset)(x=x, y=y, classes=dataset.classes, target_dtype=dataset.target_dtype)
@@ -23,7 +23,7 @@ def successive_sampler(dataset, classes, separate_dataset):
     for x in range(0, separate_dataset):
         # extend classes to use
         # sample from existing classes/delete from whole dataset to sample
-        c_ind = choice(range(len(classes)), np.round(len(classes)/2).astype(np.int64))
+        c_ind = np.random.choice(range(len(classes)), np.round(len(classes)/2).astype(np.int64))
 
         selectedKeys = list() 
         
@@ -50,13 +50,9 @@ def successive_sampler(dataset, classes, separate_dataset):
                 candidate_idx.append(index)
                 l_list[index] = list(intersect)
 
-
-        ind = choice(list(set(candidate_idx) - already_select_id), n_samples)
+        ind = np.random.choice(list(set(candidate_idx) - already_select_id), n_samples)
 
         already_select_id = set(ind).union(already_select_id)
-
-
-
         x = [dataset.x[i] for i in list(already_select_id)]
         y = [l_list[i] for i in list(already_select_id)]
 
