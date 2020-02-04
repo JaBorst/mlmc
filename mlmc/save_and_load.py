@@ -1,7 +1,10 @@
-import torch
-from mlmc.representation import get, is_transformer
-import warnings
 from pathlib import Path
+
+import torch
+import warnings
+
+from mlmc.representation import is_transformer
+
 
 def save(model, path, only_inference=True):
     if only_inference:
@@ -35,7 +38,6 @@ def save(model, path, only_inference=True):
             embedding_tmp, tokenizer_tmp = model.embedding, model.tokenizer
             model.embedding, model.tokenizer = None, None
 
-
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             args = type(model).__init__.__code__.co_varnames[1:-1]
@@ -52,20 +54,21 @@ def save(model, path, only_inference=True):
         model.optimizer = optimizer_tmp
     return path
 
+
 def load(path, only_inference=True):
     if only_inference:
         loaded = torch.load(Path(path))
         loaded._init_input_representations()
         return loaded
     else:
-        loaded  = torch.load(Path(path))
+        loaded = torch.load(Path(path))
         representation = loaded["args"]["representation"]
         if is_transformer(representation):
             model = loaded["type"](**loaded["args"])
             tmp = model.embedding
-            model.embedding=None
+            model.embedding = None
             model.load_state_dict(loaded["model_state_dict"])
-            model.embedding=tmp
+            model.embedding = tmp
         else:
             model = loaded["type"](**loaded["args"])
             model.load_state_dict(loaded["model_state_dict"])
