@@ -1,11 +1,11 @@
 from torch.utils.data import Dataset
 import torch
-from .data_loaders  import load_eurlex, load_wiki30k, load_huffpost, load_appd, load_rcv1, load_conll2003en, \
+from .data_loaders  import load_eurlex, load_wiki30k, load_huffpost, load_aapd, load_rcv1, load_conll2003en, \
     load_moviesummaries,load_blurbgenrecollection, load_blurbgenrecollection_de, load_20newsgroup,export
 
 # String Mappings
 register = {
-    "appd": load_appd,
+    "aapd": load_aapd,
     "rcv1": load_rcv1,
     "huffpost": load_huffpost,
     "wiki30k": load_wiki30k,
@@ -112,3 +112,4 @@ def get_multilabel_dataset(name, type=MultiLabelDataset, ensure_valid=False, val
 
 ## Sampler import
 from .sampler import sampler, successive_sampler
+

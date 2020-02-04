@@ -1,6 +1,10 @@
+from pathlib import Path
+
 import torch
-from mlmc.representation import get, is_transformer
 import warnings
+
+from mlmc.representation import is_transformer
+
 
 def save(model, path, only_inference=True):
     if only_inference:
@@ -16,7 +20,7 @@ def save(model, path, only_inference=True):
             model.embedding, model.tokenizer = None, None
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            torch.save(model, path)
+            torch.save(model, Path(path))
 
         if is_transformer(model.representation) is not None:
             model.embedding, model.tokenizer = embedding_tmp, tokenizer_tmp
@@ -33,7 +37,6 @@ def save(model, path, only_inference=True):
         if is_transformer(model.representation) is not None:
             embedding_tmp, tokenizer_tmp = model.embedding, model.tokenizer
             model.embedding, model.tokenizer = None, None
-
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -51,20 +54,21 @@ def save(model, path, only_inference=True):
         model.optimizer = optimizer_tmp
     return path
 
+
 def load(path, only_inference=True):
     if only_inference:
-        loaded = torch.load(path)
+        loaded = torch.load(Path(path))
         loaded._init_input_representations()
         return loaded
     else:
-        loaded  = torch.load(path)
+        loaded = torch.load(Path(path))
         representation = loaded["args"]["representation"]
         if is_transformer(representation):
             model = loaded["type"](**loaded["args"])
             tmp = model.embedding
-            model.embedding=None
+            model.embedding = None
             model.load_state_dict(loaded["model_state_dict"])
-            model.embedding=tmp
+            model.embedding = tmp
         else:
             model = loaded["type"](**loaded["args"])
             model.load_state_dict(loaded["model_state_dict"])
