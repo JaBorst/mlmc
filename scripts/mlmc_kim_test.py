@@ -12,7 +12,7 @@ tc = mlmc.models.KimCNN(classes=data["classes"],
 # mlmc.save(tc, "test.pt",only_inference=False)
 # tc2 = mlmc.load("test.pt",only_inference=False)
 #
-history = tc2.fit(train=data["train"], valid=data["valid"], epochs=1, batch_size=50)
+history = tc.fit(train=data["train"], valid=data["valid"], epochs=1, batch_size=50)
 # evaluation = tc.evaluate(data["test"], batch_size=50)
 # prediction = tc.predict_dataset(mlmc.data.sampler(data["test"], absolute=100), batch_size=32, tr=0.65, method="mcut")
 #
