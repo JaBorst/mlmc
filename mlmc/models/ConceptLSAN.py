@@ -54,12 +54,15 @@ class ConceptLSAN(TextClassificationAbstract):
         with torch.no_grad():
             if is_transformer(self.representation):
                 embeddings = torch.cat(self.embedding(x)[2][(-1 - self.n_layers):-1], -1)
-                outputs = self.input_projection(embeddings)
+
             else:
                 embeddings = self.embedding(x)
                 embeddings = self.embedding_dropout(embeddings)
-                outputs = self.lstm(embeddings)[0]
 
+        if is_transformer(self.representation):
+            outputs = self.input_projection(embeddings)
+        else:
+            outputs = self.lstm(embeddings)[0]
 
         # step2 get self-attention
         selfatt = torch.tanh(self.linear_first(outputs))
