@@ -8,3 +8,4 @@ torch
 tqdm
 networkx
 bs4
+pytest
