@@ -43,7 +43,15 @@ class MultiLabelDataset(Dataset):
     def transform(self, fct):
         self.x = [fct(sen) for sen in self.x]
 
+    def to_json(self):
+        """Transform the data set into a json string representation"""
+        import json
+        json_string = json.dumps(self.to_dict())
+        return json_string
 
+    def to_dict(self):
+        """Transform the dataset into a dictionary-of-lists representation"""
+        return {"x": self.x, "y": self.y, "classes":list(self.classes.keys())}
 
 class SequenceDataset(Dataset):
     """Dataset format for Sequence data."""
