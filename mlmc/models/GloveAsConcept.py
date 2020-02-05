@@ -28,7 +28,7 @@ class GloveConcepts(TextClassificationAbstract):
         self.n_classes = len(classes)
         self.label_freeze = label_freeze
         self.label_vocabulary = label_vocabulary
-
+        self.att_dim = 256
 
         self.concepts=torch.nn.Parameter(torch.from_numpy(concepts).float())
         self.concepts.requires_grad=False
@@ -46,6 +46,8 @@ class GloveConcepts(TextClassificationAbstract):
 
         self.input_projection = torch.nn.Linear(self.embedding_dim, self.concept_embedding_dim)
 
+        self.query_projection = torch.nn.Linear(self.embedding_dim, self.att_dim)
+        self.key_projection = torch.nn.Linear(self.embedding_dim, self.att_dim)
 
         self.comparing_space = torch.nn.Linear(self.n_concepts, 256)
 
@@ -58,14 +60,15 @@ class GloveConcepts(TextClassificationAbstract):
             embeddings = torch.cat(self.embedding(x)[2][(-1 - self.n_layers):-1], -1)
         outputs = self.input_projection(embeddings)
 
-        scores = torch.softmax(torch.matmul(outputs, self.concepts.float().t()).mean(-2),-1)
+        word_scores = torch.softmax(torch.matmul(self.query_projection(embeddings), self.key_projection(embeddings).permute(0,2,1)), -1).sum(-2)[:,:,None]
 
-        doc = self.comparing_space(scores)
+        concept_scores = torch.softmax((word_scores*torch.matmul(outputs, self.concepts.float().t())).mean(-2),-1)
+        doc = self.comparing_space(concept_scores)
         label = self.comparing_space(self.label_concept_onehot)
 
         classes = torch.matmul(doc, label.t())
 
         if return_scores:
-            return classes, scores
+            return classes, concept_scores, word_scores
         return classes
 

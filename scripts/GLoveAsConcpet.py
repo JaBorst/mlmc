@@ -5,7 +5,7 @@ weights, vocabulary = mlmc.representation.load_static("/disk1/users/jborst/Data/
 
 
 epochs = 20
-batch_size = 6
+batch_size = 2
 mode = "transformer"
 representation = "roberta"
 optimizer = torch.optim.Adam
@@ -40,8 +40,8 @@ tc = mlmc.models.GloveConcepts(
 if data["valid"] is None:
     data["valid"] = mlmc.data.sampler(data["test"], absolute=5000)
 
-history=tc.fit(train=data["train"],
-               valid=data["valid"],
+history=tc.fit(train=mlmc.data.sampler(data["train"],absolute=10),
+               valid=mlmc.data.sampler(data["valid"],absolute=10),
                batch_size=batch_size,
                valid_batch_size=batch_size,
-               epochs=epochs)
+               epochs=epochs,classes_subset=test)
