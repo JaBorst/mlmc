@@ -12,7 +12,11 @@ def sampler(dataset, fraction=None, absolute=None):
 
 def successive_sampler(dataset, classes, separate_dataset, reindex_classes=True):
     """Return an iterable of datasets sampled from dataset... """
-   
+
+    # Quick FIX function was changing the global value of mutable
+    # ToDO: Find a better way maybe than copying
+    classes=classes.copy()
+
     n_result = []
     n_idx = []
     n_ind = []
@@ -56,11 +60,13 @@ def successive_sampler(dataset, classes, separate_dataset, reindex_classes=True)
         x_new = [dataset.x[i] for i in ind]
         y_new = [l_list[i] for i in ind]
 
-        cls = dict(zip(already_select_class.keys(), range(len(already_select_class)))) if reindex_classes else already_select_class
+        # Quick FIX function was changing the global value of mutable
+        # ToDO: Find a better way maybe than copying
+        cls = dict(zip(already_select_class.keys(), range(len(already_select_class)))) if reindex_classes else already_select_class.copy()
 
         n_result.append({
-            'train' : type(dataset)(x=x, y=y, classes=cls, target_dtype=dataset.target_dtype),
-            'test':type(dataset)(x=x_new, y=y_new, classes=cls, target_dtype=dataset.target_dtype)
+            'train' : type(dataset)(x=x, y=y, classes=dataset.classes, occuring_classes=cls, target_dtype=dataset.target_dtype),
+            'test':type(dataset)(x=x_new, y=y_new, classes=dataset.classes, occuring_classes=cls,target_dtype=dataset.target_dtype)
         })
         n_idx.append(list(already_select_id))
 
