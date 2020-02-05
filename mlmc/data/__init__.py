@@ -25,7 +25,8 @@ class MultiLabelDataset(Dataset):
 
     It also inherits torch.utils.data.Dataset so to be able to lates use the Dataloader and iterate
     """
-    def __init__(self, x, y, classes, purpose="train", target_dtype=torch.LongTensor):
+    def __init__(self, x, y, classes, purpose="train", target_dtype=torch.LongTensor, **kwargs):
+        self.__dict__.update(kwargs)
         self.classes = classes
         self.purpose = purpose
         self.x = x
