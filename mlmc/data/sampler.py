@@ -59,8 +59,8 @@ def successive_sampler(dataset, classes, separate_dataset):
         y_new = [l_list[i] for i in ind]
 
         n_result.append({
-            'train' : type(dataset)(x=x, y=y, classes = already_select_class, target_dtype = dataset.target_dtype),
-            'test':type(dataset)(x=x_new, y=y_new, classes = already_select_class, target_dtype = dataset.target_dtype)
+            'train' : type(dataset)(x=x, y=y, classes = dict(zip(already_select_class.keys(), range(len(already_select_class)))), target_dtype = dataset.target_dtype),
+            'test':type(dataset)(x=x_new, y=y_new, classes = dict(zip(already_select_class.keys(), range(len(already_select_class)))), target_dtype = dataset.target_dtype)
         })
         n_idx.append(list(already_select_id))
 
