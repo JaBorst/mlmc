@@ -67,5 +67,5 @@ class GloveConcepts(TextClassificationAbstract):
 
         if return_scores:
             return classes, scores
-        return outputs
+        return classes
 
