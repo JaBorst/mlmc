@@ -20,4 +20,5 @@ except:
 #Experimental Models
 from .ConceptScores import ConceptScores, ConceptScoresCNN,ConceptScoresCNNAttention,KimCNN2Branch,ConceptProjection,ConceptScoresAttention, ConceptScoresRelevance, ConceptScoresRelevanceWithImportanceWeights
 from .ConceptLSAN import ConceptLSAN
+from .GloveAsConcept import GloveConcepts
 

@@ -11,12 +11,11 @@ class ConceptLSAN(TextClassificationAbstract):
     """
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
-    def __init__(self, classes, representation="roberta", label_embed=None, label_freeze=True, use_lstm=True, d_a=200, max_len=400, **kwargs):
+    def __init__(self, classes, representation="roberta", label_embed=None, label_freeze=True,  d_a=200, max_len=400, **kwargs):
         super(ConceptLSAN, self).__init__(**kwargs)
         #My Stuff
         self.classes = classes
         self.max_len = max_len
-        self.use_lstm = use_lstm
         self.n_layers = 4
         self.concept_embedding_dim = label_embed.shape[-1]
         self.n_concepts = label_embed.shape[0]
@@ -24,6 +23,10 @@ class ConceptLSAN(TextClassificationAbstract):
 
         # Original
         self.n_classes = len(classes)
+        self.label_embed=label_embed
+        self.label_freeze = label_freeze
+        self.d_a = d_a
+
         if not is_transformer(self.representation):
             self.embedding, self.tokenizer = get(representation, freeze=True)
             self.embedding_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
@@ -62,13 +65,16 @@ class ConceptLSAN(TextClassificationAbstract):
     def forward(self, x, return_scores=False):
         with torch.no_grad():
             if is_transformer(self.representation):
+                embeddings = torch.cat(self.embedding(x)[2][(-1 - self.n_layers):-1], -1)
+
+            else:
                 embeddings = self.embedding(x)
                 embeddings = self.embedding_dropout(embeddings)
-                outputs = self.lstm(embeddings)[0]
-            else:
-                embeddings = torch.cat(self.embedding(x)[2][(-1-self.n_layers):-1], -1)
-                outputs = self.input_projection(embeddings)
 
+        if is_transformer(self.representation):
+            outputs = self.input_projection(embeddings)
+        else:
+            outputs = self.lstm(embeddings)[0]
 
         # step2 get self-attention
         selfatt = torch.tanh(self.linear_first(outputs))

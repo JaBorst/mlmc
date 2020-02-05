@@ -3,6 +3,9 @@ import torch
 import ignite
 from ..metrics.multilabel import MultiLabelReport,AUC_ROC
 from ..representation import is_transformer,get
+from ..representation.labels import makemultilabels
+
+
 
 class TextClassificationAbstract(torch.nn.Module):
     """
@@ -20,6 +23,7 @@ class TextClassificationAbstract(torch.nn.Module):
         self.loss = loss
         self.optimizer = optimizer
         self.optimizer_params = optimizer_params
+        self.PRECISION_DIGITS = 4
 
     def build(self):
         if isinstance(self.loss, type) and self.loss is not None:
@@ -28,20 +32,28 @@ class TextClassificationAbstract(torch.nn.Module):
             self.optimizer = self.optimizer(self.parameters(), **self.optimizer_params)
         self.to(self.device)
 
-    def evaluate(self, data, batch_size=50, return_roc=False, return_report=False):
+    def evaluate_classes(self, classes_subset=None, **kwargs):
+        if classes_subset is None:
+            return self.evaluate(**kwargs)
+        else:
+            mask = makemultilabels([list(classes_subset.values())], maxlen=len(self.classes))
+            return self.evaluate(**kwargs, mask=mask)
+
+    def evaluate(self, data, batch_size=50, return_roc=False, return_report=False, mask=None):
         """
         Evaluation, return accuracy and loss
         """
         self.eval()  # set mode to evaluation to disable dropout
-        p_1 = ignite.metrics.Precision(is_multilabel=True,average=True)
-        p_3 = ignite.metrics.Precision(is_multilabel=True,average=True)
-        p_5 = ignite.metrics.Precision(is_multilabel=True,average=True)
-        subset_65 = ignite.metrics.Accuracy(is_multilabel=True)
-        subset_mcut = ignite.metrics.Accuracy(is_multilabel=True)
-        report = MultiLabelReport(self.classes)
+        p_1 = Precision(is_multilabel=True,average=True)
+        p_3 = Precision(is_multilabel=True,average=True)
+        p_5 = Precision(is_multilabel=True,average=True)
+        subset_65 = Accuracy(is_multilabel=True)
+        subset_mcut = Accuracy(is_multilabel=True)
+        report = MultiLabelReport(self.classes) if mask is None else MultiLabelReport(self.classes, check_zeros=True)
         auc_roc = AUC_ROC(len(self.classes))
         average = ignite.metrics.Average()
         data_loader = torch.utils.data.DataLoader(data, batch_size=batch_size)
+
         with torch.no_grad():
             for i, b in enumerate(data_loader):
                 y = b["labels"]
@@ -49,31 +61,35 @@ class TextClassificationAbstract(torch.nn.Module):
                 x = self.transform(b["text"])
                 output = self(x.to(self.device)).cpu()
                 l = self.loss(output, torch._cast_Float(y))
-
                 output = torch.sigmoid(output)
+
+                # Subset evaluation if ...
+                if mask is not None:
+                    output = output * mask
+                    y = y * mask
+
                 average.update(l.item())
-                # accuracy.update((prediction, y))
-                p_1.update((torch.zeros_like(output).scatter(1,torch.topk(output, k=1)[1],1), y))
-                p_3.update((torch.zeros_like(output).scatter(1,torch.topk(output, k=3)[1],1), y))
-                p_5.update((torch.zeros_like(output).scatter(1,torch.topk(output, k=5)[1],1), y))
-                subset_65.update((self.threshold(output,tr=0.65,method="hard"), y))
-                subset_mcut.update((self.threshold(output,tr=0.65,method="mcut"), y))
-                if return_report: report.update((self.threshold(output,tr=0.65,method="hard"), y))
+                p_1.update((torch.zeros_like(output).scatter(1, torch.topk(output, k=1)[1],1), y))
+                p_3.update((torch.zeros_like(output).scatter(1, torch.topk(output, k=3)[1],1), y))
+                p_5.update((torch.zeros_like(output).scatter(1, torch.topk(output, k=5)[1],1), y))
+                subset_65.update((self.threshold(output, tr=0.5, method="hard"), y))
+                subset_mcut.update((self.threshold(output, tr=0.5, method="mcut"), y))
+                if return_report: report.update((self.threshold(output, tr=0.5, method="mcut"), y))
                 auc_roc.update((torch.sigmoid(output).detach(),y.detach()))
         self.train()
         return {
             # "accuracy": accuracy.compute(),
-            "valid_loss": round(average.compute().item(),6),
-            "p@1": round(p_1.compute(),4),
-            "p@3": round(p_3.compute(),4),
-            "p@5": round(p_5.compute(),4),
-            "auc":  auc_roc.compute() if return_roc else round(auc_roc.compute()[0],4),
-            "a@0.65": round(subset_65.compute(),4),
-            "a@mcut": round(subset_mcut.compute(),4),
+            "valid_loss": round(average.compute().item(),self.PRECISION_DIGITS),
+            "p@1": round(p_1.compute(),self.PRECISION_DIGITS),
+            "p@3": round(p_3.compute(),self.PRECISION_DIGITS),
+            "p@5": round(p_5.compute(),self.PRECISION_DIGITS),
+            "auc":  auc_roc.compute() if return_roc else round(auc_roc.compute()[0],self.PRECISION_DIGITS),
+            "a@0.65": round(subset_65.compute(),self.PRECISION_DIGITS),
+            "a@mcut": round(subset_mcut.compute(),self.PRECISION_DIGITS),
             "report": report.compute() if return_report else None,
         }
 
-    def fit(self, train, valid = None, epochs=1, batch_size=16, valid_batch_size=50):
+    def fit(self, train, valid = None, epochs=1, batch_size=16, valid_batch_size=50, classes_subset=None):
         validation=[]
         train_history = {"loss": []}
         for e in range(epochs):
@@ -90,13 +106,17 @@ class TextClassificationAbstract(torch.nn.Module):
                     output = self(x)
                     l = self.loss(output, y)
                     average.update(l.item())
-                    pbar.postfix[0]["loss"] = round(average.compute().item(),6)
+                    pbar.postfix[0]["loss"] = round(average.compute().item(),self.PRECISION_DIGITS)
                     l.backward()
                     self.optimizer.step()
                     pbar.update()
                 # torch.cuda.empty_cache()
                 if valid is not None:
-                    validation.append(self.evaluate(valid,batch_size=valid_batch_size))
+                    validation.append(self.evaluate_classes(classes_subset=classes_subset,
+                                                           data=valid,
+                                                           batch_size=valid_batch_size,
+                                                           return_report=False,
+                                                           return_roc=False))
                     pbar.postfix[0].update(validation[-1])
                     pbar.update()
                 # torch.cuda.empty_cache()
@@ -114,7 +134,7 @@ class TextClassificationAbstract(torch.nn.Module):
         self.train()
         return [[self.classes_rev[i.item()] for i in torch.where(p==1)[0]] for p in prediction]
 
-    def predict_dataset(self, data, batch_size, tr=0.65, method="hard"):
+    def predict_dataset(self, data, batch_size=50, tr=0.65, method="hard"):
         train_loader = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=True)
         predictions = []
         for b in tqdm(train_loader):

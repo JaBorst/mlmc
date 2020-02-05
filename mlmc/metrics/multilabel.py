@@ -4,16 +4,26 @@ import torch
 
 class MultiLabelReport():
     """Multilabel iterative F1/Precision/Recall. Ignite API like"""
-    def __init__(self, classes):
+    def __init__(self, classes, check_zeros=False):
         self.classes = classes
         self.truth = []
         self.pred = []
+        self.check_zeros = check_zeros
+
     def update(self, batch):
         assert isinstance(batch, tuple), "batch needs to be a tuple"
-        self.truth.append(batch[0])
-        self.pred.append(batch[1])
+        if self.check_zeros:
+            non_zero_rows = (((batch[1]==0).sum(-1)==batch[1].shape[-1]).int()) ==0
+            self.truth.append(batch[1][non_zero_rows])
+            self.pred.append(batch[0][non_zero_rows])
+        else:
+            self.truth.append(batch[1])
+            self.pred.append(batch[0])
     def compute(self):
-        return skm.classification_report(torch.cat(self.truth), torch.cat(self.pred), output_dict=True, target_names=list(self.classes.keys()))
+        return skm.classification_report(torch.cat(self.truth).numpy(),
+                                         torch.cat(self.pred).numpy(),
+                                         output_dict=True,
+                                         target_names=list(self.classes.keys()))
 
 class AUC_ROC():
     """Multilabel iterative AUC_ROC. Ignite API like"""
@@ -53,7 +63,7 @@ class AUC_ROC():
             tpr = self.true_positives / self.all_positives[None, :]
             tpr[torch.isnan(tpr)] = 0
             fpr = self.false_positives / self.all_negatives[None, :]
-            tpr=tpr.mean(-1)
+            tpr = tpr.mean(-1)
             fpr = fpr.mean(-1)
 
         return skm.auc(fpr, tpr), (fpr.tolist(), tpr.tolist())

@@ -18,7 +18,7 @@ layers=1
 import numpy as np
 label_embeddings = np.load("/tmp/tmp/mlmc/wordnet_node2vec_100.npz")
 label_embeddings = label_embeddings["arr_0"]
-label_embeddings = torch.from_numpy(label_embeddings)
+label_embeddings = torch.from_numpy(label_embeddings)[:1000]
 
 
 data = mlmc.data.get_dataset(dataset,
@@ -28,12 +28,8 @@ data = mlmc.data.get_dataset(dataset,
                              target_dtype=torch._cast_Float)
 tc = mlmc.models.KimCNN2Branch(
     classes=data["classes"],
-    layers=layers,
+    representation="roberta",
     label_embed=label_embeddings,
-    label_freeze=True,
-    use_lstm=False,
-    transformer=transformer,
-    static=static,
     optimizer=optimizer,
     optimizer_params=optimizer_params,
     loss=loss,
@@ -42,7 +38,8 @@ tc = mlmc.models.KimCNN2Branch(
 if data["valid"] is None:
     data["valid"] = mlmc.data.sampler(data["test"], absolute=100)
 
-# history=tc.evaluate(data["valid"], batch_size=batch_size,
-#                     return_report=True, return_roc=True)
-# history=tc.fit(train=mlmc.data.sample(data["train"], absolute=1000), valid= data["valid"], batch_size=batch_size, valid_batch_size=batch_size,epochs=epochs)
-history=tc.fit(train=data["train"], valid= data["valid"], batch_size=batch_size, valid_batch_size=batch_size,epochs=epochs)
+history=tc.evaluate(data["valid"], batch_size=batch_size,
+                    return_report=True, return_roc=True)
+# # history=tc.fit(train=mlmc.data.sample(data["train"], absolute=1000), valid= data["valid"], batch_size=batch_size, valid_batch_size=batch_size,epochs=epochs)
+# history=tc.fit(train=data["train"], valid= data["valid"], batch_size=batch_size, valid_batch_size=batch_size,epochs=epochs)
+

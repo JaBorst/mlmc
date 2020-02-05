@@ -1,11 +1,11 @@
 from torch.utils.data import Dataset
 import torch
-from .data_loaders  import load_eurlex, load_wiki30k, load_huffpost, load_appd, load_rcv1, load_conll2003en, \
+from .data_loaders  import load_eurlex, load_wiki30k, load_huffpost, load_aapd, load_rcv1, load_conll2003en, \
     load_moviesummaries,load_blurbgenrecollection, load_blurbgenrecollection_de, load_20newsgroup,export
 
 # String Mappings
 register = {
-    "appd": load_appd,
+    "aapd": load_aapd,
     "rcv1": load_rcv1,
     "huffpost": load_huffpost,
     "wiki30k": load_wiki30k,
@@ -25,7 +25,8 @@ class MultiLabelDataset(Dataset):
 
     It also inherits torch.utils.data.Dataset so to be able to lates use the Dataloader and iterate
     """
-    def __init__(self, x, y, classes, purpose="train", target_dtype=torch.LongTensor):
+    def __init__(self, x, y, classes, purpose="train", target_dtype=torch.LongTensor, **kwargs):
+        self.__dict__.update(kwargs)
         self.classes = classes
         self.purpose = purpose
         self.x = x
@@ -43,7 +44,15 @@ class MultiLabelDataset(Dataset):
     def transform(self, fct):
         self.x = [fct(sen) for sen in self.x]
 
+    def to_json(self):
+        """Transform the data set into a json string representation"""
+        import json
+        json_string = json.dumps(self.to_dict())
+        return json_string
 
+    def to_dict(self):
+        """Transform the dataset into a dictionary-of-lists representation"""
+        return {"x": self.x, "y": self.y, "classes":list(self.classes.keys())}
 
 class SequenceDataset(Dataset):
     """Dataset format for Sequence data."""
