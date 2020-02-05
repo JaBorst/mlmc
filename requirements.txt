@@ -3,7 +3,7 @@ transformers
 nltk
 node2vec
 scikit-learn
-ignite==1.1.0
+pytorch-ignite
 torch
 tqdm
 networkx
