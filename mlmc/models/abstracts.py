@@ -4,6 +4,8 @@ from ignite.metrics import Precision, Accuracy, Average
 from ..metrics.multilabel import MultiLabelReport,AUC_ROC
 from ..representation import is_transformer,get
 
+
+
 class TextClassificationAbstract(torch.nn.Module):
     """
     Abstract class for Multilabel Models. Defines fit, evaluate, predict and threshold methods for virtually any
@@ -20,6 +22,7 @@ class TextClassificationAbstract(torch.nn.Module):
         self.loss = loss
         self.optimizer = optimizer
         self.optimizer_params = optimizer_params
+        self.PRECISION_DIGITS = 4
 
     def build(self):
         if isinstance(self.loss, type) and self.loss is not None:
@@ -63,13 +66,13 @@ class TextClassificationAbstract(torch.nn.Module):
         self.train()
         return {
             # "accuracy": accuracy.compute(),
-            "valid_loss": round(average.compute().item(),6),
-            "p@1": round(p_1.compute(),4),
-            "p@3": round(p_3.compute(),4),
-            "p@5": round(p_5.compute(),4),
-            "auc":  auc_roc.compute() if return_roc else round(auc_roc.compute()[0],4),
-            "a@0.65": round(subset_65.compute(),4),
-            "a@mcut": round(subset_mcut.compute(),4),
+            "valid_loss": round(average.compute().item(),self.PRECISION_DIGITS),
+            "p@1": round(p_1.compute(),self.PRECISION_DIGITS),
+            "p@3": round(p_3.compute(),self.PRECISION_DIGITS),
+            "p@5": round(p_5.compute(),self.PRECISION_DIGITS),
+            "auc":  auc_roc.compute() if return_roc else round(auc_roc.compute()[0],self.PRECISION_DIGITS),
+            "a@0.65": round(subset_65.compute(),self.PRECISION_DIGITS),
+            "a@mcut": round(subset_mcut.compute(),self.PRECISION_DIGITS),
             "report": report.compute() if return_report else None,
         }
 
@@ -90,7 +93,7 @@ class TextClassificationAbstract(torch.nn.Module):
                     output = self(x)
                     l = self.loss(output, y)
                     average.update(l.item())
-                    pbar.postfix[0]["loss"] = round(average.compute().item(),6)
+                    pbar.postfix[0]["loss"] = round(average.compute().item(),self.PRECISION_DIGITS)
                     l.backward()
                     self.optimizer.step()
                     pbar.update()
@@ -114,7 +117,7 @@ class TextClassificationAbstract(torch.nn.Module):
         self.train()
         return [[self.classes_rev[i.item()] for i in torch.where(p==1)[0]] for p in prediction]
 
-    def predict_dataset(self, data, batch_size, tr=0.65, method="hard"):
+    def predict_dataset(self, data, batch_size=50, tr=0.65, method="hard"):
         train_loader = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=True)
         predictions = []
         for b in tqdm(train_loader):
