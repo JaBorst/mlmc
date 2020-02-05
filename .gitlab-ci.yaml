@@ -1,0 +1,17 @@
+before_script:
+  - pip install -r requirements.txt
+
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  script:
+    - python -m pytest tests/unit
+
+coverage:
+    stage: test
+    script:
+      - pytest --cov active_learning/ tests/unit/ --cov-report xml
+      - coverage report
