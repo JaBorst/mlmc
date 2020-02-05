@@ -10,7 +10,7 @@ def sampler(dataset, fraction=None, absolute=None):
     return type(dataset)(x=x, y=y, classes=dataset.classes, target_dtype=dataset.target_dtype)
 
 
-def successive_sampler(dataset, classes, separate_dataset):
+def successive_sampler(dataset, classes, separate_dataset, reindex_classes=True):
     """Return an iterable of datasets sampled from dataset... """
    
     n_result = []
@@ -24,9 +24,7 @@ def successive_sampler(dataset, classes, separate_dataset):
         # extend classes to use
         # sample from existing classes/delete from whole dataset to sample
         c_ind = np.random.choice(range(len(classes)), np.round(len(classes)/2).astype(np.int64))
-
-        selectedKeys = list() 
-        
+        selectedKeys = list()
         # Iterate over the dict and put to be deleted keys in the list
         for index, (key, value) in enumerate(classes.items()):
             if(index in c_ind):
@@ -58,9 +56,11 @@ def successive_sampler(dataset, classes, separate_dataset):
         x_new = [dataset.x[i] for i in ind]
         y_new = [l_list[i] for i in ind]
 
+        cls = dict(zip(already_select_class.keys(), range(len(already_select_class)))) if reindex_classes else already_select_class
+
         n_result.append({
-            'train' : type(dataset)(x=x, y=y, classes = dict(zip(already_select_class.keys(), range(len(already_select_class)))), target_dtype = dataset.target_dtype),
-            'test':type(dataset)(x=x_new, y=y_new, classes = dict(zip(already_select_class.keys(), range(len(already_select_class)))), target_dtype = dataset.target_dtype)
+            'train' : type(dataset)(x=x, y=y, classes=cls, target_dtype=dataset.target_dtype),
+            'test':type(dataset)(x=x_new, y=y_new, classes=cls, target_dtype=dataset.target_dtype)
         })
         n_idx.append(list(already_select_id))
 
