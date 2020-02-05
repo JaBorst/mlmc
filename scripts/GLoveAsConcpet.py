@@ -5,14 +5,14 @@ weights, vocabulary = mlmc.representation.load_static("/disk1/users/jborst/Data/
 
 
 epochs = 20
-batch_size = 32
+batch_size = 6
 mode = "transformer"
 representation = "roberta"
 optimizer = torch.optim.Adam
-optimizer_params = {"lr": 5e-3, "betas": (0.9, 0.99)}
+optimizer_params = {"lr": 5e-5, "betas": (0.9, 0.99)}
 loss = torch.nn.BCEWithLogitsLoss
 dataset = "movies_summaries"
-device = torch.device("cpu" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 concept_graph = "random"
 layers = 1
 label_freeze = True
