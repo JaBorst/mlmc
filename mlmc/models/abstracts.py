@@ -1,7 +1,7 @@
 from tqdm import tqdm
 import torch
 from ignite.metrics import Precision, Accuracy, Average
-from ..metrics.multilabel import MultiLabelReport,AUC_ROC
+    from ..metrics.multilabel import MultiLabelReport,AUC_ROC
 from ..representation import is_transformer,get
 from ..representation.labels import makemultilabels
 
