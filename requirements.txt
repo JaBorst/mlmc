@@ -3,8 +3,10 @@ transformers
 nltk
 node2vec
 scikit-learn
-ignite
+pytorch-ignite
 torch
 tqdm
 networkx
 bs4
+pytest
+pytest-cov

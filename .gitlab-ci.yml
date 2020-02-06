@@ -1,0 +1,20 @@
+image: python:3.7.5-slim-buster
+
+before_script:
+  - echo $(pwd)
+  - pip install .
+
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  script:
+    - python -m pytest tests
+
+coverage:
+    stage: test
+    script:
+      - pytest --cov mlmc/ tests/ --cov-report xml
+      - coverage report
