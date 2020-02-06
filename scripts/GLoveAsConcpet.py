@@ -1,17 +1,17 @@
 import mlmc
 import torch
-weights, vocabulary = mlmc.representation.load_static("/disk1/users/jborst/Data/Embeddings/glove/en/glove.6B.50d.txt")
+weights, vocabulary = mlmc.representation.load_static("/disk1/users/jborst/Data/Embeddings/glove/en/glove.6B.300d.txt")
 
 
 
 epochs = 20
-batch_size = 2
+batch_size = 5
 mode = "transformer"
 representation = "roberta"
-optimizer = torch.optim.Adam
-optimizer_params = {"lr": 5e-5, "betas": (0.9, 0.99)}
+optimizer = torch.optim.SGD
+optimizer_params = {"lr": 1e-3}#, "betas": (0.9, 0.99)}
 loss = torch.nn.BCEWithLogitsLoss
-dataset = "movies_summaries"
+dataset = "blurbgenrecollection"
 device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 concept_graph = "random"
 layers = 1
@@ -40,8 +40,15 @@ tc = mlmc.models.GloveConcepts(
 if data["valid"] is None:
     data["valid"] = mlmc.data.sampler(data["test"], absolute=5000)
 
-history=tc.fit(train=mlmc.data.sampler(data["train"],absolute=10),
-               valid=mlmc.data.sampler(data["valid"],absolute=10),
+sample = mlmc.data.sampler(data["train"],absolute=40)
+history=tc.fit(train=sample,
+               valid=sample,
                batch_size=batch_size,
                valid_batch_size=batch_size,
-               epochs=epochs,classes_subset=test)
+               epochs=100)
+print("test")
+history=tc.fit(train=sample,
+               valid=sample,
+               batch_size=batch_size,
+               valid_batch_size=batch_size,
+               epochs=100)

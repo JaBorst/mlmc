@@ -6,6 +6,7 @@ from .abstracts import TextClassificationAbstract
 from ..representation import get, is_transformer
 import re
 from ..representation.labels import makemultilabels
+import torch_geometric as torch_g
 
 
 class GloveConcepts(TextClassificationAbstract):
@@ -17,9 +18,10 @@ class GloveConcepts(TextClassificationAbstract):
         #My Stuff
         assert is_transformer(representation), "This model only works with transformers"
 
+
         self.classes = classes
         self.max_len = max_len
-        self.n_layers = 4
+        self.n_layers = 2
         self.concept_embedding_dim = concepts.shape[-1]
         self.n_concepts = concepts.shape[0]
         self.representation = representation
@@ -38,37 +40,52 @@ class GloveConcepts(TextClassificationAbstract):
         # label_embed = [x.max(0)[0] for x in label_embed]
 
 
-        self.label_concept_onehot = torch.nn.Parameter(makemultilabels(label_embed, len(self.label_vocabulary)+1).float() )
-        self.label_concept_onehot.requires_grad=False
+        self.label_concept_onehot = makemultilabels(label_embed, len(self.label_vocabulary)+1).float()
+        self.labels = torch.matmul(self.label_concept_onehot, self.concepts)
+        self.labels = self.labels / self.labels.norm(p=2, dim=-1)[:, None]
+        self.labels[torch.isnan(self.labels.norm(dim=-1))] = 0
+
+        self.labels = torch.nn.Parameter(self.labels)
+        self.labels.requires_grad = False
+
 
         # self.query_projection = torch.nn.Linear(self.embedding_dim,200)
         # self.key_projection = torch.nn.Linear(self.embedding_dim,200)
 
-        self.input_projection = torch.nn.Linear(self.embedding_dim, self.concept_embedding_dim)
+        self.input_projection = torch.nn.Linear(self.max_len*self.embedding_dim, 600)
+        self.input_projection2 = torch.nn.Linear(300, 600)
+        # self.concept_projection = torch.nn.Linear(2048, self.n_classes)
+        # self.output_projection = torch.nn.Linear(300, self.n_classes,bias=False)
+        # self.output_projection.weight.requires_grad =False
+        # with torch.no_grad():
+        #     self.output_projection.weight.copy_(self.concept_aggregation_labels)
 
-        self.query_projection = torch.nn.Linear(self.embedding_dim, self.att_dim)
-        self.key_projection = torch.nn.Linear(self.embedding_dim, self.att_dim)
+        # self.importance = torch.nn.Linear(self.embedding_dim,1).to(self.device)
+        #
+        # self.query_projection = torch.nn.Linear(self.embedding_dim, self.att_dim)
+        # self.key_projection = torch.nn.Linear(self.embedding_dim, self.att_dim)
+        # self.scaling = torch.nn.Parameter(torch.sqrt(torch.Tensor([1./400.])))
 
-        self.comparing_space = torch.nn.Linear(self.n_concepts, 256)
+        # self.comparing_space_doc = torch.nn.Linear(self.n_concepts, 256)
+        # self.comparing_space_label = torch.nn.Linear(self.n_concepts, 256)
 
-
-
+        # self.ggc = torch_g.nn.GraphConv(self.n_concepts, self.n_concepts).to(self.device)
+        # self.metric_tensor = torch.nn.Parameter(
+        #     torch.triu(torch.rand((self.concept_embedding_dim, self.concept_embedding_dim)))#+  self.concept_embedding_dim*torch.eye(self.concept_embedding_dim)
+        # )
+        # self.metric_tensor.requires_grad=True
+        # torch.nn.init.kaiming_normal_(self.metric_tensor)
         self.build()
 
     def forward(self, x, return_scores=False):
         with torch.no_grad():
             embeddings = torch.cat(self.embedding(x)[2][(-1 - self.n_layers):-1], -1)
-        outputs = self.input_projection(embeddings)
+            embeddings = embeddings.flatten(1,2)
+        p = self.input_projection(embeddings)
+        p2= self.input_projection2(self.labels)
+        return torch.matmul(p,p2.t())
 
-        word_scores = torch.softmax(torch.matmul(self.query_projection(embeddings), self.key_projection(embeddings).permute(0,2,1)), -1).sum(-2)[:,:,None]
-
-        concept_scores = torch.softmax((word_scores*torch.matmul(outputs, self.concepts.float().t())).mean(-2),-1)
-        doc = self.comparing_space(concept_scores)
-        label = self.comparing_space(self.label_concept_onehot)
-
-        classes = torch.matmul(doc, label.t())
-
-        if return_scores:
-            return classes, concept_scores, word_scores
-        return classes
-
+    # def regularize(self):
+    #     lower_tri = torch.triu(self.metric_tensor).t()
+    #     dev = torch.relu((lower_tri.sum(-1) - 2 * lower_tri.diag()))
+    #     return  dev.sum() + torch.relu(-lower_tri.diag()).sum()
