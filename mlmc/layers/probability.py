@@ -14,4 +14,3 @@ class Prob(torch.nn.Module):
     def forward(self, x):
         x = (torch.unsqueeze(x, -1) * self.corr).sum(-2)
         return x
-

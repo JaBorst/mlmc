@@ -60,7 +60,10 @@ class TextClassificationAbstract(torch.nn.Module):
                 y[y!=0] = 1
                 x = self.transform(b["text"])
                 output = self(x.to(self.device)).cpu()
-                l = self.loss(output, torch._cast_Float(y)) #+ self.regularize()
+                if hasattr(self, "regularize"):
+                    l = self.loss(output, torch._cast_Float(y)) + self.regularize()
+                else:
+                    l = self.loss(output, torch._cast_Float(y))
                 output = torch.sigmoid(output)
 
                 # Subset evaluation if ...
@@ -102,9 +105,13 @@ class TextClassificationAbstract(torch.nn.Module):
                 for i, b in enumerate(train_loader):
                     self.optimizer.zero_grad()
                     y = b["labels"].to(self.device)
+                    y[y!=0] = 1
                     x = self.transform(b["text"]).to(self.device)
                     output = self(x)
-                    l = self.loss(output, y) #+ self.regularize()
+                    if hasattr(self, "regularize"):
+                        l = self.loss(output, torch._cast_Float(y)) + self.regularize()
+                    else:
+                        l = self.loss(output, torch._cast_Float(y))
                     l.backward()
                     self.optimizer.step()
                     average.update(l.item())
@@ -164,6 +171,3 @@ class TextClassificationAbstract(torch.nn.Module):
         else:
             self.embedding, self.tokenizer = get(self.representation, freeze=True)
             self.embedding_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
-
-    def regularize(self):
-        return torch.Tensor([0.]).to(self.device)
