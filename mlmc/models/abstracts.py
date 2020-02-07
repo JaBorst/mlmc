@@ -29,7 +29,7 @@ class TextClassificationAbstract(torch.nn.Module):
         if isinstance(self.loss, type) and self.loss is not None:
             self.loss = self.loss().to(self.device)
         if isinstance(self.optimizer, type) and self.optimizer is not None:
-            self.optimizer = self.optimizer(self.parameters(), **self.optimizer_params)
+            self.optimizer = self.optimizer(filter(lambda p: p.requires_grad, self.parameters()), **self.optimizer_params)
         self.to(self.device)
 
     def evaluate_classes(self, classes_subset=None, **kwargs):
@@ -60,7 +60,10 @@ class TextClassificationAbstract(torch.nn.Module):
                 y[y!=0] = 1
                 x = self.transform(b["text"])
                 output = self(x.to(self.device)).cpu()
-                l = self.loss(output, torch._cast_Float(y))
+                if hasattr(self, "regularize"):
+                    l = self.loss(output, torch._cast_Float(y)) + self.regularize()
+                else:
+                    l = self.loss(output, torch._cast_Float(y))
                 output = torch.sigmoid(output)
 
                 # Subset evaluation if ...
@@ -79,7 +82,7 @@ class TextClassificationAbstract(torch.nn.Module):
         self.train()
         return {
             # "accuracy": accuracy.compute(),
-            "valid_loss": round(average.compute().item(),self.PRECISION_DIGITS),
+            "valid_loss": round(average.compute().item(), 2*self.PRECISION_DIGITS),
             "p@1": round(p_1.compute(),self.PRECISION_DIGITS),
             "p@3": round(p_3.compute(),self.PRECISION_DIGITS),
             "p@5": round(p_5.compute(),self.PRECISION_DIGITS),
@@ -102,13 +105,17 @@ class TextClassificationAbstract(torch.nn.Module):
                 for i, b in enumerate(train_loader):
                     self.optimizer.zero_grad()
                     y = b["labels"].to(self.device)
+                    y[y!=0] = 1
                     x = self.transform(b["text"]).to(self.device)
                     output = self(x)
-                    l = self.loss(output, y)
-                    average.update(l.item())
-                    pbar.postfix[0]["loss"] = round(average.compute().item(),self.PRECISION_DIGITS)
+                    if hasattr(self, "regularize"):
+                        l = self.loss(output, torch._cast_Float(y)) + self.regularize()
+                    else:
+                        l = self.loss(output, torch._cast_Float(y))
                     l.backward()
                     self.optimizer.step()
+                    average.update(l.item())
+                    pbar.postfix[0]["loss"] = round(average.compute().item(),2*self.PRECISION_DIGITS)
                     pbar.update()
                 # torch.cuda.empty_cache()
                 if valid is not None:
