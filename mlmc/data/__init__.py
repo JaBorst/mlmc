@@ -54,6 +54,25 @@ class MultiLabelDataset(Dataset):
         """Transform the dataset into a dictionary-of-lists representation"""
         return {"x": self.x, "y": self.y, "classes":list(self.classes.keys())}
 
+    def __add__(self, o):
+        new_classes = list(set( list(self.classes.keys()) +  list(o.classes.keys()) ))
+        new_classes.sort()
+        new_classes = dict(zip(new_classes, range(len(new_classes))))
+
+        new_data = list(set(self.x + o.x))
+        new_labels = [[] for _ in range(len(new_data))]
+
+        for i, x in enumerate(self.x):
+            new_labels[new_data.index(x)].extend(self.y[i])
+
+        for i, x in enumerate(o.x):
+            new_labels[new_data.index(x)].extend(o.y[i])
+
+        new_labels = [list(set(x)) for x in new_labels]
+
+        return MultiLabelDataset(x=new_data, y=new_labels, classes=new_classes)
+
+
 class SequenceDataset(Dataset):
     """Dataset format for Sequence data."""
     def __init__(self, x, y, classes, purpose="train", target_dtype=torch._cast_Long):
