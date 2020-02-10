@@ -5,7 +5,7 @@ import json
 import pandas as pd
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-name = "blurbgenrecollection" #  "20newsgroup"
+name = "20newsgroup"
 epochs = 15
 batch_size=50
 n=5
@@ -19,6 +19,23 @@ if not path.exists():
 
 data = mlmc.data.get_multilabel_dataset(name)
 samples, ind = mlmc.data.successive_sampler(dataset=data["train"], classes = data["classes"], separate_dataset=n, reindex_classes=False)
+
+# Save the current dataset versions
+samples_dict = []
+
+for dataset in samples:
+    samples_dict.append(
+        {
+            "train": dataset["train"].to_dict(),
+            "test": dataset["test"].to_dict()
+        }
+    )
+
+js = json.dumps(samples_dict, ensure_ascii=False)
+with open(path/('successive_datasets_'+name+'_'+str(n)+'.json'), 'w', encoding='utf8') as json_file:
+    json.dump(samples_dict, json_file, ensure_ascii=False)
+
+
 
 sample_evaluations = []
 testset_evaluations = []
