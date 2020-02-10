@@ -9,10 +9,10 @@ stages:
   - test
 
 build:
-only:
-    refs:
-    - master
-    - dev
+    only:
+        refs:
+        - master
+        - dev
   stage: build
   script:
     - python -m pytest tests
