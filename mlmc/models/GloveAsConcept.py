@@ -41,20 +41,29 @@ class GloveConcepts(TextClassificationAbstract):
         # label_embed = [x.max(0)[0] for x in label_embed]
 
         self.label_concept_onehot = makemultilabels(label_embed, len(self.label_vocabulary)).float()
+        self.label_concept_onehot = self.label_concept_onehot / self.label_concept_onehot.norm(p=2,dim=-1,keepdim=True)
         self.labels = torch.matmul(self.label_concept_onehot, self.concepts)
-        self.labels = self.labels / self.labels.norm(p=2, dim=-1)[:, None]
+        # self.labels = self.labels / self.labels.norm(p=2, dim=-1)[:, None]
         self.labels[torch.isnan(self.labels.norm(dim=-1))] = 0
 
         self.labels = torch.nn.Parameter(self.labels)
         self.labels.requires_grad = False
 
-
+        self.scaling = torch.nn.Parameter(torch.sqrt(torch.Tensor([max_len])))
+        self.scaling.requires_grad=False
 
         self.input_projection = torch.nn.Linear(self.embedding_dim, self.embedding_dim)
         self.input_projection2 = torch.nn.Linear(self.concept_embedding_dim, self.embedding_dim)
-        # self.second_projection = torch.nn.Linear(512, self.compare_space_dim)
-        # self.second_projection2 = torch.nn.Linear(512, self.compare_space_dim)
+
+        self.beta = torch.nn.Parameter(torch.sqrt(torch.Tensor([self.n_concepts])))
+        self.beta.requires_grad = False
+        # self.projection_importance_key = torch.nn.Linear(self.embedding_dim, self.compare_space_dim)
+        # self.projection_importance_query = torch.nn.Linear(self.embedding_dim, self.compare_space_dim)
+        # self.projection_importance = torch.nn.Linear(self.max_len*self.max_len, self.max_len)
+
+
         self.metric = Bilinear(self.embedding_dim)
+        self.metric2 = Bilinear(self.concept_embedding_dim).to(self.device)
         self.output_projection = torch.nn.Linear(in_features=self.max_len*self.n_classes, out_features=self.n_classes)
         self.build()
 
@@ -62,9 +71,35 @@ class GloveConcepts(TextClassificationAbstract):
         with torch.no_grad():
             embeddings = torch.cat(self.embedding(x)[2][(-1 - self.n_layers):-1], -1)
         p1 = self.input_projection(embeddings)
-        p2= self.input_projection2(self.labels)
-        output = self.output_projection(self.metric(p1,p2).flatten(1,2))
+        p2 = self.input_projection2(self.concepts)
+
+        metric_scores = torch.softmax(self.beta*self.metric(p1,p2),-1)
+
+        metric_based_representation = torch.matmul(metric_scores, self.concepts)
+        metric_based_representation = metric_based_representation/metric_based_representation.norm(p=2, dim=-1, keepdim=True)
+
+        label_scores = self.metric2(metric_based_representation, self.labels)
+
+        output = self.output_projection(label_scores.flatten(1,2))
+
+        if return_scores:
+            return output, metric_scores
         return output
 
     # def regularize(self):
     #     return self.metric.regularize()
+
+    def additional_concepts(self, x, k=5):
+        self.eval()
+        if not hasattr(self, "classes_rev"):
+            self.classes_rev = {v: k for k, v in self.classes.items()}
+
+        label_vocabulary_rev = {v: k for k, v in self.label_vocabulary.items()}
+
+        prediction = self(self.transform(x).to(self.device), return_scores=True)
+        label = [self.classes_rev[x.item()] for x in torch.where(self.threshold(prediction[0], 0.5,"hard")==1)[1]]
+        tk = prediction[1].sum(-2).topk(k)[1][0]
+        concepts = [label_vocabulary_rev[x.item()] for x in tk]
+
+        print("Labels:\t", label)
+        print("Concepts:\t", concepts)

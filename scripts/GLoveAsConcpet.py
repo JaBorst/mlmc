@@ -13,7 +13,7 @@ vocabulary = load["vocabulary"].item()
 
 
 epochs = 20
-batch_size = 5
+batch_size = 32
 mode = "transformer"
 representation = "roberta"
 optimizer = torch.optim.Adam
@@ -60,15 +60,23 @@ tc = mlmc.models.GloveConcepts(
 if data["valid"] is None:
     data["valid"] = mlmc.data.sampler(data["test"], absolute=50)
 
-sample = mlmc.data.sampler(data["train"],absolute=1000)
-history=tc.fit(train=sample,
-               valid=mlmc.data.sampler(data["test"], absolute=100),
+train_sample = mlmc.data.class_sampler(data["train"], classes=["Business"],samples_size=100)
+test_sample = mlmc.data.class_sampler(data["train"], classes=["Business"],samples_size=100)
+history=tc.fit(train=train_sample,
+               valid=test_sample,
                batch_size=batch_size,
                valid_batch_size=batch_size,
-               epochs=100)
+               epochs=2)
+i=4
+print(test_sample.x[i])
+print(test_sample.y[i])
+print(tc.additional_concepts(test_sample.x[i], 10))
+
+
+
 print("test")
-history=tc.fit(train=sample,
-               valid=sample,
-               batch_size=batch_size,
-               valid_batch_size=batch_size,
-               epochs=100)
+# history=tc.fit(train=train_sample,
+#                valid=train_sample,
+#                batch_size=batch_size,
+#                valid_batch_size=batch_size,
+#                epochs=100)
