@@ -1,4 +1,5 @@
 from sklearn.decomposition import PCA
+import numpy as np
 
 def postprocess_embedding(x, D=10):
     """Remove principal components and mean value to make embeddings more discernable
