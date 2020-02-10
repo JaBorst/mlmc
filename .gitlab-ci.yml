@@ -1,7 +1,6 @@
 image: python:3.7.5-slim-buster
 
 before_script:
-  - echo $(pwd)
   - pip install .
 
 stages:
@@ -9,11 +8,19 @@ stages:
   - test
 
 build:
-  stage: build
-  script:
+    only:
+        refs:
+        - master
+        - dev
+    stage: build
+    script:
     - python -m pytest tests
 
 coverage:
+    only:
+        refs:
+        - master
+        - dev
     stage: test
     script:
       - pytest --cov mlmc/ tests/ --cov-report xml
