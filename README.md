@@ -9,6 +9,6 @@ for your cuda setup. Download the right version from
 
 Install with
 ```
-pip install github+https://git.informatik.uni-leipzig.de/asv-ml/mlmc
+pip install git+https://git.informatik.uni-leipzig.de/asv-ml/mlmc
 ```
 
