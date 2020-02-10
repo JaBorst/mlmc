@@ -168,6 +168,18 @@ class TextClassificationAbstract(torch.nn.Module):
             self.n_layers=4
             self.embedding, self.tokenizer = get(self.representation, output_hidden_states=True)
             self.embedding_dim = self.embedding(torch.LongTensor([[0]]))[0].shape[-1]*self.n_layers
+            for param in self.embedding.parameters(): param.requires_grad = False
+
         else:
             self.embedding, self.tokenizer = get(self.representation, freeze=True)
             self.embedding_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
+            for param in self.embedding.parameters(): param.requires_grad = False
+
+    def num_params(self):
+        total = sum(p.numel() for p in self.parameters())
+        trainable = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        print("Parameters:\n"
+              "Trainable:\t%i\n"
+              "Fixed:\t%i\n"
+              "-----------\n"
+              "Total:\t%i" % (trainable, total-trainable,total))
