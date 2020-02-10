@@ -9,11 +9,19 @@ stages:
   - test
 
 build:
+only:
+    refs:
+    - master
+    - dev
   stage: build
   script:
     - python -m pytest tests
 
 coverage:
+    only:
+        refs:
+        - master
+        - dev
     stage: test
     script:
       - pytest --cov mlmc/ tests/ --cov-report xml
