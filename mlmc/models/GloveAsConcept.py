@@ -50,10 +50,10 @@ class GloveConcepts(TextClassificationAbstract):
 
 
 
-        self.input_projection = torch.nn.Linear(self.embedding_dim, 512)
+        self.input_projection = torch.nn.Linear(self.embedding_dim, self.embedding_dim)
         self.input_projection2 = torch.nn.Linear(self.concept_embedding_dim, self.embedding_dim)
-        self.second_projection = torch.nn.Linear(512, self.compare_space_dim)
-        self.second_projection2 = torch.nn.Linear(512, self.compare_space_dim)
+        # self.second_projection = torch.nn.Linear(512, self.compare_space_dim)
+        # self.second_projection2 = torch.nn.Linear(512, self.compare_space_dim)
         self.metric = Bilinear(self.embedding_dim)
         self.output_projection = torch.nn.Linear(in_features=self.max_len*self.n_classes, out_features=self.n_classes)
         self.build()
@@ -61,8 +61,10 @@ class GloveConcepts(TextClassificationAbstract):
     def forward(self, x, return_scores=False):
         with torch.no_grad():
             embeddings = torch.cat(self.embedding(x)[2][(-1 - self.n_layers):-1], -1)
+        p1 = self.input_projection(embeddings)
         p2= self.input_projection2(self.labels)
-        return self.output_projection(self.metric(embeddings,p2).flatten(1,2))
+        output = self.output_projection(self.metric(p1,p2).flatten(1,2))
+        return output
 
     # def regularize(self):
     #     return self.metric.regularize()

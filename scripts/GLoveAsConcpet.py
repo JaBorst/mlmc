@@ -3,9 +3,12 @@ import torch
 import re
 import numpy as np
 # weights, vocabulary = mlmc.representation.load_static("/disk1/users/jborst/Data/Embeddings/glove/en/glove.6B.300d.txt")
+# weights = mlmc.representation.postprocess_embedding(weights)
+
 load = np.load("/tmp/tmp/mlmc/needed_embeddings.npz", allow_pickle=True)
 weights = load["weights"]
 vocabulary = load["vocabulary"].item()
+
 
 
 
@@ -13,8 +16,8 @@ epochs = 20
 batch_size = 5
 mode = "transformer"
 representation = "roberta"
-optimizer = torch.optim.SGD
-optimizer_params = {"lr": 1e-3}#, "betas": (0.9, 0.99)}
+optimizer = torch.optim.Adam
+optimizer_params = {"lr": 1e-4}#, "betas": (0.9, 0.99)}
 loss = torch.nn.BCEWithLogitsLoss
 dataset = "blurbgenrecollection"
 device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
@@ -50,7 +53,7 @@ tc = mlmc.models.GloveConcepts(
     label_freeze=label_freeze,
     representation=representation,
     optimizer=optimizer,
-    optimizer_params=optimizer_params,
+    # optimizer_params=optimizer_params,
     loss=loss,
     device=device)
 
