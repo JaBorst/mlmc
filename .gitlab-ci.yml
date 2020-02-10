@@ -1,7 +1,6 @@
 image: python:3.7.5-slim-buster
 
 before_script:
-  - echo $(pwd)
   - pip install .
 
 stages:
@@ -13,8 +12,8 @@ build:
         refs:
         - master
         - dev
-  stage: build
-  script:
+    stage: build
+    script:
     - python -m pytest tests
 
 coverage:
