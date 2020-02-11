@@ -2,13 +2,6 @@ import mlmc
 import torch
 import re
 import numpy as np
-# weights, vocabulary = mlmc.representation.load_static("/disk1/users/jborst/Data/Embeddings/glove/en/glove.6B.300d.txt")
-# weights = mlmc.representation.postprocess_embedding(weights)
-
-load = np.load("/tmp/tmp/mlmc/needed_embeddings.npz", allow_pickle=True)
-weights = load["weights"]
-vocabulary = load["vocabulary"].item()
-
 
 
 
@@ -36,20 +29,9 @@ data = mlmc.data.get_dataset(dataset,
                              target_dtype=torch._cast_Float)
 
 
-# label_words = [[w if w != "comdedy" else "comedy" for w in re.split("[ /,'’:-]",x.lower())] for x in data["train"].classes.keys()]
-# needed_words = list(set([y for x in label_words for y in x if y != ""]))
-# import numpy as np
-# needed_embeddings = np.zeros((len(needed_words), 300))
-# needed_vocabulary = {}
-# for i, w in enumerate(needed_words):
-#     needed_vocabulary[w]=i
-#     needed_embeddings[i]=weights[vocabulary[w]]
-# np.savez("needed_embeddings.npz", weights=needed_embeddings, vocabulary=needed_vocabulary, allow_pickle=True)
 
-tc = mlmc.models.GloveConcepts(
+tc = mlmc.models.BertAsConcept(
     classes=data["classes"],
-    concepts=weights,
-    label_vocabulary=vocabulary,
     label_freeze=label_freeze,
     representation=representation,
     optimizer=optimizer,
