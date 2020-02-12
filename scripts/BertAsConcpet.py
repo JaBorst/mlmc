@@ -6,14 +6,14 @@ import numpy as np
 
 
 epochs = 20
-batch_size = 32
+batch_size = 50
 mode = "transformer"
 representation = "roberta"
 optimizer = torch.optim.Adam
-optimizer_params = {"lr": 1e-4}#, "betas": (0.9, 0.99)}
+optimizer_params = {"lr": 1e-5}#, "betas": (0.9, 0.99)}
 loss = torch.nn.BCEWithLogitsLoss
 dataset = "blurbgenrecollection"
-device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 concept_graph = "random"
 layers = 1
 label_freeze = True
@@ -30,11 +30,11 @@ data = mlmc.data.get_dataset(dataset,
 
 
 
-tc = mlmc.models.BertAsConcept(
+tc = mlmc.models.BertAsConcept2(
     classes=data["classes"],
     label_freeze=label_freeze,
     representation=representation,
-    optimizer=optimizer,
+    optimizer=optimizer,s
     # optimizer_params=optimizer_params,
     loss=loss,
     device=device)
