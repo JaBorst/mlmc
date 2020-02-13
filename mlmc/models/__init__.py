@@ -21,5 +21,6 @@ except:
 from .ConceptScores import ConceptScores, ConceptScoresCNN,ConceptScoresCNNAttention,KimCNN2Branch,ConceptProjection,ConceptScoresAttention, ConceptScoresRelevance, ConceptScoresRelevanceWithImportanceWeights
 from .ConceptLSAN import ConceptLSAN
 from .GloveAsConcept import GloveConcepts
-from .BertAsConcept import BertAsConcept, BertAsConcept2
+from .BertAsConcept import BertAsConcept, BertAsConcept2, BertAsConcept3
+from .BertAsConcept2 import BertAsConceptFineTuning
 

@@ -6,7 +6,7 @@ from .abstracts import TextClassificationAbstract
 from ..representation import get, is_transformer
 import re
 from ..representation.labels import makemultilabels
-from ..layers import Bilinear
+from ..layers import Bilinear, AttentionWeightedAggregation
 from ignite.metrics import Average
 from tqdm import tqdm
 
@@ -139,3 +139,56 @@ class BertAsConcept2(TextClassificationAbstract):
         print("Labels:\t", label)
         print("Concepts:\t", concepts)
 
+
+class BertAsConcept3(TextClassificationAbstract):
+    """
+    https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
+    """
+    def __init__(self, classes, representation="roberta", label_freeze=True, max_len=300, **kwargs):
+        super(BertAsConcept3, self).__init__(**kwargs)
+        # My Stuff
+        assert is_transformer(representation), "This model only works with transformers"
+
+        self.max_len = max_len
+        self.n_layers = 2
+        self.representation = representation
+        self._init_input_representations()
+        # Original
+        self.n_classes = len(classes)
+        self.label_freeze = label_freeze
+        self.d_a = 1024
+
+        self.classes = classes
+        self.labels = torch.nn.Parameter(self.embedding(self.transform(self.classes.keys()))[1])
+        self.labels.requires_grad = False
+        self.label_embedding_dim = self.labels.shape[-1]
+
+
+        self.input_projection2 = torch.nn.Linear(self.label_embedding_dim, self.embedding_dim)
+        self.metric = Bilinear(self.embedding_dim).to(self.device)
+        self.output_projection = torch.nn.Linear(in_features=self.max_len , out_features=1)
+
+        self.att = AttentionWeightedAggregation(in_features = self.embedding_dim, d_a=self.d_a)
+
+        self.build()
+
+
+    def forward(self, x, return_scores=False):
+        with torch.no_grad():
+            embeddings = torch.cat(self.embedding(x)[2][(-1 - self.n_layers):-1], -1)
+
+        p2 = self.input_projection2(self.labels)
+        label_scores = torch.matmul(embeddings,p2.t())
+
+        output, att = self.att(embeddings, label_scores, return_att=True)
+        if return_scores:
+            return output, label_scores, att
+        return output
+
+    def create_labels(self, classes):
+        if hasattr(self, "labels"):
+            del self.labels
+        self.classes = classes
+        self.labels = torch.nn.Parameter(self.embedding(self.transform(self.classes.keys()).to(self.device))[1])
+        self.labels.requires_grad = False
+        self.label_embedding_dim = self.labels.shape[-1]
