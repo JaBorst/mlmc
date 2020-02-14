@@ -15,13 +15,17 @@ try:
     from .ZAGCNN import ZAGCNN
     from .SKG_ML import SKG
 except:
+    print("pytorch_geometric not installed.")
     pass
 
 #Experimental Models
 from .ConceptScores import ConceptScores, ConceptScoresCNN,ConceptScoresCNNAttention,KimCNN2Branch,ConceptProjection,ConceptScoresAttention, ConceptScoresRelevance, ConceptScoresRelevanceWithImportanceWeights
 from .ConceptLSAN import ConceptLSAN
 from .GloveAsConcept import GloveConcepts
-from .BertAsConcept import BertAsConcept, BertAsConcept2, BertAsConcept3
-from .BertAsConcept2 import BertAsConceptFineTuning, BertAsConceptCLSFinetuning
-from .TwoLanguageModels import LMVSLM_Classifier
 
+try:
+    from .BertAsConcept import BertAsConcept, BertAsConcept2, BertAsConcept3
+    from .BertAsConcept2 import BertAsConceptFineTuning, BertAsConceptCLSFinetuning
+    from .TwoLanguageModels import LMVSLM_Classifier
+except:
+    print("Apex not installed.")
