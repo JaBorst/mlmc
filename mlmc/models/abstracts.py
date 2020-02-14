@@ -165,7 +165,7 @@ class TextClassificationAbstract(torch.nn.Module):
 
     def _init_input_representations(self):
         if is_transformer(self.representation):
-            self.n_layers=4
+            if not hasattr(self, "n_layers"): self.n_layers=4
             self.embedding, self.tokenizer = get(self.representation, output_hidden_states=True)
             self.embedding_dim = self.embedding(torch.LongTensor([[0]]))[0].shape[-1]*self.n_layers
             for param in self.embedding.parameters(): param.requires_grad = False

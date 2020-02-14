@@ -73,3 +73,39 @@ def successive_sampler(dataset, classes, separate_dataset, reindex_classes=True)
         print("--- LENGTH DATASET: ",len(already_select_id))
 
     return n_result,n_idx
+
+
+def class_sampler(data, classes, samples_size):
+    if isinstance(samples_size, int):
+        n = [samples_size for _ in range(len(classes))]
+    else:
+        n = samples_size
+
+    index_list = list(range(len(data.x)))
+    import random
+    random.shuffle(index_list)
+
+    new_data = []
+    new_labels = []
+    size_counter = [0 for _ in range(len(classes))]
+
+    for i in index_list:
+        example = data.x[i]
+        labels = data.y[i]
+        if any([x in classes for x in labels]):
+            current_labels = [x for x in labels if x in classes]
+
+            fraction_of_needed_samples = sum([size_counter[classes.index(x)] for x in current_labels]) /\
+                                         (1+sum([min(n[classes.index(x)], size_counter[classes.index(x)] ) for x in current_labels]))
+
+            if fraction_of_needed_samples <=1:
+                new_data.append(example)
+                new_labels.append(current_labels)
+
+                for c in current_labels:
+                    size_counter[classes.index(c)] = 1 + size_counter[classes.index(c)]
+
+        if all([True if i>=j else False for i,j in zip(size_counter,n)]):
+            break
+
+    return type(data)(x=new_data, y=new_labels, classes=data.classes, occurring_classes={k: data.classes[k] for k in classes})
