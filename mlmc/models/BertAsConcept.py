@@ -4,11 +4,7 @@ https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
 import torch
 from .abstracts import TextClassificationAbstract
 from ..representation import get, is_transformer
-import re
-from ..representation.labels import makemultilabels
 from ..layers import Bilinear, AttentionWeightedAggregation
-from ignite.metrics import Average
-from tqdm import tqdm
 
 class BertAsConcept(TextClassificationAbstract):
     """

@@ -123,3 +123,120 @@ class BertAsConceptFineTuning(TextClassificationAbstract):
                 # torch.cuda.empty_cache()
             train_history["loss"].append(average.compute().item())
         return{"train":train_history, "valid": validation }
+
+
+class BertAsConceptCLSFinetuning(TextClassificationAbstract):
+    """
+    https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
+    """
+    def __init__(self, classes, representation="roberta", label_freeze=True, max_len=300, **kwargs):
+        super(BertAsConceptCLSFinetuning, self).__init__(**kwargs)
+        # My Stuff
+        assert is_transformer(representation), "This model only works with transformers"
+
+        self.max_len = max_len
+        self.n_layers = 2
+        self.representation = representation
+        self._init_input_representations()
+        # Original
+        self.n_classes = len(classes)
+        self.label_freeze = label_freeze
+        self.d_a = 1024
+
+        self.classes = classes
+        self.labels = torch.nn.Parameter(self.embedding(self.transform(self.classes.keys()))[1])
+        self.labels.requires_grad = False
+        self.label_embedding_dim = self.labels.shape[-1]
+
+
+        self.input_projection2 = torch.nn.Linear(self.label_embedding_dim, self.embedding_dim)
+        self.metric = Bilinear(self.embedding_dim).to(self.device)
+        self.output_projection = torch.nn.Linear(in_features=self.max_len , out_features=1)
+
+        self.att = AttentionWeightedAggregation(in_features = self.embedding_dim, d_a=self.d_a)
+
+        self.build()
+
+
+    def forward(self, x, return_scores=False):
+        # embeddings = torch.cat(self.embedding(x)[2][(-1 - self.n_layers):-1], -1)
+        embeddings = self.embedding(x)[1]
+
+        p2 = self.labels#self.input_projection2(self.labels)
+        label_scores = torch.matmul(embeddings,p2.t())
+
+        # output, att = self.att(embeddings, label_scores, return_att=True)
+        if return_scores:
+            return label_scores#, att
+        return label_scores
+
+    def create_labels(self, classes):
+        if hasattr(self, "labels"):
+            del self.labels
+        self.classes = classes
+        self.labels = torch.nn.Parameter(self.embedding(self.transform(self.classes.keys()).to(self.device))[1])
+        self.labels.requires_grad = False
+        self.label_embedding_dim = self.labels.shape[-1]
+
+    def build(self):
+        if isinstance(self.loss, type) and self.loss is not None:
+            self.loss = self.loss().to(self.device)
+        if isinstance(self.optimizer, type) and self.optimizer is not None:
+            self.optimizer = self.optimizer(filter(lambda p: p.requires_grad, self.parameters()), **self.optimizer_params)
+        self.to(self.device)
+
+    def _init_input_representations(self):
+        if not hasattr(self, "n_layers"): self.n_layers=4
+        self.embedding, self.tokenizer = get(self.representation, output_hidden_states=True)
+        # self.embedding_dim = self.embedding(torch.LongTensor([[0]]))[0].shape[-1]*self.n_layers
+        self.embedding_dim = self.embedding(torch.LongTensor([[0]]))[1].shape[-1]
+        # for param in self.embedding.parameters(): param.requires_grad = True
+
+    def fit(self, train, valid = None, epochs=1, batch_size=2, valid_batch_size=50, classes_subset=None):
+        validation=[]
+        train_history = {"loss": []}
+        reset_labels=10
+        self.labels_distance=[]
+        for e in range(epochs):
+            losses = {"loss": str(0.)}
+            average = Average()
+            train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size, shuffle=True)
+
+            with tqdm(train_loader,
+                      postfix=[losses], desc="Epoch %i/%i" %(e+1,epochs)) as pbar:
+                for i, b in enumerate(train_loader):
+                    self.optimizer.zero_grad()
+                    y = b["labels"].to(self.device)
+                    y[y!=0] = 1
+                    x = self.transform(b["text"]).to(self.device)
+                    output = self(x)
+                    if hasattr(self, "regularize"):
+                        l = self.loss(output, torch._cast_Float(y)) + self.regularize()
+                    else:
+                        l = self.loss(output, torch._cast_Float(y))
+                    with amp.scale_loss(l, self.optimizer) as scaled_loss:
+                        scaled_loss.backward()
+                    self.optimizer.step()
+                    average.update(l.item())
+                    pbar.postfix[0]["loss"] = round(average.compute().item(),2*self.PRECISION_DIGITS)
+                    pbar.update()
+
+                    if i %(reset_labels) == 0:
+                        f = self.labels.detach().cpu()
+                        with torch.no_grad():
+                            self.create_labels(self.classes)
+                        f2 = self.labels.detach().cpu()
+                        self.labels_distance.append(((f-f2)**2).sum(-1))
+                # torch.cuda.empty_cache()
+                if valid is not None:
+                    validation.append(self.evaluate_classes(classes_subset=classes_subset,
+                                                           data=valid,
+                                                           batch_size=valid_batch_size,
+                                                           return_report=False,
+                                                           return_roc=False))
+                    pbar.postfix[0].update(validation[-1])
+                    pbar.update()
+                # torch.cuda.empty_cache()
+            train_history["loss"].append(average.compute().item())
+        return{"train":train_history, "valid": validation }
+

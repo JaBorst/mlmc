@@ -10,7 +10,7 @@ class AttentionWeightedAggregation(torch.nn.Module):
         self.in_features=in_features
         self.d_a = d_a
 
-        self.att_projection = torch.nn.Linear(in_features=self.in_features, out_features=self.d_a, bias=False)
+        self.att_projection = torch.nn.Linear(in_features=self.in_features, out_features=self.d_a, bias=True)
         self.att_weights = torch.nn.Parameter(torch.zeros((self.d_a,)))
         torch.nn.init.normal_(self.att_weights, mean=0.0, std=0.001)
 
