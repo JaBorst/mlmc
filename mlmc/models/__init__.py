@@ -27,5 +27,6 @@ try:
     from .BertAsConcept import BertAsConcept, BertAsConcept2, BertAsConcept3
     from .BertAsConcept2 import BertAsConceptFineTuning, BertAsConceptCLSFinetuning
     from .TwoLanguageModels import LMVSLM_Classifier
+    from .TwoLanguageModels2 import LMVSLM_Classifier2
 except:
     print("Apex not installed.")

@@ -11,12 +11,12 @@ from ignite.metrics import Average
 from tqdm import tqdm
 from apex import amp
 
-class LMVSLM_Classifier(TextClassificationAbstract):
+class LMVSLM_Classifier2(TextClassificationAbstract):
     """
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
     def __init__(self, classes, representation="roberta", label_freeze=True, max_len=300, **kwargs):
-        super(LMVSLM_Classifier, self).__init__(**kwargs)
+        super(LMVSLM_Classifier2, self).__init__(**kwargs)
         # My Stuff
         assert is_transformer(representation), "This model only works with transformers"
 
@@ -32,7 +32,9 @@ class LMVSLM_Classifier(TextClassificationAbstract):
 
         self.classes = classes
         self.labels = self.tokenizer_label(self.classes.keys(), maxlen=10)#torch.nn.Parameter(self.embedding()[1])
-        # self.labels.requires_grad = False
+        with torch.no_grad():
+            self.label_embeddings=torch.nn.Parameter(self.embedding_label(self.labels)[1])
+        self.label_embeddings.requires_grad = False
 
         self.input_projection2 = torch.nn.Linear(self.label_embedding_dim, self.embedding_dim)
         self.metric = Bilinear(self.embedding_dim)
@@ -45,8 +47,7 @@ class LMVSLM_Classifier(TextClassificationAbstract):
 
     def forward(self, x, return_scores=False):
         embeddings = torch.cat(self.embedding(x)[2][(-1 - self.n_layers):-1], -1)
-        label_embeddings = self.embedding_label(self.labels)[1]
-        p2 = self.input_projection2(label_embeddings)
+        p2 = self.input_projection2(self.label_embeddings)
         label_scores = torch.matmul(embeddings,p2.t())
         output, att = self.att(embeddings, label_scores, return_att=True)
         if return_scores:
@@ -78,7 +79,7 @@ class LMVSLM_Classifier(TextClassificationAbstract):
         self.embedding_label, self.tokenizer_label = get("albert", output_hidden_states=True)
         with torch.no_grad():
             self.label_embedding_dim = self.embedding_label(torch.LongTensor([[0]]))[0].shape[-1]
-        # for param in self.embedding.parameters(): param.requires_grad = True
+        for param in self.embedding_label.parameters(): param.requires_grad = False
 
     def fit(self, train, valid = None, epochs=1, batch_size=2, valid_batch_size=50, classes_subset=None):
         validation=[]
