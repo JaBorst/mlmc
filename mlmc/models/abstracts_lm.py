@@ -37,7 +37,8 @@ class LanguageModelAbstract(torch.nn.Module):
         Evaluation, return accuracy and loss
         """
         self.eval()  # set mode to evaluation to disable dropout
-        p_1 = Accuracy()#Precision(is_multilabel=True,average=True)
+        correct = 0#p_1 = Accuracy()#Precision(is_multilabel=True,average=True)
+        count = 0
         average = Average()
         data_loader = torch.utils.data.DataLoader(data, batch_size=batch_size)
 
@@ -53,15 +54,13 @@ class LanguageModelAbstract(torch.nn.Module):
 
                 output = torch.softmax(output, -1)
                 average.update(l.item())
-                for i in range(output.shape[1]):
-                    p_1.update((torch.nn.functional.one_hot(torch.max(output[:, i], -1)[1], output.shape[-1]),
-                                torch.nn.functional.one_hot(y[:, i], output.shape[-1])))
-
+                correct = correct + (torch.max(output,-1)[1] == y).int().sum().item()
+                count = count + output.shape[0]
         self.train()
         return {
             # "accuracy": accuracy.compute(),
             "valid_loss": round(average.compute().item(), 2*self.PRECISION_DIGITS),
-            "precision": round(p_1.compute(),self.PRECISION_DIGITS),
+            "accuracy": round(correct/len(data),self.PRECISION_DIGITS),
             "perplexity": round(torch.exp(average.compute()).item(), 2*self.PRECISION_DIGITS),
         }
 
