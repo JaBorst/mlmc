@@ -140,3 +140,4 @@ def get_multilabel_dataset(name, type=MultiLabelDataset, ensure_valid=False, val
 
 ## Sampler import
 from .sampler import sampler, successive_sampler, class_sampler
+from .data_loaders_text import RawTextDataset

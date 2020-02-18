@@ -30,3 +30,7 @@ try:
     from .TwoLanguageModels2 import LMVSLM_Classifier2
 except:
     print("Apex not installed.")
+
+#######
+
+from .lm_mogrifier import MogrifierLM
