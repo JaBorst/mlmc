@@ -29,6 +29,7 @@ class LMVSLM_Classifier2(TextClassificationAbstract):
         self.n_classes = len(classes)
         self.label_freeze = label_freeze
         self.d_a = 1024
+        self.train_input=True
 
         self.classes = classes
         self.labels = self.tokenizer_label(self.classes.keys(), maxlen=10)#torch.nn.Parameter(self.embedding()[1])
@@ -46,7 +47,11 @@ class LMVSLM_Classifier2(TextClassificationAbstract):
 
 
     def forward(self, x, return_scores=False):
-        embeddings = torch.cat(self.embedding(x)[2][(-1 - self.n_layers):-1], -1)
+        if self.train_input:
+            embeddings = torch.cat(self.embedding(x)[2][(-1 - self.n_layers):-1], -1)
+        else:
+            with torch.no_grad():
+                embeddings = torch.cat(self.embedding(x)[2][(-1 - self.n_layers):-1], -1)
         p2 = self.input_projection2(self.label_embeddings)
         label_scores = torch.matmul(embeddings,p2.t())
         output, att = self.att(embeddings, label_scores, return_att=True)
@@ -58,9 +63,12 @@ class LMVSLM_Classifier2(TextClassificationAbstract):
         if hasattr(self, "labels"):
             del self.labels
         self.classes = classes
-        self.labels = torch.nn.Parameter(self.embedding(self.transform(self.classes.keys()).to(self.device))[1])
-        self.labels.requires_grad = False
-        self.label_embedding_dim = self.labels.shape[-1]
+        self.n_classes = len(classes)
+        self.labels = self.tokenizer_label(self.classes.keys(), maxlen=10).to(self.device)
+        with torch.no_grad():
+            self.label_embeddings=torch.nn.Parameter(self.embedding_label(self.labels)[1])
+        self.label_embeddings.requires_grad = False
+        self.label_embeddings.to(self.device)
 
     def build(self):
         if isinstance(self.loss, type) and self.loss is not None:

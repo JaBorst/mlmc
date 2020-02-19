@@ -31,10 +31,10 @@ def load_static(embedding="/disk1/users/jborst/Data/Embeddings/glove/en/glove.6B
     return weights, vocabulary
 
 def map_vocab(query, vocab, maxlen):
-    ind = [[vocab.get(token, vocab["<UNK_TOKEN>"]) for token in s.split()] for s in query]
-    result = torch.zeros((len(query),maxlen))
+    ind = [[vocab.get(token, vocab["<UNK_TOKEN>"]) for token in s] for s in query]
+    result = torch.zeros((len(query),maxlen)).long()
     for i, e in enumerate(ind):
-       result[i,:min(len(e),maxlen)] = torch.Tensor(e[:min(len(e),maxlen)])
+       result[i,:min(len(e),maxlen)] = torch.LongTensor(e[:min(len(e),maxlen)])
     return result
 
 

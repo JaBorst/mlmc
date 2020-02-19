@@ -39,11 +39,14 @@ class LanguageModelAbstract(torch.nn.Module):
         self.eval()  # set mode to evaluation to disable dropout
         correct = 0#p_1 = Accuracy()#Precision(is_multilabel=True,average=True)
         count = 0
-        average = Average()
+        average_loss = Average()
+        average_pp = Average()
+        average_acc= Average()
         data_loader = torch.utils.data.DataLoader(data, batch_size=batch_size)
 
         with torch.no_grad():
             for i, b in enumerate(data_loader):
+                count = i+1
                 x = self.transform(b["input"]).to(self.device)
                 y = self.transform(b["forward"]).to(self.device)
                 output = self(x)
@@ -52,16 +55,15 @@ class LanguageModelAbstract(torch.nn.Module):
                 else:
                     l = self.loss(output.permute(0, 2, 1), y)
 
-                output = torch.softmax(output, -1)
-                average.update(l.item())
-                correct = correct + (torch.max(output,-1)[1] == y).int().sum().item()
-                count = count + output.shape[0]
+                average_loss.update(l.item())
+                for i in torch.exp(torch.nn.functional.cross_entropy(output.permute(0, 2, 1), y, reduction="none"))[:,-1]: average_pp.update(i)
+                for i in (torch.max(output,-1)[1] == y).int()[:,-1]: average_acc.update(i)
         self.train()
         return {
             # "accuracy": accuracy.compute(),
-            "valid_loss": round(average.compute().item(), 2*self.PRECISION_DIGITS),
-            "accuracy": round(correct/len(data),self.PRECISION_DIGITS),
-            "perplexity": round(torch.exp(average.compute()).item(), 2*self.PRECISION_DIGITS),
+            "valid_loss": round(average_loss.compute().item(), 2*self.PRECISION_DIGITS),
+            "accuracy": round(average_acc.compute().item(),self.PRECISION_DIGITS),
+            "perplexity": round(average_pp.compute().item(), 2*self.PRECISION_DIGITS),
         }
 
     def fit(self, train, valid = None, epochs=1, batch_size=16, valid_batch_size=50, classes_subset=None):
@@ -113,4 +115,16 @@ class LanguageModelAbstract(torch.nn.Module):
                     next_token=torch.argmax(probabilities).item()
                 answer.append(next_token)
 
-        return self.tokenizer.decode(answer).replace(' ##', '')
+        return self.tokenizer.decode(answer).replace(' ##', '').replace("\'","")
+
+    def transform(self, x):
+        return torch.LongTensor([[self.tokenizer.token_to_id(t) for t in sequence] for sequence in x]).t()
+
+    def num_params(self):
+        total = sum(p.numel() for p in self.parameters())
+        trainable = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        print("Parameters:\n"
+              "Trainable:\t%i\n"
+              "Fixed:\t%i\n"
+              "-----------\n"
+              "Total:\t%i" % (trainable, total-trainable,total))
