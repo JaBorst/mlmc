@@ -113,6 +113,7 @@ class TextClassificationAbstract(torch.nn.Module):
                     else:
                         l = self.loss(output, torch._cast_Float(y))
                     l.backward()
+
                     self.optimizer.step()
                     average.update(l.item())
                     pbar.postfix[0]["loss"] = round(average.compute().item(),2*self.PRECISION_DIGITS)

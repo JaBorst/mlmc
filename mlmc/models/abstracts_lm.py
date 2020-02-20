@@ -106,7 +106,7 @@ class LanguageModelAbstract(torch.nn.Module):
 
             for _ in range(steps):
                 cl = answer[(-min(len(answer), self.max_len)):]
-                output  = self(torch.LongTensor([cl]).to(self.device))
+                output = self(torch.LongTensor([cl]).to(self.device))
                 probabilities = torch.softmax(output[0,-1],-1).detach().cpu()
                 if sample:
                     import numpy as np

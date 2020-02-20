@@ -15,13 +15,14 @@ class LMVSLM_Classifier3(TextClassificationAbstract):
     """
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
-    def __init__(self, classes, representation="roberta", label_freeze=True, max_len=300, **kwargs):
+    def __init__(self, classes, representation="roberta", train_input=True, label_freeze=True, max_len=300, **kwargs):
         super(LMVSLM_Classifier3, self).__init__(**kwargs)
         # My Stuff
         assert is_transformer(representation), "This model only works with transformers"
 
         self.max_len = max_len
         self.n_layers = 1
+        self.train_input=train_input
         self.representation = representation
         self._init_input_representations()
 
@@ -29,7 +30,6 @@ class LMVSLM_Classifier3(TextClassificationAbstract):
         self.n_classes = len(classes)
         self.label_freeze = label_freeze
         self.d_a = 1024
-        self.train_input=True
 
         self.classes = classes
         self.labels = self.tokenizer(self.classes.keys(), maxlen=10)#torch.nn.Parameter(self.embedding()[1])
@@ -45,9 +45,13 @@ class LMVSLM_Classifier3(TextClassificationAbstract):
 
 
     def forward(self, x, return_scores=False):
-        with torch.no_grad():
+        if self.train_input:
             embeddings = torch.cat(self.embedding(x)[2][(-1 - self.n_layers):-1], -1)
-        label_scores = self.metric (embeddings, self.label_embeddings)
+        else:
+            with torch.no_grad():
+                embeddings = torch.cat(self.embedding(x)[2][(-1 - self.n_layers):-1], -1)
+        labels = self.embedding(self.labels)[1]
+        label_scores = self.metric (embeddings, labels)
         output, att = self.att(embeddings, label_scores, return_att=True)
         if return_scores:
             return output, label_scores, att
@@ -77,7 +81,8 @@ class LMVSLM_Classifier3(TextClassificationAbstract):
         self.embedding, self.tokenizer = get(self.representation, output_hidden_states=True)
         with torch.no_grad():
             self.embedding_dim = self.embedding(torch.LongTensor([[0]]))[0].shape[-1]*self.n_layers
-        for param in self.embedding.parameters(): param.requires_grad = False
+        for param in self.embedding.parameters(): param.requires_grad = self.train_input
+
 
     def fit(self, train, valid = None, epochs=1, batch_size=2, valid_batch_size=50, classes_subset=None):
         validation=[]

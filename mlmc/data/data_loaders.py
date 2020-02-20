@@ -142,16 +142,25 @@ def load_rcv1(path=None):
     classes = dict(zip(classes, range(len(classes))))
     data = {"train": train, "test": test}
 
-    with open(dataset / "rcv1.topics.hier.orig", "r") as f:
-        content = f.readlines()
-    import re
-    edges = [(re.split(" +", x)[1], re.split(" +", x)[3]) for x in content]
-    graph = nx.DiGraph(edges)
-    data["graph"] = graph
     with open(dataset / "topic_codes.txt", "r") as f:
         topics = [x.replace("\n", "").split("\t") for x in f.readlines() if len(x) > 1][2:]
     topicmap = {x[0]: x[1] for x in topics}
     data["topicmap"] = topicmap
+
+    with open(dataset / "rcv1.topics.hier.orig", "r") as f:
+        content = f.readlines()
+    import re
+    edges = [(re.split(" +", x)[1], re.split(" +", x)[3]) for x in content]
+    edges = [(topicmap.get(x[0],x[0]).capitalize(),topicmap.get(x[1],x[1]).capitalize()) for x in edges]
+    graph = nx.DiGraph(edges[1:])
+    data["graph"] = graph
+
+
+    for key in ("train", "test"):
+        data[key] = (data[key][0],[[topicmap[l].capitalize() for l in labellist] for labellist in data[key][1]])
+    classes = {topicmap[k].capitalize(): v for k, v in classes.items()}
+
+    data["topicmap"] = {v.capitalize():k for k,v in topicmap.items()}
 
     _save_to_tmp("rcv1", (data, classes))
     return data, classes

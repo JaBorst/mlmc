@@ -15,7 +15,7 @@ class LMVSLM_Classifier2(TextClassificationAbstract):
     """
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
-    def __init__(self, classes, representation="roberta", label_freeze=True, max_len=300, **kwargs):
+    def __init__(self, classes, representation="roberta", train_input=False, label_freeze=True, max_len=300, **kwargs):
         super(LMVSLM_Classifier2, self).__init__(**kwargs)
         # My Stuff
         assert is_transformer(representation), "This model only works with transformers"
@@ -29,7 +29,7 @@ class LMVSLM_Classifier2(TextClassificationAbstract):
         self.n_classes = len(classes)
         self.label_freeze = label_freeze
         self.d_a = 1024
-        self.train_input=True
+        self.train_input=train_input
 
         self.classes = classes
         self.labels = self.tokenizer_label(self.classes.keys(), maxlen=10)#torch.nn.Parameter(self.embedding()[1])
