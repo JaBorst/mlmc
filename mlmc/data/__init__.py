@@ -72,6 +72,15 @@ class MultiLabelDataset(Dataset):
 
         return MultiLabelDataset(x=new_data, y=new_labels, classes=new_classes)
 
+    def remove(self,classes):
+        if isinstance(classes, str):
+            classes = [classes]
+        assert all([x in self.classes.keys() for x in classes]), "Some of the provided classes are not contained in the dataset"
+        self.y = [[label for label in labelset if label not in classes] for labelset in self.y]
+        emptylabelsets = [i for i, x in enumerate(self.y) if x == []]
+        self.x = [ x for i,x in enumerate(self.x) if i not in emptylabelsets]
+        self.y = [ x for i,x in enumerate(self.y) if i not in emptylabelsets]
+
 
 class SequenceDataset(Dataset):
     """Dataset format for Sequence data."""
