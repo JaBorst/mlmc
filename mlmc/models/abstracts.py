@@ -87,7 +87,7 @@ class TextClassificationAbstract(torch.nn.Module):
             "p@3": round(p_3.compute(),self.PRECISION_DIGITS),
             "p@5": round(p_5.compute(),self.PRECISION_DIGITS),
             "auc":  auc_roc.compute() if return_roc else round(auc_roc.compute()[0],self.PRECISION_DIGITS),
-            "a@0.65": round(subset_65.compute(),self.PRECISION_DIGITS),
+            "a@0.5": round(subset_65.compute(),self.PRECISION_DIGITS),
             "a@mcut": round(subset_mcut.compute(),self.PRECISION_DIGITS),
             "report": report.compute() if return_report else None,
         }
