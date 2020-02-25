@@ -51,13 +51,16 @@ class LanguageModelAbstract(torch.nn.Module):
                 y = self.transform(b["forward"]).to(self.device)
                 output = self(x)
                 if hasattr(self, "regularize"):
-                    l = self.loss(output.permute(0, 2, 1), y) + self.regularize()
+                    l = self.loss(output, y) + self.regularize()
                 else:
-                    l = self.loss(output.permute(0, 2, 1), y)
+                    l = self.loss(output, y)
 
                 average_loss.update(l.item())
-                for i in torch.exp(torch.nn.functional.cross_entropy(output.permute(0, 2, 1), y, reduction="none"))[:,-1]: average_pp.update(i)
-                for i in (torch.max(output,-1)[1] == y).int()[:,-1]: average_acc.update(i)
+
+                probabilities = torch.softmax(output, -1)
+                perplexity = 2**(-(torch.nn.functional.one_hot(y,probabilities.shape[-1]) * torch.log2(probabilities)).sum(-1))
+                for i in perplexity: average_pp.update(i)
+                for i in (torch.max(output,-1)[1] == y).int(): average_acc.update(i)
         self.train()
         return {
             # "accuracy": accuracy.compute(),
@@ -82,9 +85,9 @@ class LanguageModelAbstract(torch.nn.Module):
                     output = self(x)
 
                     if hasattr(self, "regularize"):
-                        l = self.loss(output.permute(0,2,1), y) + self.regularize()
+                        l = self.loss(output, y) + self.regularize()
                     else:
-                        l = self.loss(output.permute(0, 2, 1), y)
+                        l = self.loss(output, y)
                     l.backward()
                     self.optimizer.step()
                     average.update(l.item())
@@ -102,20 +105,19 @@ class LanguageModelAbstract(torch.nn.Module):
 
     def generate(self, prompt="", steps=100, sample=True):
         with torch.no_grad():
-            answer = self.tokenizer.encode(prompt).ids[:-1]
+            answer = self.encode(prompt)
 
             for _ in range(steps):
-                cl = answer[(-min(len(answer), self.max_len)):]
-                output = self(torch.LongTensor([cl]).to(self.device))
-                probabilities = torch.softmax(output[0,-1],-1).detach().cpu()
+                cl = torch.tensor(answer[(-min(len(answer), self.max_len)):])[None,:]
+                output = self(torch.LongTensor(cl).to(self.device))
+                probabilities = torch.softmax(output[0],-1).detach().cpu()
                 if sample:
                     import numpy as np
                     next_token = np.random.choice(range(probabilities.shape[-1]),1, p=(probabilities/probabilities.sum()).numpy())[0]
                 if not sample:
                     next_token=torch.argmax(probabilities).item()
                 answer.append(next_token)
-
-        return self.tokenizer.decode(answer).replace(' ##', '').replace("\'","")
+        return self.decode(answer)
 
     def transform(self, x):
         return torch.LongTensor([[self.tokenizer.token_to_id(t) for t in sequence] for sequence in x]).t()

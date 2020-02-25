@@ -3,29 +3,30 @@ from ..layers import MogrifierLSTM
 from .abstracts_lm import LanguageModelAbstract
 
 class MogrifierLM(LanguageModelAbstract):
-    def __init__(self, hidden_size, n_layers, mogrify_steps, max_len=128,dropout=0.5, **kwargs):
+    def __init__(self, hidden_size, embedding_dim, n_layers, mogrify_steps, max_len=128,dropout=0.5, inter_dropout=0.2, **kwargs):
         super(MogrifierLM, self).__init__(**kwargs)
         self.max_len=max_len
-        self.embedding_dim = hidden_size
+        self.embedding_dim = embedding_dim
         self.n_layers = n_layers
         self.mogrify_steps = mogrify_steps
         self.hidden_size = hidden_size
-
-
-        self.lm_layers=torch.nn.ModuleList([MogrifierLSTM(hidden_size,hidden_size,mogrify_steps) for _ in range(n_layers)])
-
-
+        self.cell_type = torch.nn.LSTM#.MogrifierLSTM
+        self.lm_layers=torch.nn.ModuleList(
+            [self.cell_type(hidden_size,hidden_size,mogrify_steps) if i >0 else self.cell_type(self.embedding_dim,hidden_size,mogrify_steps)
+             for i in range(n_layers)]
+        )
         self.dropout = torch.nn.Dropout(dropout)
+        self.inter_dropout = torch.nn.Dropout(inter_dropout)
         self.build()
 
     def forward(self, x, representations=False):
         e = self.embedding(x)
         for layer in self.lm_layers:
-            e = self.dropout(e)
+            e = self.inter_dropout(e)
             e, rep = layer(e)
-        e = self.dropout(e)
         if representations:
-            return rep[0]
+            return e, rep[0]
+        e = self.dropout(e[:,-1,:])
         return self.projection(e)
 
     def representations(self, s):
@@ -43,15 +44,21 @@ class MogrifierLMCharacter(MogrifierLM):
         self.vocabulary_size = len(self.alphabet)+1
         self.embedding = torch.nn.Embedding(
             num_embeddings=self.vocabulary_size,
-            embedding_dim=self.hidden_size,
+            embedding_dim=self.embedding_dim,
         )
         self.projection = torch.nn.Linear(self.hidden_size, self.vocabulary_size)
         self.build()
 
     def transform(self, s):
-        if not isinstance(s, list):
+        if isinstance(s[0], str):
             s = [s]
-        return map_vocab(s,self.alphabet,len(s[0])).t()
+        return map_vocab(s,self.alphabet,len(s[0])).t().squeeze(-1)
+
+    def encode(self, s):
+        return self.transform([list(s.lower())]).tolist()
+
+    def decode(self, s):
+        return "".join([list(self.alphabet.keys())[x - 1] for x in s])
 
 class MogrifierLMWord(MogrifierLM):
     def __init__(self, word_list, **kwargs):
@@ -61,15 +68,21 @@ class MogrifierLMWord(MogrifierLM):
         self.vocabulary_size = len(self.word_list)+1
         self.embedding = torch.nn.Embedding(
             num_embeddings=self.vocabulary_size,
-            embedding_dim=self.hidden_size,
+            embedding_dim=self.embedding_dim,
         )
         self.projection = torch.nn.Linear(self.hidden_size, self.vocabulary_size)
         self.build()
 
     def transform(self, s):
-        if not isinstance(s, list):
+        if isinstance(s[0], str):
             s = [s]
-        return map_vocab(s,self.word_list,len(s[0])).t()
+        return map_vocab(s,self.word_list,len(s[0])).t().squeeze(-1)
+
+    def encode(self, s):
+        return self.transform([s.split()]).tolist()
+
+    def decode(self, s):
+        return " ".join([list(self.word_list.keys())[x-1] for x in s])
 
 class MogrifierLMTokenizer(MogrifierLM):
     def __init__(self, tokenizer, **kwargs):
@@ -78,7 +91,7 @@ class MogrifierLMTokenizer(MogrifierLM):
         self.vocabulary_size = tokenizer.get_vocab_size()
         self.embedding = torch.nn.Embedding(
             num_embeddings=self.vocabulary_size,
-            embedding_dim=self.hidden_size
+            embedding_dim=self.embedding_dim
         )
         self.projection = torch.nn.Linear(self.hidden_size, self.vocabulary_size)
         self.build()

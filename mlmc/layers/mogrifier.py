@@ -56,12 +56,8 @@ class MogrifierLSTM(torch.nn.Module):
         self.c = torch.nn.Parameter(torch.zeros(1, hidden_size))
         self.hidden_size = hidden_size
         self.input_size = input_size
-        if learn_initial_states:
-            self.h.requires_grad = True
-            self.c.requires_grad = True
-        else:
-            self.h.requires_grad = False
-            self.c.requires_grad = False
+        self.h.requires_grad = learn_initial_states
+        self.c.requires_grad = learn_initial_states
         self.batch_first=batch_first
 
     def forward(self, x):
