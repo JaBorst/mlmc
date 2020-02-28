@@ -44,6 +44,7 @@ def get_embedding(name, **kwargs):
     e = e.from_pretrained(torch.Tensor(weights).float(), **kwargs)
     def tokenizer(x, maxlen=500):
         x = [x] if isinstance(x, str) else x
+        x = [s.lower().split() for s in x]
         return map_vocab(x, vocabulary, maxlen).long()
     return e, tokenizer
 

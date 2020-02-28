@@ -109,3 +109,17 @@ def class_sampler(data, classes, samples_size):
             break
 
     return type(data)(x=new_data, y=new_labels, classes=data.classes, occurring_classes={k: data.classes[k] for k in classes})
+
+
+
+def validation_split(dataset, fraction=None, absolute=None):
+    len(dataset)
+    ind = list(range(len(dataset)))
+    np.random.shuffle(ind)
+    n_samples = absolute if absolute is not None else int((1-fraction) * len(dataset))
+    return type(dataset)(x=[dataset.x[i] for i in ind[:n_samples]],
+                         y=[dataset.y[i] for i in ind[:n_samples]],
+                         classes=dataset.classes), \
+           type(dataset)(x=[dataset.x[i] for i in ind[n_samples:]],
+                         y=[dataset.y[i] for i in ind[n_samples:]],
+                         classes=dataset.classes)

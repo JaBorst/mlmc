@@ -26,11 +26,14 @@ class ZAGCNN(TextClassificationAbstract):
         self.representation = representation
         self._init_input_representations()
         self.embedding.requires_grad=False
-
         self.label_embeddings = torch.nn.Parameter(
-            self.embedding(self.tokenizer([re.split("[/ _-]",x.lower()) for x in self.classes.keys()])[:,:4]).mean(-2)
+            self.embedding(self.tokenizer(
+                [" ".join(re.split("[/ _-]", x.lower())) for x in self.classes.keys()]
+
+            )[:, :4]).mean(-2)
         )
-        self.label_embeddings.requires_grad=False
+        self.label_embeddings.requires_grad = False
+
 
         self.convs = torch.nn.ModuleList(
             [torch.nn.Conv1d(self.embedding_dim, self.filters, k) for k in self.kernel_sizes])
@@ -64,3 +67,16 @@ class ZAGCNN(TextClassificationAbstract):
         labelgcn = self.gcn2(labelgcn, torch.stack(torch.where(self.adjacency_parameter == 1), dim=0))
         labelvectors = torch.cat([self.label_embeddings, labelgcn], dim=-1)
         return (torch.relu(self.projection(label_wise_representation))*labelvectors).sum(-1)
+
+    def create_labels(self, classes):
+        self.classes = classes
+        del self.label_embeddings
+        self.label_embeddings = torch.nn.Parameter(
+            self.embedding(self.tokenizer([" ".join(re.split("[/ _-]", x.lower()) ) for x in self.classes.keys()])[:, :4].to(self.device)).mean(-2)
+        )
+        self.label_embeddings.requires_grad = False
+
+    def set_adjacency(self, adj):
+        del self.adjacency_parameter
+        self.adjacency_parameter = torch.nn.Parameter(torch.from_numpy(adj).float().to(self.device))
+        self.adjacency_parameter.requires_grad = False

@@ -69,7 +69,8 @@ class LanguageModelAbstract(torch.nn.Module):
             "perplexity": round(average_pp.compute().item(), 2*self.PRECISION_DIGITS),
         }
 
-    def fit(self, train, valid = None, epochs=1, batch_size=16, valid_batch_size=50, classes_subset=None):
+    def fit(self, train, valid = None, epochs=1, batch_size=16, valid_batch_size=50):
+        self.train()
         validation=[]
         train_history = {"loss": []}
         for e in range(epochs):
@@ -83,11 +84,7 @@ class LanguageModelAbstract(torch.nn.Module):
                     x = self.transform(b["input"]).to(self.device)
                     y = self.transform(b["forward"]).to(self.device)
                     output = self(x)
-
-                    if hasattr(self, "regularize"):
-                        l = self.loss(output, y) + self.regularize()
-                    else:
-                        l = self.loss(output, y)
+                    l = self.loss(output, y)
                     l.backward()
                     self.optimizer.step()
                     average.update(l.item())
@@ -104,6 +101,7 @@ class LanguageModelAbstract(torch.nn.Module):
         return{"train":train_history, "valid": validation }
 
     def generate(self, prompt="", steps=100, sample=True):
+        self.eval()
         with torch.no_grad():
             answer = self.encode(prompt)
 
@@ -117,6 +115,7 @@ class LanguageModelAbstract(torch.nn.Module):
                 if not sample:
                     next_token=torch.argmax(probabilities).item()
                 answer.append(next_token)
+        self.train()
         return self.decode(answer)
 
     def transform(self, x):

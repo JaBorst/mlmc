@@ -82,6 +82,19 @@ class MultiLabelDataset(Dataset):
         self.y = [ x for i,x in enumerate(self.y) if i not in emptylabelsets]
 
 
+    def map(self, map: dict):
+        if any([x not in map.keys() for x in self.classes.keys()]):
+            print("Some classes are not present in the map. The will be returned as is.")
+        self.classes = {map.get(k,k):v for k,v in self.classes.items()}
+        self.y = [[map.get(l,l) for l in labelset] for labelset in self.y]
+
+    def reduce(self, subset: dict):
+        assert all([x in self.classes.keys() for x in subset.keys()]), "Subset contains classes not present in dataset"
+        ind = [i for i, labelset in enumerate(self.y) if any([l in subset.keys() for l in labelset])]
+        self.x = [self.x[i] for i in ind]
+        self.y = [[x for x in self.y[i] if x in subset.keys()] for i in ind]
+        self.classes = subset
+
 class SequenceDataset(Dataset):
     """Dataset format for Sequence data."""
     def __init__(self, x, y, classes, purpose="train", target_dtype=torch._cast_Long):
@@ -148,5 +161,5 @@ def get_multilabel_dataset(name, type=MultiLabelDataset, ensure_valid=False, val
 
 
 ## Sampler import
-from .sampler import sampler, successive_sampler, class_sampler
+from .sampler import sampler, successive_sampler, class_sampler, validation_split
 from .data_loaders_text import RawTextDatasetTokenizer, RawTextDataset

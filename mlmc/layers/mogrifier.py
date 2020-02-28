@@ -49,16 +49,18 @@ class MogrifierLSTMCell(nn.Module):
         return h_new, c_new
 
 class MogrifierLSTM(torch.nn.Module):
-    def __init__(self, input_size,  hidden_size, mogrify_steps=2, learn_initial_states=True, batch_first=True):
+    def __init__(self, input_size,  hidden_size, mogrify_steps=2, learn_initial_states=False, batch_first=True):
         super(MogrifierLSTM, self).__init__()
         self.cell = MogrifierLSTMCell(input_size, hidden_size, mogrify_steps)
-        self.h = torch.nn.Parameter(torch.zeros(1, hidden_size))
-        self.c = torch.nn.Parameter(torch.zeros(1, hidden_size))
+
         self.hidden_size = hidden_size
         self.input_size = input_size
+        self.batch_first=batch_first
+
+        self.h = torch.nn.Parameter(torch.zeros(1, self.hidden_size))
+        self.c = torch.nn.Parameter(torch.zeros(1, self.hidden_size))
         self.h.requires_grad = learn_initial_states
         self.c.requires_grad = learn_initial_states
-        self.batch_first=batch_first
 
     def forward(self, x):
         if not self.batch_first:
@@ -76,3 +78,74 @@ class MogrifierLSTM(torch.nn.Module):
             hidden_states.append(h.unsqueeze(1))
 
         return torch.cat(hidden_states, dim = 1), (h, c)
+
+
+class MogLSTM(nn.Module):
+    def __init__(self, input_sz: int, hidden_sz: int, mog_iterations: int):
+        super().__init__()
+        self.input_size = input_sz
+        self.hidden_size = hidden_sz
+        self.mog_iterations = mog_iterations
+        # Define/initialize all tensors
+        self.Wih = torch.nn.Parameter(torch.Tensor(input_sz, hidden_sz * 4))
+        self.Whh = torch.nn.Parameter(torch.Tensor(hidden_sz, hidden_sz * 4))
+        self.bih = torch.nn.Parameter(torch.Tensor(hidden_sz * 4))
+        self.bhh = torch.nn.Parameter(torch.Tensor(hidden_sz * 4))
+        # Mogrifiers
+        self.Q = torch.nn.Parameter(torch.Tensor(hidden_sz, input_sz))
+        self.R = torch.nn.Parameter(torch.Tensor(input_sz, hidden_sz))
+
+        self.init_weights()
+
+    def init_weights(self):
+        for p in self.parameters():
+            if p.data.ndimension() >= 2:
+                nn.init.xavier_uniform_(p.data)
+            else:
+                nn.init.zeros_(p.data)
+        self.Whh = nn.init.orthogonal_(self.Whh)
+
+        self.bih.data[self.hidden_size:2 * self.hidden_size] = 1
+        self.bhh.data[self.hidden_size:2 * self.hidden_size] = 1
+
+    def mogrify(self, xt, ht):
+        for i in range(1, self.mog_iterations + 1):
+            if (i % 2 == 0):
+                ht = (2 * torch.sigmoid(xt @ self.R)) * ht
+            else:
+                xt = (2 * torch.sigmoid(ht @ self.Q)) * xt
+        return xt, ht
+
+    # Define forward pass through all LSTM cells across all timesteps.
+    # By using PyTorch functions, we get backpropagation for free.
+    def forward(self, x: torch.Tensor, init_states = None):
+        """Assumes x is of shape (batch, sequence, feature)"""
+        batch_sz, seq_sz, _ = x.size()
+        hidden_seq = []
+        # ht and Ct start as the previous states and end as the output states in each loop below
+        if init_states is None:
+            ht = torch.zeros((batch_sz, self.hidden_size)).to(x.device)
+            Ct = torch.zeros((batch_sz, self.hidden_size)).to(x.device)
+        else:
+            ht, Ct = init_states
+        for t in range(seq_sz):  # iterate over the time steps
+            xt = x[:, t, :]
+            xt, ht = self.mogrify(xt, ht)  # mogrification
+            gates = (xt @ self.Wih + self.bih) + (ht @ self.Whh + self.bhh)
+            ingate, forgetgate, cellgate, outgate = gates.chunk(4, 1)
+
+            ### The LSTM Cell!
+            ft = torch.sigmoid(forgetgate)
+            it = torch.sigmoid(ingate)
+            Ct_candidate = torch.tanh(cellgate)
+            ot = torch.sigmoid(outgate)
+            # outputs
+            Ct = (ft * Ct) + (it * Ct_candidate)
+            ht = ot * torch.tanh(Ct)
+            ###
+
+            hidden_seq.append(ht.unsqueeze(0))
+        hidden_seq = torch.cat(hidden_seq, dim=0)
+        # reshape from shape (sequence, batch, feature) to (batch, sequence, feature)
+        hidden_seq = hidden_seq.transpose(0, 1).contiguous()
+        return hidden_seq, (ht, Ct)

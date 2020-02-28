@@ -44,9 +44,9 @@ class RawTextDataset(Dataset):
         return len(self.x) - self.length - 2
 
     def __getitem__(self, idx, next=True):
-        r = {'input': self.x[(idx+1):(idx+self.length+1)]}
+        r = {'input': "".join(self.x[(idx+1):(idx+self.length+1)])}
         if next:
-            r['forward'] = [self.x[(idx+self.length+1+1)]]
+            r['forward'] = self.x[(idx+self.length+1)]
         else:
             r['forward'] = self.x[(idx + 1 + 1):(idx + self.length + 1 + 1)]
             if self.bidirectional:
