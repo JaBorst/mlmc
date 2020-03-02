@@ -1,7 +1,10 @@
-from nltk.corpus import wordnet as wn
-import networkx as nx
 
+import networkx as nx
 def load_wordnet():
+    try:
+        from nltk.corpus import wordnet as wn
+    except:
+        print("To use this function you have to install nltk.")
     G = nx.DiGraph()
     for ss in wn.all_synsets():
         if ss.hypernyms() != []:
@@ -14,6 +17,10 @@ def load_wordnet():
 
 
 def load_wordnet_sample(n=1000):
+    try:
+        from nltk.corpus import wordnet as wn
+    except:
+        print("To use this function you have to install nltk.")
     G = nx.DiGraph()
     i=0
     for ss in wn.all_synsets():
