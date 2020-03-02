@@ -4,6 +4,7 @@ Few-Shot and Zero-Shot Multi-Label Learning for Structured Label Spaces - Rios &
 import torch
 from ..models.abstracts import TextClassificationAbstract
 from ..representation import get, is_transformer
+import re
 
 class ZAGCNNLM(TextClassificationAbstract):
     def __init__(self, classes,   adjacency, method, scale, representation="roberta", max_len=200, dropout = 0.5, norm=False, **kwargs):
@@ -61,7 +62,7 @@ class ZAGCNNLM(TextClassificationAbstract):
         return (torch.relu(self.projection(label_wise_representation)) * labelvectors).sum(-1)
 
     def create_labels(self, classes, method="repeat",scale="mean"):
-        assert method in ("repeat","generate","embed"), 'method has to be one of ("repeat","generate","embed")'
+        assert method in ("repeat","generate","embed", "glove"), 'method has to be one of ("repeat","generate","embed")'
         self.classes = classes
         if method=="repeat":
             from ..representation import get_lm_repeated
@@ -71,6 +72,11 @@ class ZAGCNNLM(TextClassificationAbstract):
             l = get_lm_repeated(self.classes, self.representation)
         if method == "embed":
             l = self.embedding(self.tokenizer(self.classes.keys()).to(list(self.parameters())[0].device))[1]
+        if method == "glove":
+            from ..representation import get_word_embedding_mean
+            l = get_word_embedding_mean(
+                [" ".join(re.split("[/ _-]", x.lower())) for x in self.classes.keys()],
+                "/disk1/users/jborst/Data/Embeddings/glove/en/glove.6B.300d_small.txt")
 
         if scale=="mean":
             print("subtracting mean")

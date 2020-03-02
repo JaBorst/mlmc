@@ -42,13 +42,14 @@ class LanguageModelAbstract(torch.nn.Module):
         average_loss = Average()
         average_pp = Average()
         average_acc= Average()
+        average_bpc= Average()
         data_loader = torch.utils.data.DataLoader(data, batch_size=batch_size)
 
         with torch.no_grad():
             for i, b in enumerate(data_loader):
                 count = i+1
-                x = self.transform(b["input"]).to(self.device)
-                y = self.transform(b["forward"]).to(self.device)
+                x = b[0].to(self.device)
+                y = b[1].to(self.device)
                 output = self(x)
                 if hasattr(self, "regularize"):
                     l = self.loss(output, y) + self.regularize()
@@ -58,8 +59,10 @@ class LanguageModelAbstract(torch.nn.Module):
                 average_loss.update(l.item())
 
                 probabilities = torch.softmax(output, -1)
+                bpc = (-probabilities * torch.log2(probabilities)).sum(-1)
+                for i in bpc: average_bpc.update(i.item())
                 perplexity = 2**(-(torch.nn.functional.one_hot(y,probabilities.shape[-1]) * torch.log2(probabilities)).sum(-1))
-                for i in perplexity: average_pp.update(i)
+                for i in perplexity: average_pp.update(i.item())
                 for i in (torch.max(output,-1)[1] == y).int(): average_acc.update(i)
         self.train()
         return {
@@ -67,6 +70,7 @@ class LanguageModelAbstract(torch.nn.Module):
             "valid_loss": round(average_loss.compute().item(), 2*self.PRECISION_DIGITS),
             "accuracy": round(average_acc.compute().item(),self.PRECISION_DIGITS),
             "perplexity": round(average_pp.compute().item(), 2*self.PRECISION_DIGITS),
+            "BitsPer": round(average_bpc.compute().item(), 2*self.PRECISION_DIGITS)
         }
 
     def fit(self, train, valid = None, epochs=1, batch_size=16, valid_batch_size=50):
@@ -76,13 +80,13 @@ class LanguageModelAbstract(torch.nn.Module):
         for e in range(epochs):
             losses = {"loss": str(0.)}
             average = Average()
-            train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size, shuffle=True)
+            train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size, shuffle=True, pin_memory=True  )
             with tqdm(train_loader,
                       postfix=[losses], desc="Epoch %i/%i" %(e+1,epochs)) as pbar:
                 for i, b in enumerate(train_loader):
                     self.optimizer.zero_grad()
-                    x = self.transform(b["input"]).to(self.device)
-                    y = self.transform(b["forward"]).to(self.device)
+                    x = b[0].to(self.device)
+                    y = b[1].to(self.device)
                     output = self(x)
                     l = self.loss(output, y)
                     l.backward()
@@ -100,7 +104,7 @@ class LanguageModelAbstract(torch.nn.Module):
             train_history["loss"].append(average.compute().item())
         return{"train":train_history, "valid": validation }
 
-    def generate(self, prompt="", steps=100, sample=True):
+    def generate(self, prompt="", steps=100, sample=True, beta=1):
         self.eval()
         with torch.no_grad():
             answer = self.encode(prompt)
@@ -108,7 +112,7 @@ class LanguageModelAbstract(torch.nn.Module):
             for _ in range(steps):
                 cl = torch.tensor(answer[(-min(len(answer), self.max_len)):])[None,:]
                 output = self(torch.LongTensor(cl).to(self.device))
-                probabilities = torch.softmax(output[0],-1).detach().cpu()
+                probabilities = torch.softmax(beta*output[0],-1).detach().cpu()
                 if sample:
                     import numpy as np
                     next_token = np.random.choice(range(probabilities.shape[-1]),1, p=(probabilities/probabilities.sum()).numpy())[0]

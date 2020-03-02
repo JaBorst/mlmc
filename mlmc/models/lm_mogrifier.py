@@ -12,7 +12,7 @@ class MogrifierLM(LanguageModelAbstract):
         self.mogrify_steps = mogrify_steps
         self.learn_initial_states = learn_initial_states
         self.hidden_size = hidden_size
-        self.cell_type = MogLSTM
+        self.cell_type = MogrifierLSTM
         self.lm_layers=torch.nn.ModuleList(
             [
                 self.cell_type(hidden_size,hidden_size,mogrify_steps)
@@ -68,7 +68,8 @@ class MogrifierLMCharacter(MogrifierLM):
         return self.transform([x for x in s if x in self.alphabet.keys()]).tolist()
 
     def decode(self, s):
-        return "".join([list(self.alphabet.keys())[x] for x in s])
+        alphabet_rev = {v:k for k,v in self.alphabet.items()}
+        return "".join([alphabet_rev[x] for x in s])
 
 class MogrifierLMWord(MogrifierLM):
     def __init__(self, word_list, **kwargs):
