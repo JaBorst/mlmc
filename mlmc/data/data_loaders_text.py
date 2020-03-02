@@ -59,3 +59,35 @@ class RawTextDataset(Dataset):
         if n is None:
             n=len(c)
         return [x[0] for x in c.most_common(n)]
+
+from torch import tensor
+class RawTextDatasetTensor(Dataset):
+    """
+    Dataset to hold raw text and tokenize batches.
+    """
+    def __init__(self, x, vocab, target="words", length=512, bidirectional=False, **kwargs):
+        self.__dict__.update(kwargs)
+        if callable(target):
+            self.x = target(x)
+        elif target=="words":
+            self.x = x.split()
+        elif target =="character":
+            self.x = list(x)
+        else:
+            print("target has to be either 'words' or 'character' or a callable function that splits the input string.")
+        self.window = length+1
+        self.vocab = dict(zip(vocab, range(len(vocab))))
+
+        sequences = []
+        for start in range(0, len(self.x) - self.window):
+            sequences.append([x for x in self.x[start:start + self.window]])
+        self.x = sequences
+
+        self.tr = tensor([[self.vocab.get(c, len(vocab)+1) for c in s] for s in self.x]).long()
+
+    def __len__(self):
+        return self.tr.shape[0]
+
+    def __getitem__(self, idx, raw=False):
+        resource = self.x if raw else self.tr
+        return resource[idx,:-1], resource[idx,-1]

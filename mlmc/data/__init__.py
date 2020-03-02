@@ -162,4 +162,4 @@ def get_multilabel_dataset(name, type=MultiLabelDataset, ensure_valid=False, val
 
 ## Sampler import
 from .sampler import sampler, successive_sampler, class_sampler, validation_split
-from .data_loaders_text import RawTextDatasetTokenizer, RawTextDataset
+from .data_loaders_text import RawTextDatasetTokenizer, RawTextDataset,RawTextDatasetTensor
