@@ -27,21 +27,25 @@ class MultiLabelDataset(Dataset):
 
     It also inherits torch.utils.data.Dataset so to be able to lates use the Dataloader and iterate
     """
-    def __init__(self, x, y, classes, purpose="train", target_dtype=torch.LongTensor, **kwargs):
+    def __init__(self, x, y, classes, purpose="train", target_dtype=torch._cast_Float, one_hot=True, **kwargs):
         self.__dict__.update(kwargs)
         self.classes = classes
         self.purpose = purpose
         self.x = x
         self.y = y
+        self.one_hot = one_hot
         self.target_dtype = target_dtype
 
     def __len__(self):
         return len(self.x)
 
     def __getitem__(self, idx):
-        labels = [self.classes[tag] for tag in self.y[idx]]
-        labels = torch.nn.functional.one_hot(torch.LongTensor(labels), len(self.classes)).sum(0)
-        return {'text': self.x[idx], 'labels': self.target_dtype(labels)}
+        if self.one_hot:
+            labels = [self.classes[tag] for tag in self.y[idx]]
+            labels = torch.nn.functional.one_hot(torch.LongTensor(labels), len(self.classes)).sum(0)
+            return {'text': self.x[idx], 'labels': self.target_dtype(labels)}
+        else:
+            return {'text': self.x[idx], 'labels': self.classes[self.y[2][0]]}
 
     def transform(self, fct):
         self.x = [fct(sen) for sen in self.x]

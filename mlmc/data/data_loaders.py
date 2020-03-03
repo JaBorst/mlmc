@@ -487,8 +487,8 @@ def load_agnews():
                 classes = dict(zip(classes, range(len(classes))))
                 rev_classes = {v: k for k, v in classes.items()}
         data = {
-            "train": (traindata,[[rev_classes[x-1]] for x in trainlabel]),
-            "test": (testdata, [[rev_classes[x-1]] for x in testlabel]),
+            "train": (traintext,[[rev_classes[x-1]] for x in trainlabel]),
+            "test": (testtext, [[rev_classes[x-1]] for x in testlabel]),
             "test_title": testtitle,
             "test_description": testdescription,
             "train_title": traintitle,

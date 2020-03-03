@@ -61,9 +61,9 @@ class TextClassificationAbstract(torch.nn.Module):
                 x = self.transform(b["text"])
                 output = self(x.to(self.device)).cpu()
                 if hasattr(self, "regularize"):
-                    l = self.loss(output, torch._cast_Float(y)) + self.regularize()
+                    l = self.loss(output, y) + self.regularize()
                 else:
-                    l = self.loss(output, torch._cast_Float(y))
+                    l = self.loss(output, y)
                 output = torch.sigmoid(output)
 
                 # Subset evaluation if ...
@@ -109,9 +109,9 @@ class TextClassificationAbstract(torch.nn.Module):
                     x = self.transform(b["text"]).to(self.device)
                     output = self(x)
                     if hasattr(self, "regularize"):
-                        l = self.loss(output, torch._cast_Float(y)) + self.regularize()
+                        l = self.loss(output, y) + self.regularize()
                     else:
-                        l = self.loss(output, torch._cast_Float(y))
+                        l = self.loss(output, y[:,0])
                     l.backward()
 
                     self.optimizer.step()

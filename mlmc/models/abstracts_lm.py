@@ -136,4 +136,4 @@ class LanguageModelAbstract(torch.nn.Module):
     def representations(self, s):
         if not isinstance(s, list):
             s = [s]
-        return self(self.transform([e.tokens for e in self.tokenizer.encode_batch(s)]).to(self.device), representations=True)
+        return self(self.transform(s).to(self.device), representations=True)
