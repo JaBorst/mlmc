@@ -6,7 +6,7 @@ import warnings
 from mlmc.representation import is_transformer
 
 
-def save(model, path, only_inference=False, save_embeddings=True):
+def save(model, path, only_inference=False):
     # Remove  loss and optimizer from model, needs to be saved separately
     optimizer_tmp = model.optimizer
     loss_tmp = model.loss
@@ -14,15 +14,15 @@ def save(model, path, only_inference=False, save_embeddings=True):
     model.optimizer = None
     model.loss = None
 
-    if save_embeddings:
-        attr_keys = {x for x in dir(model) if x.startswith("tokenizer") or x.endswith("tokenizer")}
-    else:
-        attr_keys = [x for x in dir(model) if
-                     x.startswith("tokenizer") or x.endswith("tokenizer") or x.startswith("embedding") or x.endswith(
-                         "embedding")]
-
-    tmp = {k: getattr(model, k) for k in attr_keys}
-    for k in attr_keys: model.__delattr__(k)
+    # # if save_embeddings:
+    # #     attr_keys = {x for x in dir(model) if x.startswith("tokenizer") or x.endswith("tokenizer")}
+    # # else:
+    # #     attr_keys = [x for x in dir(model) if
+    # #                  x.startswith("tokenizer") or x.endswith("tokenizer") or x.startswith("embedding") or x.endswith(
+    # #                      "embedding")]
+    #
+    # tmp = {k: getattr(model, k) for k in attr_keys}
+    # for k in attr_keys: model.__delattr__(k)
 
     if only_inference:
         # Use torch.save to save the inference state. if save_all: Save the input representation (embedding or lm)
@@ -44,7 +44,7 @@ def save(model, path, only_inference=False, save_embeddings=True):
 
 
     # Reattach loss and optimizer and variables
-    for k in attr_keys: setattr(model, k, tmp[k])
+    # for k in attr_keys: setattr(model, k, tmp[k])
     model.loss = loss_tmp
     model.optimizer = optimizer_tmp
     return path

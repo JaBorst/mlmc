@@ -1,7 +1,8 @@
 from torch.utils.data import Dataset
 import torch
 from .data_loaders  import load_eurlex, load_wiki30k, load_huffpost, load_aapd, load_rcv1, load_conll2003en, \
-    load_moviesummaries,load_blurbgenrecollection, load_blurbgenrecollection_de, load_20newsgroup,export
+    load_moviesummaries,load_blurbgenrecollection, load_blurbgenrecollection_de, load_20newsgroup,export,\
+    load_agnews
 
 # String Mappings
 register = {
@@ -14,7 +15,8 @@ register = {
     "conll2003en": load_conll2003en,
     "blurbgenrecollection": load_blurbgenrecollection,
     "blurbgenrecollection_de": load_blurbgenrecollection_de,
-    "20newsgroup": load_20newsgroup
+    "20newsgroup": load_20newsgroup,
+    "agnews": load_agnews
 }
 
 

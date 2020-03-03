@@ -133,3 +133,7 @@ class LanguageModelAbstract(torch.nn.Module):
               "Fixed:\t%i\n"
               "-----------\n"
               "Total:\t%i" % (trainable, total-trainable,total))
+    def representations(self, s):
+        if not isinstance(s, list):
+            s = [s]
+        return self(self.transform([e.tokens for e in self.tokenizer.encode_batch(s)]).to(self.device), representations=True)

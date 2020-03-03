@@ -38,4 +38,4 @@ except:
 
 #######
 
-from .lm_mogrifier import MogrifierLMCharacter, MogrifierLMWord, MogrifierLMTokenizer
+from .lm_mogrifier import MogrifierLMCharacter, MogrifierLMWord#, MogrifierLMTokenizer
