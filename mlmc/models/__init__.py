@@ -14,9 +14,8 @@ try:
     from .zeroshot_models import LabelScoringGraphModel
     from .ZAGCNN import ZAGCNN
     from .ZAGCNNLM import ZAGCNNLM
-    from .ZAGCNNLMMatrix import ZAGCNNLMMatrix
     from .LMMatrix import LMMatrix
-    from .ZAGCNNLMAtt import ZAGCNNLMAtt
+    from .ZAGCNNLMAtt import ZAGCNNLM2
     from .SKG_ML import SKG
 except:
     print("pytorch_geometric not installed.")

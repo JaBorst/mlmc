@@ -1,4 +1,3 @@
-from tokenizers import Encoding
 from tokenizers import Tokenizer
 class enc:
     def __init__(self, tokens, ids):
