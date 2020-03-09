@@ -22,7 +22,7 @@ class LabelAttention(torch.nn.Module):
             torch.nn.init.kaiming_normal_(self.label_repr)
         else:
             assert label_repr.shape[-1] == hidden_dim,"label embedding dimension must equal hidden_dim"
-            self.label_repr = torch.nn.Parameter(torch._cast_Float(torch.from_numpy(label_repr)))
+            self.label_repr = torch.nn.Parameter(label_repr)
             self.label_repr.requires_grad=freeze
 
     def forward(self, x):

@@ -142,16 +142,25 @@ def load_rcv1(path=None):
     classes = dict(zip(classes, range(len(classes))))
     data = {"train": train, "test": test}
 
-    with open(dataset / "rcv1.topics.hier.orig", "r") as f:
-        content = f.readlines()
-    import re
-    edges = [(re.split(" +", x)[1], re.split(" +", x)[3]) for x in content]
-    graph = nx.DiGraph(edges)
-    data["graph"] = graph
     with open(dataset / "topic_codes.txt", "r") as f:
         topics = [x.replace("\n", "").split("\t") for x in f.readlines() if len(x) > 1][2:]
     topicmap = {x[0]: x[1] for x in topics}
     data["topicmap"] = topicmap
+
+    with open(dataset / "rcv1.topics.hier.orig", "r") as f:
+        content = f.readlines()
+    import re
+    edges = [(re.split(" +", x)[1], re.split(" +", x)[3]) for x in content]
+    edges = [(topicmap.get(x[0],x[0]).capitalize(),topicmap.get(x[1],x[1]).capitalize()) for x in edges]
+    graph = nx.DiGraph(edges[1:])
+    data["graph"] = graph
+
+
+    for key in ("train", "test"):
+        data[key] = (data[key][0],[[topicmap[l].capitalize() for l in labellist] for labellist in data[key][1]])
+    classes = {topicmap[k].capitalize(): v for k, v in classes.items()}
+
+    data["topicmap"] = {v.capitalize():k for k,v in topicmap.items()}
 
     _save_to_tmp("rcv1", (data, classes))
     return data, classes
@@ -447,6 +456,46 @@ def load_20newsgroup():
 
         return data, classes
 
+def load_agnews():
+    url = "https://s3.amazonaws.com/fast-ai-nlp/ag_news_csv.tgz"
+    data = _load_from_tmp("agnews")
+    if data is not None:
+        return data
+    else:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            resp = urlopen(url)
+            tf = tarfile.open(fileobj=resp, mode="r|gz")
+            tf.extractall(Path(tmpdir))
+            testdir = Path(tmpdir) / 'ag_news_csv/test.csv'
+            traindir = Path(tmpdir) / 'ag_news_csv/train.csv'
+            classesdir = Path(tmpdir) / 'ag_news_csv/classes.txt'
+
+            with open(testdir, "r") as f:
+                testdata = [x.replace("\n", "").split('","')[::-1] for x in f.readlines()]
+                testlabel = [int(x[2].replace('"', '')) for x in testdata]
+                testtitle = [x[1] for x in testdata]
+                testdescription = [x[0] for x in testdata]
+                testtext = [" \n ".join([t, d]) for t, d in zip(testtitle, testdescription)]
+            with open(traindir, "r") as f:
+                traindata = [x.replace("\n", "").split('","')[::-1] for x in f.readlines()]
+                trainlabel = [int(x[2].replace('"', '')) for x in traindata]
+                traintitle = [x[1] for x in traindata]
+                traindescription = [x[0] for x in traindata]
+                traintext = [" \n ".join([t, d]) for t, d in zip(traintitle, traindescription)]
+            with open(classesdir,"r") as f:
+                classes = [x.replace("\n","") for x in f.readlines()]
+                classes = dict(zip(classes, range(len(classes))))
+                rev_classes = {v: k for k, v in classes.items()}
+        data = {
+            "train": (traintext,[[rev_classes[x-1]] for x in trainlabel]),
+            "test": (testtext, [[rev_classes[x-1]] for x in testlabel]),
+            "test_title": testtitle,
+            "test_description": testdescription,
+            "train_title": traintitle,
+            "train_description": traindescription
+        }
+        _save_to_tmp("agnews", (data, classes))
+        return data, classes
 
 def export(data, classes, path=Path("./export")):
     path = Path(path)

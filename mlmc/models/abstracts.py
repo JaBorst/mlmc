@@ -46,7 +46,7 @@ class TextClassificationAbstract(torch.nn.Module):
         self.eval()  # set mode to evaluation to disable dropout
         p_1 = Precision(is_multilabel=True,average=True)
         p_3 = Precision(is_multilabel=True,average=True)
-        p_5 = Precision(is_multilabel=True,average=True)
+        if len(data.classes)>5: p_5 = Precision(is_multilabel=True,average=True)
         subset_65 = Accuracy(is_multilabel=True)
         subset_mcut = Accuracy(is_multilabel=True)
         report = MultiLabelReport(self.classes) if mask is None else MultiLabelReport(self.classes, check_zeros=True)
@@ -61,9 +61,9 @@ class TextClassificationAbstract(torch.nn.Module):
                 x = self.transform(b["text"])
                 output = self(x.to(self.device)).cpu()
                 if hasattr(self, "regularize"):
-                    l = self.loss(output, torch._cast_Float(y)) + self.regularize()
+                    l = self.loss(output, y) + self.regularize()
                 else:
-                    l = self.loss(output, torch._cast_Float(y))
+                    l = self.loss(output, y)
                 output = torch.sigmoid(output)
 
                 # Subset evaluation if ...
@@ -74,7 +74,7 @@ class TextClassificationAbstract(torch.nn.Module):
                 average.update(l.item())
                 p_1.update((torch.zeros_like(output).scatter(1, torch.topk(output, k=1)[1],1), y))
                 p_3.update((torch.zeros_like(output).scatter(1, torch.topk(output, k=3)[1],1), y))
-                p_5.update((torch.zeros_like(output).scatter(1, torch.topk(output, k=5)[1],1), y))
+                if len(data.classes)>5:  p_5.update((torch.zeros_like(output).scatter(1, torch.topk(output, k=5)[1],1), y))
                 subset_65.update((self.threshold(output, tr=0.5, method="hard"), y))
                 subset_mcut.update((self.threshold(output, tr=0.5, method="mcut"), y))
                 if return_report: report.update((self.threshold(output, tr=0.5, method="mcut"), y))
@@ -85,9 +85,9 @@ class TextClassificationAbstract(torch.nn.Module):
             "valid_loss": round(average.compute().item(), 2*self.PRECISION_DIGITS),
             "p@1": round(p_1.compute(),self.PRECISION_DIGITS),
             "p@3": round(p_3.compute(),self.PRECISION_DIGITS),
-            "p@5": round(p_5.compute(),self.PRECISION_DIGITS),
+            "p@5": round(p_5.compute(),self.PRECISION_DIGITS) if len(data.classes)>5 else None,
             "auc":  auc_roc.compute() if return_roc else round(auc_roc.compute()[0],self.PRECISION_DIGITS),
-            "a@0.65": round(subset_65.compute(),self.PRECISION_DIGITS),
+            "a@0.5": round(subset_65.compute(),self.PRECISION_DIGITS),
             "a@mcut": round(subset_mcut.compute(),self.PRECISION_DIGITS),
             "report": report.compute() if return_report else None,
         }
@@ -109,10 +109,11 @@ class TextClassificationAbstract(torch.nn.Module):
                     x = self.transform(b["text"]).to(self.device)
                     output = self(x)
                     if hasattr(self, "regularize"):
-                        l = self.loss(output, torch._cast_Float(y)) + self.regularize()
+                        l = self.loss(output, y) + self.regularize()
                     else:
-                        l = self.loss(output, torch._cast_Float(y))
+                        l = self.loss(output, y)
                     l.backward()
+
                     self.optimizer.step()
                     average.update(l.item())
                     pbar.postfix[0]["loss"] = round(average.compute().item(),2*self.PRECISION_DIGITS)
@@ -131,14 +132,16 @@ class TextClassificationAbstract(torch.nn.Module):
         return{"train":train_history, "valid": validation }
 
 
-    def predict(self, x, tr=0.65, method="hard"):
+    def predict(self, x, return_scores=False, tr=0.65, method="hard"):
         self.eval()
         if not hasattr(self, "classes_rev"):
             self.classes_rev = {v: k for k, v in self.classes.items()}
         x = self.transform(x).to(self.device)
-        with torch.no_grad(): output = self(x)
-        prediction = self.threshold(torch.sigmoid(output), tr=tr, method=method)
+        with torch.no_grad(): output = torch.sigmoid(self(x))
+        prediction = self.threshold(output, tr=tr, method=method)
         self.train()
+        if return_scores:
+            return [[(self.classes_rev[i.item()], s[i].item()) for i in torch.where(p==1)[0]] for s, p in zip(output,prediction)]
         return [[self.classes_rev[i.item()] for i in torch.where(p==1)[0]] for p in prediction]
 
     def predict_dataset(self, data, batch_size=50, tr=0.65, method="hard"):
@@ -165,9 +168,21 @@ class TextClassificationAbstract(torch.nn.Module):
 
     def _init_input_representations(self):
         if is_transformer(self.representation):
-            self.n_layers=4
+            if not hasattr(self, "n_layers"): self.n_layers=4
             self.embedding, self.tokenizer = get(self.representation, output_hidden_states=True)
             self.embedding_dim = self.embedding(torch.LongTensor([[0]]))[0].shape[-1]*self.n_layers
+            for param in self.embedding.parameters(): param.requires_grad = False
+
         else:
             self.embedding, self.tokenizer = get(self.representation, freeze=True)
             self.embedding_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
+            for param in self.embedding.parameters(): param.requires_grad = False
+
+    def num_params(self):
+        total = sum(p.numel() for p in self.parameters())
+        trainable = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        print("Parameters:\n"
+              "Trainable:\t%i\n"
+              "Fixed:\t%i\n"
+              "-----------\n"
+              "Total:\t%i" % (trainable, total-trainable,total))

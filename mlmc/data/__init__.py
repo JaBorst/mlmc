@@ -1,7 +1,8 @@
 from torch.utils.data import Dataset
 import torch
 from .data_loaders  import load_eurlex, load_wiki30k, load_huffpost, load_aapd, load_rcv1, load_conll2003en, \
-    load_moviesummaries,load_blurbgenrecollection, load_blurbgenrecollection_de, load_20newsgroup,export
+    load_moviesummaries,load_blurbgenrecollection, load_blurbgenrecollection_de, load_20newsgroup,export,\
+    load_agnews
 
 # String Mappings
 register = {
@@ -14,7 +15,8 @@ register = {
     "conll2003en": load_conll2003en,
     "blurbgenrecollection": load_blurbgenrecollection,
     "blurbgenrecollection_de": load_blurbgenrecollection_de,
-    "20newsgroup": load_20newsgroup
+    "20newsgroup": load_20newsgroup,
+    "agnews": load_agnews
 }
 
 
@@ -25,21 +27,25 @@ class MultiLabelDataset(Dataset):
 
     It also inherits torch.utils.data.Dataset so to be able to lates use the Dataloader and iterate
     """
-    def __init__(self, x, y, classes, purpose="train", target_dtype=torch.LongTensor, **kwargs):
+    def __init__(self, x, y, classes, purpose="train", target_dtype=torch._cast_Float, one_hot=True, **kwargs):
         self.__dict__.update(kwargs)
         self.classes = classes
         self.purpose = purpose
         self.x = x
         self.y = y
+        self.one_hot = one_hot
         self.target_dtype = target_dtype
 
     def __len__(self):
         return len(self.x)
 
     def __getitem__(self, idx):
-        labels = [self.classes[tag] for tag in self.y[idx]]
-        labels = torch.nn.functional.one_hot(torch.LongTensor(labels), len(self.classes)).sum(0)
-        return {'text': self.x[idx], 'labels': self.target_dtype(labels)}
+        if self.one_hot:
+            labels = [self.classes[tag] for tag in self.y[idx]]
+            labels = torch.nn.functional.one_hot(torch.LongTensor(labels), len(self.classes)).sum(0)
+            return {'text': self.x[idx], 'labels': self.target_dtype(labels)}
+        else:
+            return {'text': self.x[idx], 'labels': self.classes[self.y[2][0]]}
 
     def transform(self, fct):
         self.x = [fct(sen) for sen in self.x]
@@ -53,6 +59,47 @@ class MultiLabelDataset(Dataset):
     def to_dict(self):
         """Transform the dataset into a dictionary-of-lists representation"""
         return {"x": self.x, "y": self.y, "classes":list(self.classes.keys())}
+
+    def __add__(self, o):
+        new_classes = list(set( list(self.classes.keys()) +  list(o.classes.keys()) ))
+        new_classes.sort()
+        new_classes = dict(zip(new_classes, range(len(new_classes))))
+
+        new_data = list(set(self.x + o.x))
+        new_labels = [[] for _ in range(len(new_data))]
+
+        for i, x in enumerate(self.x):
+            new_labels[new_data.index(x)].extend(self.y[i])
+
+        for i, x in enumerate(o.x):
+            new_labels[new_data.index(x)].extend(o.y[i])
+
+        new_labels = [list(set(x)) for x in new_labels]
+
+        return MultiLabelDataset(x=new_data, y=new_labels, classes=new_classes)
+
+    def remove(self,classes):
+        if isinstance(classes, str):
+            classes = [classes]
+        assert all([x in self.classes.keys() for x in classes]), "Some of the provided classes are not contained in the dataset"
+        self.y = [[label for label in labelset if label not in classes] for labelset in self.y]
+        emptylabelsets = [i for i, x in enumerate(self.y) if x == []]
+        self.x = [ x for i,x in enumerate(self.x) if i not in emptylabelsets]
+        self.y = [ x for i,x in enumerate(self.y) if i not in emptylabelsets]
+
+
+    def map(self, map: dict):
+        if any([x not in map.keys() for x in self.classes.keys()]):
+            print("Some classes are not present in the map. The will be returned as is.")
+        self.classes = {map.get(k,k):v for k,v in self.classes.items()}
+        self.y = [[map.get(l,l) for l in labelset] for labelset in self.y]
+
+    def reduce(self, subset: dict):
+        assert all([x in self.classes.keys() for x in subset.keys()]), "Subset contains classes not present in dataset"
+        ind = [i for i, labelset in enumerate(self.y) if any([l in subset.keys() for l in labelset])]
+        self.x = [self.x[i] for i in ind]
+        self.y = [[x for x in self.y[i] if x in subset.keys()] for i in ind]
+        self.classes = subset
 
 class SequenceDataset(Dataset):
     """Dataset format for Sequence data."""
@@ -120,4 +167,5 @@ def get_multilabel_dataset(name, type=MultiLabelDataset, ensure_valid=False, val
 
 
 ## Sampler import
-from .sampler import sampler, successive_sampler
+from .sampler import sampler, successive_sampler, class_sampler, validation_split
+from .data_loaders_text import RawTextDatasetTokenizer, RawTextDataset,RawTextDatasetTensor
