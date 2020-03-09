@@ -1,6 +1,14 @@
 import numpy as np
 from transformers import *
 import torch
+from  pathlib import Path
+from urllib import error
+from urllib.request import urlopen
+from io import BytesIO
+from zipfile import ZipFile
+
+
+EMBEDDINGCACHE = Path.home() / ".mlmc" / "embedding"
 
 MODELS = {"bert": (BertModel, BertTokenizer, 'bert-large-uncased'),
           "bert_cased": (BertModel, BertTokenizer, 'bert-base-cased'),
@@ -16,8 +24,26 @@ MODELS = {"bert": (BertModel, BertTokenizer, 'bert-large-uncased'),
 
 
 
-def load_static(embedding="/disk1/users/jborst/Data/Embeddings/glove/en/glove.6B.50d_small.txt"):
-    glove = np.loadtxt(embedding, dtype='str', comments=None)
+def load_static(embedding="glove300"):
+    embeddingfiles = {"glove50": "glove.6B.50d.txt",
+            "glove100": "glove.6B.100d.txt",
+            "glove200": "glove.6B.200d.txt",
+            "glove300": "glove.6B.300d.txt"}
+
+    if not (EMBEDDINGCACHE / embeddingfiles[embedding]).exists():
+        URL ="http://nlp.stanford.edu/data/glove.6B.zip"
+        try:
+            resp = urlopen(URL)
+        except error.HTTPError:
+            print(error.HTTPError)
+            return None
+        assert resp.getcode() == 200, "Download not found Error: (%i)" % (resp.getcode(),)
+        print("Downloading glove vectors... This may take a while...")
+        zipfile = ZipFile(BytesIO(resp.read()))
+        zipfile.extractall(EMBEDDINGCACHE)
+    fp = EMBEDDINGCACHE / embeddingfiles[embedding]
+
+    glove = np.loadtxt(fp, dtype='str', comments=None)
     glove = glove[np.unique(glove[:,:1],axis=0, return_index=True)[1]]
     words = glove[:, 0]
     weights = glove[:, 1:].astype('float')
