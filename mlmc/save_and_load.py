@@ -50,13 +50,17 @@ def save(model, path, only_inference=False):
     return path
 
 
-def load(path, only_inference=False):
+def load(path, only_inference=False, only_cpu=False):
+    additional_arguments = {}
+    if only_cpu:
+        additional_arguments["map_location"] = torch.device('cpu')
+
     if only_inference:
-        loaded = torch.load(Path(path))
+        loaded = torch.load(Path(path),**additional_arguments)
         return loaded
     else:
         #load all information
-        loaded = torch.load(Path(path))
+        loaded = torch.load(Path(path),**additional_arguments)
         # Create a model with the same parameters
         model = loaded["type"](**loaded["args"])
         model.load_state_dict(loaded["model_state_dict"])
