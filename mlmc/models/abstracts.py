@@ -132,14 +132,16 @@ class TextClassificationAbstract(torch.nn.Module):
         return{"train":train_history, "valid": validation }
 
 
-    def predict(self, x, tr=0.65, method="hard"):
+    def predict(self, x, return_scores=False, tr=0.65, method="hard"):
         self.eval()
         if not hasattr(self, "classes_rev"):
             self.classes_rev = {v: k for k, v in self.classes.items()}
         x = self.transform(x).to(self.device)
-        with torch.no_grad(): output = self(x)
-        prediction = self.threshold(torch.sigmoid(output), tr=tr, method=method)
+        with torch.no_grad(): output = torch.sigmoid(self(x))
+        prediction = self.threshold(output, tr=tr, method=method)
         self.train()
+        if return_scores:
+            return [[(self.classes_rev[i.item()], s[i].item()) for i in torch.where(p==1)[0]] for s, p in zip(output,prediction)]
         return [[self.classes_rev[i.item()] for i in torch.where(p==1)[0]] for p in prediction]
 
     def predict_dataset(self, data, batch_size=50, tr=0.65, method="hard"):
