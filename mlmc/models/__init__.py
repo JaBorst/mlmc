@@ -8,10 +8,10 @@ from .LSAN_reimplementation import LabelSpecificAttention
 from .LSANOriginalTransformer import LSANOriginalTransformer
 
 
-#geomteric models
+#geometeric models
 
 try:
-    from .zeroshot_models import LabelScoringGraphModel
+    from depr.zeroshot_models import LabelScoringGraphModel
     from .ZAGCNN import ZAGCNN
     from .ZAGCNNLM import ZAGCNNLM
     from .LMMatrix import LMMatrix
