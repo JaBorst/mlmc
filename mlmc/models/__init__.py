@@ -9,9 +9,7 @@ from .LSANOriginalTransformer import LSANOriginalTransformer
 
 
 #geometeric models
-
 try:
-    from depr.zeroshot_models import LabelScoringGraphModel
     from .ZAGCNN import ZAGCNN
     from .ZAGCNNLM import ZAGCNNLM
     from .LMMatrix import LMMatrix
@@ -37,4 +35,4 @@ except:
 
 #######
 
-from .lm_mogrifier import MogrifierLMCharacter, MogrifierLMWord#, MogrifierLMTokenizer
+from .lm_mogrifier import MogrifierLMCharacter, MogrifierLMWord
