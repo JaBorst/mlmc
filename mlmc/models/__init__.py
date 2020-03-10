@@ -8,7 +8,7 @@ from .LSAN_reimplementation import LabelSpecificAttention
 from .LSANOriginalTransformer import LSANOriginalTransformer
 
 
-#geomtric models
+#geomteric models
 
 try:
     from .zeroshot_models import LabelScoringGraphModel

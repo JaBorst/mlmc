@@ -8,6 +8,10 @@ from ..data.data_loaders import _save_to_tmp, _load_from_tmp
 
 
 def load_wordnet():
+    """
+    Loading the wordnet graph as a networkx.DiGraph
+    :return: A networkx.DiGraph containing wordnet.
+    """
     try:
         from nltk.corpus import wordnet as wn
     except:
@@ -23,7 +27,12 @@ def load_wordnet():
     return G
 
 
-def load_wordnet_sample(n=1000):
+def load_wordnet_sample(num=1000):
+    """
+    Loading the wordnet graph as a networkx.DiGraph
+    :num: The size of the subsample ( Only the first n synsets will be added )
+    :return: A networkx.DiGraph containing wordnet.
+    """
     try:
         from nltk.corpus import wordnet as wn
     except:
@@ -37,12 +46,17 @@ def load_wordnet_sample(n=1000):
                     for word in ss.lemmas():
                         G.add_edge(hh.name().replace("_"," "), word.name().replace("_"," "), label="is_a")
                         i += 1
-        if i >=n:
+        if i >=num:
             break
     return G
 
 
 def load_NELL():
+    """
+    Download and return the NELL Graph (Never Ending Lanuage Learning
+    Will return only elements that have a confidence of 0.999 and larger.
+    :return: A networkx.DiGraph
+    """
     url = "http://rtw.ml.cmu.edu/resources/results/08m/NELL.08m.1115.esv.csv.gz"
     data = _load_from_tmp("NELL")
     if data is not None:

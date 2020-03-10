@@ -80,9 +80,6 @@ class LabelEmbeddingScoring(torch.nn.Module):
             )
         return output
 
-
-
-
 class LabelSpecificSelfAttention(torch.nn.Module):
     def __init__(self, n_classes, input_dim, hidden_dim):
         super(LabelSpecificSelfAttention, self).__init__()
@@ -129,10 +126,3 @@ class AdaptiveCombination(torch.nn.Module):
         beta = beta / (alpha + beta)
         output = alpha*x[0] + beta*x[1]
         return output
-
-#
-# ac = LabelSpecificSelfAttention(n_classes=10, input_dim=300, hidden_dim=150)
-# ac(torch.randn(2,140,300))[1].shape
-# la = LabelAttention(10, 200, 200)
-# i = torch.randn(2,140,200)
-# la(i)[0].shape

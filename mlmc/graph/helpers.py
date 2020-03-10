@@ -4,6 +4,7 @@ from sklearn.manifold import TSNE
 
 
 def cooc_matrix(labels, classes):
+    """Deprecated"""
     coocs = np.zeros((len(classes),len(classes)))
     frequencies = np.zeros((len(classes),1))
     for labelset in labels:
@@ -17,8 +18,8 @@ def cooc_matrix(labels, classes):
 
 
 def correlate_similarity(coocs, embeddings, n, classwise=False, corr="spearman"):
+    """Deprecated"""
     cooc_rank = np.argsort(coocs, -1)[:, -n::-1]
-
     embed_rank = np.argsort(np.dot(embeddings, embeddings.transpose()), -1, )[:, -n::-1]
 
     from scipy.stats import spearmanr, kendalltau
@@ -35,6 +36,12 @@ def correlate_similarity(coocs, embeddings, n, classwise=False, corr="spearman")
                [np.mean(classcorrelations), np.std(classcorrelations)]
 
 def show_graph(vectors, classes):
+    """
+    Plot A TSNE
+    :param vectors: Vectors to plot
+    :param classes: Labels of the vectors to plot
+    :return:
+    """
     import matplotlib.pyplot as plt
     X_embedded = TSNE(n_components=2).fit_transform(vectors)
     fig, ax = plt.subplots(figsize=(20, 20))

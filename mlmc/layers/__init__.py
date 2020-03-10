@@ -4,8 +4,3 @@ from .label_layers import LabelEmbeddingScoring,AdaptiveCombination,LabelAttenti
 from .metric_layers import Bilinear, Metric
 from .weighted_aggregation import AttentionWeightedAggregation
 from .mogrifier import MogrifierLSTM, MogLSTM
-# Make pytorch_geometric effectively optional
-try:
-    from .graph import GatedGraphConv
-except:
-    print("pytorch_geometric not installed. Install if you want to use Geometric models")
