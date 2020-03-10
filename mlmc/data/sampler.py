@@ -4,7 +4,8 @@ import numpy as np
 def sampler(dataset, fraction=None, absolute=None):
     '''Sample a Random subsample of fixed size or fixed fraction of a dataset.'''
     n_samples = absolute if absolute is not None else  int(fraction*len(dataset))
-    ind = np.random.choice(range(len(dataset)), n_samples)
+    if n_samples > len(dataset): n_samples = len(dataset)
+    ind = np.random.choice(range(len(dataset)), n_samples, replace=False)
     x = [dataset.x[i] for i in ind]
     y = [dataset.y[i] for i in ind]
     return type(dataset)(x=x, y=y, classes=dataset.classes, target_dtype=dataset.target_dtype)
