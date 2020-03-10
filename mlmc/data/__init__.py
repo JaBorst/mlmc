@@ -101,6 +101,19 @@ class MultiLabelDataset(Dataset):
         self.y = [[x for x in self.y[i] if x in subset.keys()] for i in ind]
         self.classes = subset
 
+    def count(self, label):
+        if isinstance(label, list):
+            result = {   l: sum([l in s for s in self.y])
+                for l in label
+            }
+        else:
+            result = {label: sum([label in s for s in self.y])}
+        return result
+
+    def density(self):
+        return sum([len(x) for x in self.y])/len(self.y)
+
+
 class SequenceDataset(Dataset):
     """Dataset format for Sequence data."""
     def __init__(self, x, y, classes, purpose="train", target_dtype=torch._cast_Long):
