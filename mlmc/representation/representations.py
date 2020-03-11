@@ -10,30 +10,31 @@ from urllib.request import urlopen
 from io import BytesIO
 from zipfile import ZipFile
 
+import os
+dir_path = os.path.dirname(os.path.realpath(__file__))
+with open(dir_path+"/model.txt", "r") as f : MODELS = {k.replace("\n",""): (AutoModel, AutoTokenizer,k.replace("\n","")) for k in f.readlines()}
+
+for k,v in {"bert": (BertModel, BertTokenizer, 'bert-large-uncased'),
+          "albert": (AlbertModel, AlbertTokenizer, 'albert-large-v2'),
+          "ctrl": (CTRLModel, CTRLTokenizer, 'ctrl'),
+          "distilbert": (DistilBertModel, DistilBertTokenizer, 'distilbert-base-uncased'),
+          "roberta": (RobertaModel, RobertaTokenizer, 'roberta-base'),
+          }.items():
+    if k not in MODELS.keys():
+        MODELS[k]=v
+
+STATICS = {
+    "glove50": "glove.6B.50d.txt",
+    "glove100": "glove.6B.100d.txt",
+    "glove200": "glove.6B.200d.txt",
+    "glove300": "glove.6B.300d.txt"
+}
 
 EMBEDDINGCACHE = Path.home() / ".mlmc" / "embedding"
 
-MODELS = {"bert": (BertModel, BertTokenizer, 'bert-large-uncased'),
-          "bert_cased": (BertModel, BertTokenizer, 'bert-base-cased'),
-          "albert": (AlbertModel, AlbertTokenizer, 'albert-large-v2'),
-          "gpt": (OpenAIGPTModel, OpenAIGPTTokenizer, 'openai-gpt'),
-          "gpt2": (GPT2Model, GPT2Tokenizer, 'gpt2'),
-          "ctrl": (CTRLModel, CTRLTokenizer, 'ctrl'),
-          "xlnet": (XLNetModel, XLNetTokenizer, 'xlnet-base-cased'),
-          "xlm": (XLMModel, XLMTokenizer, 'xlm-mlm-enfr-1024'),
-          "distilbert": (DistilBertModel, DistilBertTokenizer, 'distilbert-base-uncased'),
-          "roberta": (RobertaModel, RobertaTokenizer, 'roberta-base'),
-          }
-
-
-
 def load_static(embedding="glove300"):
-    embeddingfiles = {"glove50": "glove.6B.50d.txt",
-            "glove100": "glove.6B.100d.txt",
-            "glove200": "glove.6B.200d.txt",
-            "glove300": "glove.6B.300d.txt"}
 
-    if not (EMBEDDINGCACHE / embeddingfiles[embedding]).exists():
+    if not (EMBEDDINGCACHE / STATICS[embedding]).exists():
         URL ="http://nlp.stanford.edu/data/glove.6B.zip"
         try:
             resp = urlopen(URL)
@@ -44,7 +45,7 @@ def load_static(embedding="glove300"):
         print("Downloading glove vectors... This may take a while...")
         zipfile = ZipFile(BytesIO(resp.read()))
         zipfile.extractall(EMBEDDINGCACHE)
-    fp = EMBEDDINGCACHE / embeddingfiles[embedding]
+    fp = EMBEDDINGCACHE / STATICS[embedding]
 
     glove = np.loadtxt(fp, dtype='str', comments=None)
     glove = glove[np.unique(glove[:,:1],axis=0, return_index=True)[1]]
