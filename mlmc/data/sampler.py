@@ -9,7 +9,7 @@ def sampler(dataset, fraction=None, absolute=None):
     :param absolute: The absolute size of the sampled dataset
     :return: A randomly subsampled MultilabelDataset of the desired size.
     '''
-    assert fraction is None != absolute is None, "Exactly one of fraction or absolute has to be set."
+    # assert fraction is None != absolute is None, "Exactly one of fraction or absolute has to be set."
     if fraction is not None:
         assert fraction<1 and fraction>0, "The fraction argument has to be between 0 and 1."
     n_samples = absolute if absolute is not None else  int(fraction*len(dataset))
@@ -145,7 +145,7 @@ def validation_split(dataset, fraction=None, absolute=None):
     :param absolute: The absolute size of the sampled dataset
     :return: A tuple of randomly subsampled MultilabelDatasets of the desired size.
     """
-    assert fraction is None != absolute is None, "Exactly one of fraction or absolute has to be set."
+    # assert fraction is None != absolute is None, "Exactly one of fraction or absolute has to be set."
     if fraction is not None:
         assert fraction < 1 and fraction > 0, "The fraction argument has to be between 0 and 1."
     ind = list(range(len(dataset)))

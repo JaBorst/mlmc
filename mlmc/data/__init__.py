@@ -22,12 +22,20 @@ register = {
 
 
 class MultiLabelDataset(Dataset):
-    """Dataset to hold text and label combinations.
-    It also inherits torch.utils.data.Dataset so to be able to lates use the Dataloader and iterate
+    """
+    Dataset to hold text and label combinations.
+
+    Providing a unified interface to Multilabel data, associating textual input with sets of labels. Also
+    holding a mapping of labels to indices and transforming the target labelset of an instance to multi-hot representations.
+    It also inherits torch.utils.data.Dataset, so it can be used in combination with torch.utils.data.Dataloader
+    for fast training loops.
     """
     def __init__(self, x, y, classes, target_dtype=torch._cast_Float, one_hot=True, **kwargs):
         """
         Class constructor
+
+        Creates an instance of MultilabelDataset.
+
         :param x: A list of the input text
         :param y: A list of corresponding label sets
         :param classes: A class mapping from label strings to successive indices
@@ -35,7 +43,7 @@ class MultiLabelDataset(Dataset):
         a function that is applied to the final output of the label tensors. (default: torch._cast_Float)
         :param one_hot: (default: True) if True, will transform the multilabel sets into a multi-hot tensor representation for training
         if False: will return the labelset strings as is
-        :param kwargs: Any additional information that is given by named key words will be saved as metadata
+        :param kwargs: Any additional information that is given by named keywords will be saved as metadata
         """
         self.__dict__.update(kwargs)
         self.classes = classes
@@ -57,6 +65,8 @@ class MultiLabelDataset(Dataset):
 
     def transform(self, fct):
         """
+        Mapping functions that act on strings to every data instance
+
         Applies fct to every input element of the dataset. (Can be used for cleaning or preprocessing)
         :param fct: a function that takes a string as input and returns the transformed string
         """
@@ -65,6 +75,7 @@ class MultiLabelDataset(Dataset):
     def to_json(self):
         """
         Transform the data set into a json string representation
+
         :return: String representation of the dataset ( only x, y and the classes)
         """
         import json
@@ -74,7 +85,8 @@ class MultiLabelDataset(Dataset):
     def to_dict(self):
         """
         Transform the dataset into a dictionary-of-lists representation
-        :return: A pyhton dictionary of the training data (only x, y and the classes)
+
+        :return: A python dictionary of the training data (only x, y and the classes)
         """
         return {"x": self.x, "y": self.y, "classes":list(self.classes.keys())}
 
@@ -98,9 +110,12 @@ class MultiLabelDataset(Dataset):
 
     def remove(self, classes):
         """
+        Deleting labels from the dataset.
+
         Removes all occurrences of classes argument (string or list of strings) from the dataset.
-        Instances with no label left will be removed.
-        :param classes: A label or list of labels.
+        Instances with then empty labelsets will be removed completely
+
+        :param classes: A label or list of label names.
         """
         if isinstance(classes, str):
             classes = [classes]
@@ -112,7 +127,10 @@ class MultiLabelDataset(Dataset):
 
     def map(self, map: dict):
         """
-        Apply label mappings. Maps every label string in the dataset according to 'map'.
+        Transforming label names
+
+        Apply label mappings to every data instance. Maps every label string in the dataset according to 'map'.
+
         :param map: Dictionary of map from current label string to new label string
         """
         if any([x not in map.keys() for x in self.classes.keys()]):
@@ -122,9 +140,13 @@ class MultiLabelDataset(Dataset):
 
     def reduce(self, subset: dict):
         """
-        Reduces the dataset to a subset of the classes. All labels not in subset will be removed. Label with an empty labelset will be removed.
+        Reduces the dataset to a subset of the classes.
+
+        The resulting dataset will only contain instances with at least one label that appears in the subset argument.
+        The subset must also provide a new mapping from the new label names to indices.
+        All labels not in subset will be removed. Instances with an empty label set will be removed.
+
         :param subset: A mapping of classes to indices
-        :return:
         """
         assert all([x in self.classes.keys() for x in subset.keys()]), "Subset contains classes not present in dataset"
         ind = [i for i, labelset in enumerate(self.y) if any([l in subset.keys() for l in labelset])]
@@ -135,6 +157,7 @@ class MultiLabelDataset(Dataset):
     def count(self, label):
         """
         Count the occurrences of all labels in 'label' in the dataset.
+
         :param label: label name or list of label names
         :return: Dictionary of label name and frequency in the dataset.
         """
@@ -149,6 +172,7 @@ class MultiLabelDataset(Dataset):
     def density(self):
         """
         Returns the average label set size per instance.
+
         :return: The average labelset size per instance
         """
         return sum([len(x) for x in self.y])/len(self.y)
@@ -160,7 +184,8 @@ class MultiLabelDataset(Dataset):
 
 def get_dataset(name, type, ensure_valid=False, valid_split=0.25, target_dtype=torch.FloatTensor):
     """
-    General data getter
+    General dataset getter for datasets in provided by the package.
+
     :param name: name of the dataset in register
     :param type: MultilabelDataset or SequenceDataset defined in mlmc.data
     :param ensure_valid: if True and there's no validation data in the original data a portion of the trainset is split
@@ -204,6 +229,9 @@ def get_dataset(name, type, ensure_valid=False, valid_split=0.25, target_dtype=t
 def get_multilabel_dataset(name, target_dtype=torch._cast_Float):
     """
     Load multilabel training data if available.
+
+    This is the default wrapper function for retrieving multilabel datasets.
+
     :param name: See: mlmc.data.register.keys()
     :param target_dtype: The target_dtype of the labeldata in training. See MultilabelDataset
     :return:

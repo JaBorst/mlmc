@@ -1,3 +1,6 @@
+"""
+Loading Embeddings and Word embeddings in an automated fashion.
+"""
 import numpy as np
 from transformers import *
 import torch
@@ -88,11 +91,19 @@ def get_transformer(model="bert", **kwargs):
     else:
         # Load pretrained model/tokenizer
         tokenizer = tokenizer_class.from_pretrained(pretrained_weights)
-        def list_tokenizer(x, maxlen=500):
-            l = len(x.split()) if isinstance(x, str) else max([len(s.split()) for s in x])
+
+        def list_tokenizer(x, maxlen=500, return_start=False):
             x = [x] if isinstance(x, str) else x
-            i = torch.nn.utils.rnn.pad_sequence(
-                [torch.tensor([tokenizer.encode(sentence, add_special_tokens=False, pad_to_max_length=True)][0]) for sentence in x], batch_first=True)
+            if return_start:
+                i = [tokenizer.tokenize(sentence, add_special_tokens=False, pad_to_max_length=True) for sentence in x]
+                ind = [torch.tensor([x.startswith("Ġ") or i == 0 for i, x in enumerate(sentence)]) for sentence in i]
+                i = torch.nn.utils.rnn.pad_sequence([torch.tensor(tokenizer.convert_tokens_to_ids(a)) for a in i],
+                                                    batch_first=True, padding_value=tokenizer.pad_token_id)
+                return i, torch.nn.utils.rnn.pad_sequence(ind, batch_first=True, padding_value=False)
+            else:
+                i = torch.nn.utils.rnn.pad_sequence(
+                    [torch.tensor([tokenizer.encode(sentence, add_special_tokens=False, pad_to_max_length=True)][0]) for
+                     sentence in x], batch_first=True, padding_value=tokenizer.pad_token_id)
             i = i[:, :min(maxlen, i.shape[-1])]
             return i
 
