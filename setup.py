@@ -20,5 +20,6 @@ setup(
     author='jb',
     author_email='',
     description='',
-    install_requires=requirements
+    install_requires=requirements,
+    include_package_data=True,
 )
