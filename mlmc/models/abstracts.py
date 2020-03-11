@@ -17,6 +17,14 @@ class TextClassificationAbstract(torch.nn.Module):
 
     """
     def __init__(self, loss=torch.nn.BCEWithLogitsLoss, optimizer=torch.optim.Adam, optimizer_params = {"lr": 5e-5}, device="cpu",**kwargs):
+        """
+        Abstract initializer of a Text Classification network.
+        :param loss: One of the torch.nn  losses (default: torch.nn.BCEWithLogitsLoss)
+        :param optimizer:  One of toch.optim (default: torch.optim.Adam)
+        :param optimizer_params: A dictionary of optimizer parameters
+        :param device: torch device, destination of training (cpu or cuda:0)
+        :param kwargs:
+        """
         super(TextClassificationAbstract,self).__init__(**kwargs)
 
         self.device = device
@@ -26,7 +34,8 @@ class TextClassificationAbstract(torch.nn.Module):
         self.PRECISION_DIGITS = 4
 
     def build(self):
-        """internal build method"""
+        """internal build method
+        """
         if isinstance(self.loss, type) and self.loss is not None:
             self.loss = self.loss().to(self.device)
         if isinstance(self.optimizer, type) and self.optimizer is not None:

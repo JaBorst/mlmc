@@ -8,10 +8,8 @@ from .LSAN_reimplementation import LabelSpecificAttention
 from .LSANOriginalTransformer import LSANOriginalTransformer
 
 
-#geomtric models
-
+#geometeric models
 try:
-    from .zeroshot_models import LabelScoringGraphModel
     from .ZAGCNN import ZAGCNN
     from .ZAGCNNLM import ZAGCNNLM
     from .LMMatrix import LMMatrix
@@ -37,4 +35,4 @@ except:
 
 #######
 
-from .lm_mogrifier import MogrifierLMCharacter, MogrifierLMWord#, MogrifierLMTokenizer
+from .lm_mogrifier import MogrifierLMCharacter, MogrifierLMWord

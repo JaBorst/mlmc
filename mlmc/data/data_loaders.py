@@ -400,7 +400,7 @@ def load_conll2003en(path=None):
         data["test"] = read_conll(path / "test.txt")
         data["valid"] = read_conll(path / "valid.txt")
         data["train"] = read_conll(path / "train.txt")
-        from mlmc.data.tagsets import NER
+        from seq2.data.tagsets import NER
         classes = dict(zip(NER, range(len(NER))))
         _save_to_tmp("conll2003en", (data, classes))
     return data, classes

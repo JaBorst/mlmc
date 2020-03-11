@@ -16,7 +16,11 @@ class KimCNN(TextClassificationAbstract):
         """
         Class constructor and intialization of every hyperparameters
         :param classes:  A dictionary of the class label and the corresponding index
-        :param mode:  One of (trainable, untrainable, multichannel, transformer). Transformer will use a language model. for the other three refer to the paper.
+        :param mode:  One of (trainable, untrainable, multichannel, transformer).
+        Transformer has to be used in combination with representation being a transformer model name (see: https://huggingface.co/transformers/pretrained_models.html).
+        In combination with the other three one of the glove embeddings can be used (glove50, glove100, glove200, glove300)
+        'trainable' will finetune the wordembedding used, whereas "untrainable" will freeze the embedding layer.
+        'multichannel' will combine two embedding layers, one for finetuning on the task, one frozen.
         :param representation: The name of the representation to use. glove* or one of the hugginface transformers models.
         :param kernel_sizes: Sizes of the kernel used for the convolution
         :param filters: Number of filters used in the convolution

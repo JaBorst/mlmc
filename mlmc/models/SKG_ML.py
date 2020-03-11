@@ -4,7 +4,7 @@ Multi-Label Zero-Shot Learning with Structured Knowledge Graphs Lee, Fang, Yeh (
 
 import torch
 from ..models.abstracts import TextClassificationAbstract
-from ..layers import GatedGraphConv, LabelEmbeddingScoring
+from ..layers import  LabelEmbeddingScoring
 from ..representation.representations import get
 import torch_geometric as torch_g
 

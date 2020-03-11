@@ -1,11 +1,12 @@
 # https://github.com/shenweichen/GraphEmbedding
 
-from sklearn.decomposition import NMF
-from sklearn import random_projection
-from node2vec import Node2Vec
-import numpy as np
-
 import networkx as nx
+import numpy as np
+from node2vec import Node2Vec
+from sklearn import random_projection
+from sklearn.decomposition import NMF
+
+
 def subgraph_extract(X, graph, subnodelist):
     new = np.zeros_like(X)
     for i, nm in enumerate(graph.nodes):
@@ -15,6 +16,14 @@ def subgraph_extract(X, graph, subnodelist):
 
 
 def get_node2vec(graph, classes, dim, return_all=False):
+    """
+    Embed a graph using the node2vec algorithm
+    :param graph: A networkx graph
+    :param classes: Classes to be extracted from the graph. (The subset of nodes for which the embedding will be returned)
+    :param dim: The dimension of the embedding
+    :param return_all: If True the embedding to every node will be returned. If False only the subset of embeddings for nodes that are in 'classes' will be returned.
+    :return: A Matrix of embedding vectors
+    """
     node2vec = Node2Vec(graph, dimensions=dim, walk_length=30, num_walks=500, workers=4)
     model = node2vec.fit(window=50, min_count=1, batch_words=4)
     W = model.wv.vectors
@@ -23,6 +32,14 @@ def get_node2vec(graph, classes, dim, return_all=False):
     return W
 
 def get_nmf(graph, classes, dim, return_all=False):
+    """
+    Embed a graph using the non-negative matrix factorization algorithm.
+    :param graph: A networkx graph
+    :param classes: Classes to be extracted from the graph. (The subset of nodes for which the embedding will be returned)
+    :param dim: The dimension of the embedding
+    :param return_all: If True the embedding to every node will be returned. If False only the subset of embeddings for nodes that are in 'classes' will be returned.
+    :return: A Matrix of embedding vectors
+    """
     model = NMF(n_components=dim, init='random', random_state=0)
     W = model.fit_transform(nx.to_numpy_array(graph))
     H = model.components_
@@ -31,6 +48,14 @@ def get_nmf(graph, classes, dim, return_all=False):
     return W
 
 def get_random_projection(graph, classes, dim, return_all=False):
+    """
+    Embed a graph using the random projection algorithm.
+    :param graph: A networkx graph
+    :param classes: Classes to be extracted from the graph. (The subset of nodes for which the embedding will be returned)
+    :param dim: The dimension of the embedding
+    :param return_all: If True the embedding to every node will be returned. If False only the subset of embeddings for nodes that are in 'classes' will be returned.
+    :return: A Matrix of embedding vectors
+    """
     transformer = random_projection.GaussianRandomProjection(n_components=dim)
     W = transformer.fit_transform(nx.to_numpy_array(graph))
     if return_all: W=subgraph_extract(W,graph, dict(zip(list(graph.nodes), range(len(graph.nodes)))))

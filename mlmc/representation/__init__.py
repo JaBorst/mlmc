@@ -1,3 +1,8 @@
+"""
+Functions and classes for loading and using numerical text representations like word embeddings
+and language models in an automated fashion.
+"""
+
 from .representations import load_static, get_transformer, map_vocab,get_embedding,get, is_transformer
 from .character import charindex
 from .labels import makesequencelabels, schemetransformer, to_scheme, makemultilabels
