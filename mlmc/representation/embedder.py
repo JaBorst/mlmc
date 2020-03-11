@@ -18,7 +18,7 @@ class Embedder:
     """
     A class for embedding lists of sentences.
     """
-    def __init__(self, representation, device="cpu", return_device="cpu"):
+    def __init__(self, representation, method="first_token", device="cpu", return_device="cpu"):
         """
         Holding an embedding to embed lists of sentences with huggingface or glove.
 
@@ -28,6 +28,7 @@ class Embedder:
 
         ToDo:
             - Support Pooling method
+            - Averaging Method
 
         :param representation: Name of the representation (language model or glove vectors)
         :param device: The device to use for the computation of the embeddings
@@ -39,6 +40,8 @@ class Embedder:
         self.device = device
         self.emb = self.emb.to(self.device)
         self.return_device = return_device
+        assert method in ("first_token",)
+        self.method = method
 
     def embed(self, sentences: List, pad = None):
         """
