@@ -1,14 +1,21 @@
+"""
+A collection of sampling methods for the MultilabelDataset object
+
+.
+"""
 import numpy as np
 
-
 def sampler(dataset, fraction=None, absolute=None):
-    '''
-    Sample a Random subsample of fixed size or fixed fraction of a dataset.
-    :param dataset: A instance of mlmc.data.MultilabelDataset
-    :param fraction: The fraction of the data that should be returned (0<fraction<1)
-    :param absolute: The absolute size of the sampled dataset
-    :return: A randomly subsampled MultilabelDataset of the desired size.
-    '''
+    """
+    Sample a Random subsample of fixed size or fixed fraction of a dataset (i.i.d. sample).
+    Args:
+        dataset: A instance of mlmc.data.MultilabelDataset
+        fraction: The fraction of the data that should be returned (0<fraction<1)
+        absolute: The absolute size of the sampled dataset
+    Returns:
+         A randomly subsampled MultilabelDataset of the desired size.
+    """
+    
     # assert fraction is None != absolute is None, "Exactly one of fraction or absolute has to be set."
     if fraction is not None:
         assert fraction<1 and fraction>0, "The fraction argument has to be between 0 and 1."
@@ -23,11 +30,14 @@ def sampler(dataset, fraction=None, absolute=None):
 def successive_sampler(dataset, classes, separate_dataset, reindex_classes=True):
     """
     Return an iterable of datasets sampled from dataset.
-    :param dataset: The input dataset
-    :param classes:
-    :param separate_dataset: The number of
-    :param reindex_classes:
-    :return:
+
+    Args:
+         dataset: The input dataset (MultilabelDataset)
+         classes: A classes mapping
+         separate_dataset: The number of datasets to generate
+         reindex_classes: If True, classes in the subsampled datasets are reindexed to 1:len(classes)
+    Returns:
+        A list of MultilabelDatasets
     """
 
     # Quick FIX function was changing the global value of mutable
@@ -96,10 +106,13 @@ def class_sampler(data, classes, samples_size):
     """
     Create a subset of the data containing only classes in the classes argument and subsampling each class
     roughly to the number given in sample_size.
-    :param data: MultilabelDataset to sample from
-    :param classes: subset of classes
-    :param samples_size: Number of examples for each class (roughly)
-    :return:
+
+    Args:
+        data: MultilabelDataset to sample from
+        classes: subset of classes
+        samples_size: Number of examples for each class (roughly)
+    Returns:
+        A dataset with roughly sample_size number of instances per class in classes.
     """
     if isinstance(samples_size, int):
         n = [samples_size for _ in range(len(classes))]
@@ -140,10 +153,13 @@ def class_sampler(data, classes, samples_size):
 def validation_split(dataset, fraction=None, absolute=None):
     """
     Split a dataset into two separate splits (validation split)
-    :param dataset: data set to split
-    :param fraction: The fraction of the data that should be returned (0<fraction<1)
-    :param absolute: The absolute size of the sampled dataset
-    :return: A tuple of randomly subsampled MultilabelDatasets of the desired size.
+
+    Args:
+        dataset: data set to split
+        fraction: The fraction of the data that should be returned (0<fraction<1)
+        absolute: The absolute size of the sampled dataset
+    Returns:
+         A tuple of randomly subsampled MultilabelDatasets of the desired size.
     """
     # assert fraction is None != absolute is None, "Exactly one of fraction or absolute has to be set."
     if fraction is not None:

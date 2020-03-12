@@ -1,28 +1,32 @@
+"""
+A save and load function for models.
+
+.
+"""
 from pathlib import Path
 
 import torch
 import warnings
 
-from mlmc.representation import is_transformer
-
 
 def save(model, path, only_inference=False):
+    """
+    Saving a model to disk
+
+    Args:
+        model: The model
+        path:  The path to save the model to
+        only_inference: If False, the optimizer and loss function are saved to disk aswell.
+
+    Returns:
+        The path the model was saved to
+    """
     # Remove  loss and optimizer from model, needs to be saved separately
     optimizer_tmp = model.optimizer
     loss_tmp = model.loss
 
     model.optimizer = None
     model.loss = None
-
-    # # if save_embeddings:
-    # #     attr_keys = {x for x in dir(model) if x.startswith("tokenizer") or x.endswith("tokenizer")}
-    # # else:
-    # #     attr_keys = [x for x in dir(model) if
-    # #                  x.startswith("tokenizer") or x.endswith("tokenizer") or x.startswith("embedding") or x.endswith(
-    # #                      "embedding")]
-    #
-    # tmp = {k: getattr(model, k) for k in attr_keys}
-    # for k in attr_keys: model.__delattr__(k)
 
     if only_inference:
         # Use torch.save to save the inference state. if save_all: Save the input representation (embedding or lm)
@@ -44,13 +48,25 @@ def save(model, path, only_inference=False):
 
 
     # Reattach loss and optimizer and variables
-    # for k in attr_keys: setattr(model, k, tmp[k])
     model.loss = loss_tmp
     model.optimizer = optimizer_tmp
     return path
 
 
 def load(path, only_inference=False, only_cpu=False):
+    """
+    Load a model from disk
+
+    Args:
+        path: The path to load the model from
+        only_inference: If the model was saved with only_inference=True this should be True aswell.
+        only_cpu: If the model was trained on a GPU, but is trying to be loaded on a system without GPUs set ``only_cpu=True``
+            to map the model into RAM instead of GPU.
+
+    Returns:
+        The loaded model.
+
+    """
     additional_arguments = {}
     if only_cpu:
         additional_arguments["map_location"] = torch.device('cpu')

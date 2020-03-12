@@ -10,3 +10,4 @@ networkx
 bs4
 pytest
 pytest-cov
+pdoc3

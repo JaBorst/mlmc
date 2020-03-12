@@ -11,6 +11,7 @@ class TextClassificationAbstract(torch.nn.Module):
     """
     Abstract class for Multilabel Models. Defines fit, evaluate, predict and threshold methods for virtually any
     multilabel training.
+    This class is not meant to be used directly.
     Also provides a few default functions:
         _init_input_representations(): if self.representations exists, the default will load a embedding and corresponding tokenizer
         transform(): If self.tokenizer exists the default method wil use this to transform text into the models input
@@ -19,11 +20,11 @@ class TextClassificationAbstract(torch.nn.Module):
     def __init__(self, loss=torch.nn.BCEWithLogitsLoss, optimizer=torch.optim.Adam, optimizer_params = {"lr": 5e-5}, device="cpu",**kwargs):
         """
         Abstract initializer of a Text Classification network.
-        :param loss: One of the torch.nn  losses (default: torch.nn.BCEWithLogitsLoss)
-        :param optimizer:  One of toch.optim (default: torch.optim.Adam)
-        :param optimizer_params: A dictionary of optimizer parameters
-        :param device: torch device, destination of training (cpu or cuda:0)
-        :param kwargs:
+        Args:
+            loss: One of the torch.nn  losses (default: torch.nn.BCEWithLogitsLoss)
+            optimizer:  One of toch.optim (default: torch.optim.Adam)
+            optimizer_params: A dictionary of optimizer parameters
+            device: torch device, destination of training (cpu or cuda:0)
         """
         super(TextClassificationAbstract,self).__init__(**kwargs)
 
@@ -34,7 +35,8 @@ class TextClassificationAbstract(torch.nn.Module):
         self.PRECISION_DIGITS = 4
 
     def build(self):
-        """internal build method
+        """
+        Internal build method.
         """
         if isinstance(self.loss, type) and self.loss is not None:
             self.loss = self.loss().to(self.device)
@@ -43,7 +45,7 @@ class TextClassificationAbstract(torch.nn.Module):
         self.to(self.device)
 
     def evaluate_classes(self, classes_subset=None, **kwargs):
-        """wrapper for evaluation function if you just want to evaluate on subsets of the classes"""
+        """wrapper for evaluation function if you just want to evaluate on subsets of the classes."""
         if classes_subset is None:
             return self.evaluate(**kwargs)
         else:
@@ -53,11 +55,20 @@ class TextClassificationAbstract(torch.nn.Module):
     def evaluate(self, data, batch_size=50, return_roc=False, return_report=False, mask=None):
         """
         Evaluation, return accuracy and loss and some multilabel measure
+
+        Returns p@1, p@3, p@5, AUC, loss, Accuracy@0.5, Accuracy@mcut, ROC Values, class-wise F1, Precision and Recall.
+        Args:
+            data: A MultilabelDataset with the data for evaluation
+            batch_size: The batch size of the evaluation loop. (Larger is often faster, but it should be small enough to fit into GPU memory. In general it can be larger than batch_size in training.
+            return_roc: If True, the return dictionary contains the ROC values.
+            return_report: If True, the return dictionary will contain a class wise report of F1, Precision and Recall.
+        Returns:
+            A dictionary with the evaluation measurements.
         """
         self.eval()  # set mode to evaluation to disable dropout
         p_1 = Precision(is_multilabel=True,average=True)
         p_3 = Precision(is_multilabel=True,average=True)
-        if len(data.classes)>5: p_5 = Precision(is_multilabel=True,average=True)
+        if len(self.classes)>5: p_5 = Precision(is_multilabel=True,average=True)
         subset_65 = Accuracy(is_multilabel=True)
         subset_mcut = Accuracy(is_multilabel=True)
         report = MultiLabelReport(self.classes) if mask is None else MultiLabelReport(self.classes, check_zeros=True)
@@ -85,7 +96,8 @@ class TextClassificationAbstract(torch.nn.Module):
                 average.update(l.item())
                 p_1.update((torch.zeros_like(output).scatter(1, torch.topk(output, k=1)[1],1), y))
                 p_3.update((torch.zeros_like(output).scatter(1, torch.topk(output, k=3)[1],1), y))
-                if len(data.classes)>5:  p_5.update((torch.zeros_like(output).scatter(1, torch.topk(output, k=5)[1],1), y))
+                if len(self.classes)>5:
+                    p_5.update((torch.zeros_like(output).scatter(1, torch.topk(output, k=5)[1],1), y))
                 subset_65.update((self.threshold(output, tr=0.5, method="hard"), y))
                 subset_mcut.update((self.threshold(output, tr=0.5, method="mcut"), y))
                 if return_report: report.update((self.threshold(output, tr=0.5, method="mcut"), y))
@@ -96,7 +108,7 @@ class TextClassificationAbstract(torch.nn.Module):
             "valid_loss": round(average.compute().item(), 2*self.PRECISION_DIGITS),
             "p@1": round(p_1.compute(),self.PRECISION_DIGITS),
             "p@3": round(p_3.compute(),self.PRECISION_DIGITS),
-            "p@5": round(p_5.compute(),self.PRECISION_DIGITS) if len(data.classes)>5 else None,
+            "p@5": round(p_5.compute(),self.PRECISION_DIGITS) if len(self.classes)>5 else None,
             "auc":  auc_roc.compute() if return_roc else round(auc_roc.compute()[0],self.PRECISION_DIGITS),
             "a@0.5": round(subset_65.compute(),self.PRECISION_DIGITS),
             "a@mcut": round(subset_mcut.compute(),self.PRECISION_DIGITS),
@@ -104,6 +116,19 @@ class TextClassificationAbstract(torch.nn.Module):
         }
 
     def fit(self, train, valid = None, epochs=1, batch_size=16, valid_batch_size=50, classes_subset=None):
+        """
+        Training function
+
+        Args:
+            train: MultilabelDataset used as training data
+            valid: MultilabelDataset to keep track of generalization
+            epochs: Number of epochs (times to iterate the train data)
+            batch_size: Number of instances in one batch.
+            valid_batch_size: Number of instances in one batch  of validation.
+        Returns:
+            A history dictionary with the loss and the validation evaluation measurements.
+
+        """
         validation=[]
         train_history = {"loss": []}
         for e in range(epochs):
@@ -143,8 +168,22 @@ class TextClassificationAbstract(torch.nn.Module):
         return{"train":train_history, "valid": validation }
 
 
-    def predict(self, x, return_scores=False, tr=0.65, method="hard"):
-        """Classifiy sentence string  or a list of strings."""
+    def predict(self, x, return_scores=False, tr=0.5, method="hard"):
+        """
+        Classify sentence string  or a list of strings.
+
+        Args:
+            x:  A list of the text instances.
+            return_scores:  If True, the labels are returned with their corresponding confidence scores
+            tr: The threshold at which the labels are returned.
+            method: Method of thresholding
+                    (hard will cutoff at ``tr``, mcut will look for the largest distance in
+                    confidence between two labels following each other and will return everything above)
+
+        Returns:
+            A list of the labels
+
+        """
         self.eval()
         if not hasattr(self, "classes_rev"):
             self.classes_rev = {v: k for k, v in self.classes.items()}
@@ -157,7 +196,21 @@ class TextClassificationAbstract(torch.nn.Module):
         return [[self.classes_rev[i.item()] for i in torch.where(p==1)[0]] for p in prediction]
 
     def predict_dataset(self, data, batch_size=50, tr=0.5, method="hard"):
-        """Predict all labels for a dataset int the mlmc.data.MultilabelDataset format."""
+        """
+        Predict all labels for a dataset int the mlmc.data.MultilabelDataset format.
+
+        For detailed information on the arcuments see `mlmc.models.TextclassificationAbstract.predict`
+
+        Args:
+            data: A MultilabelDataset
+            batch_size: Batch size
+            tr: Threshold
+            method: mcut or hard
+
+        Returns:
+            A list of labels
+
+        """
         train_loader = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=True)
         predictions = []
         for b in tqdm(train_loader):
@@ -165,9 +218,17 @@ class TextClassificationAbstract(torch.nn.Module):
         return predictions
 
     def threshold(self, x, tr=0.5, method="hard"):
-        """Thresholding function for outputs of the neural network.
+        """
+        Thresholding function for outputs of the neural network.
         So far a hard threshold ( tr=0.5, method="hard")  is supported and
         dynamic cutting (method="mcut")
+
+        Args:
+            x: A tensor
+            tr: Threshold
+            method: mcut or hard
+
+        Returns:
 
         """
         if method=="hard":
@@ -178,6 +239,19 @@ class TextClassificationAbstract(torch.nn.Module):
             return (x > thresholds[:, None]).float()
 
     def transform(self, x):
+        """
+        A standard transformation function from text to network input format
+
+        The function looks for the tokenizer attribute. If it doesn't exist the transform function has to
+        be implemented in the child class
+
+        Args:
+            x: A list of text
+
+        Returns:
+            A tensor in the network input format.
+
+        """
         assert hasattr(self, 'tokenizer'), "If the model does not have a tokenizer attribute, please implement the" \
                                            "transform(self, x)  method yourself. TOkenizer can be allocated with " \
                                            "embedder, tokenizer = mlmc.helpers.get_embedding() or " \
@@ -197,6 +271,12 @@ class TextClassificationAbstract(torch.nn.Module):
             for param in self.embedding.parameters(): param.requires_grad = False
 
     def num_params(self):
+        """
+        Count the number of trainable parameters.
+
+        Returns:
+            The number of trainable parameters
+        """
         total = sum(p.numel() for p in self.parameters())
         trainable = sum(p.numel() for p in self.parameters() if p.requires_grad)
         print("Parameters:\n"
