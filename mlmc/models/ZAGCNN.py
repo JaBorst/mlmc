@@ -22,7 +22,7 @@ class ZAGCNN(TextClassificationAbstract):
         self.adjacency_parameter = torch.nn.Parameter(torch.from_numpy(adjacency).float())
         self.adjacency_parameter.requires_grad = False
 
-        assert not is_transformer(representation), "This model wont work with a transformer Model at the moment"
+        assert not is_transformer(representation), "This model does not support language Models. See ZAGCNNLM."
         self.representation = representation
         self._init_input_representations()
         self.embedding.requires_grad=False

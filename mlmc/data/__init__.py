@@ -1,6 +1,10 @@
+"""
+Defines dataset class and provides automated load/cache functions for some public multilabel datasets.
+"""
+
 from torch.utils.data import Dataset
 import torch
-from .data_loaders  import load_eurlex, load_wiki30k, load_huffpost, load_aapd, load_rcv1, load_conll2003en, \
+from .data_loaders  import load_eurlex, load_wiki30k, load_huffpost, load_aapd, load_rcv1, \
     load_moviesummaries,load_blurbgenrecollection, load_blurbgenrecollection_de, load_20newsgroup,export,\
     load_agnews
 
@@ -12,7 +16,6 @@ register = {
     "wiki30k": load_wiki30k,
     "eurlex": load_eurlex,
     "movies_summaries": load_moviesummaries,
-    "conll2003en": load_conll2003en,
     "blurbgenrecollection": load_blurbgenrecollection,
     "blurbgenrecollection_de": load_blurbgenrecollection_de,
     "20newsgroup": load_20newsgroup,
@@ -36,15 +39,39 @@ class MultiLabelDataset(Dataset):
 
         Creates an instance of MultilabelDataset.
 
-        :param x: A list of the input text
-        :param y: A list of corresponding label sets
-        :param classes: A class mapping from label strings to successive indices
-        :param target_dtype: The final cast on the label output. (Some of torch's loss functions expect other data types. This argument defines
-        a function that is applied to the final output of the label tensors. (default: torch._cast_Float)
-        :param one_hot: (default: True) if True, will transform the multilabel sets into a multi-hot tensor representation for training
-        if False: will return the labelset strings as is
-        :param kwargs: Any additional information that is given by named keywords will be saved as metadata
+        Args:
+            x: A list of the input text
+            y:  A list of corresponding label sets
+            classes: A class mapping from label strings to successive indices
+            target_dtype: The final cast on the label output. (Some of torch's loss functions expect other data types. This argument defines
+                a function that is applied to the final output of the label tensors. (default: torch._cast_Float)
+            one_hot: (default: True) if True, will transform the multilabel sets into a multi-hot tensor representation for training
+                if False: will return the labelset strings as is
+            **kwargs:  Any additional information that is given by named keywords will be saved as metadata
+
+        Returns:
+            A MultilabelDataset instance.
+
+        Examples:
+            ```
+            x = ["This is a text about science and philosophy",
+                "This is another text about science and politics"]
+
+
+            y = [['science', 'philosophy'],
+                ['science', 'politics']]
+
+            classes = {
+                "science": 0,
+                "philosophy": 1,
+                "politics": 2
+            }
+            dataset = mlmc.data.MultilabelDataset(x=x, y=y, classes=classes)
+            dataset[0]
+            ```
+
         """
+
         self.__dict__.update(kwargs)
         self.classes = classes
         self.x = x
@@ -68,7 +95,9 @@ class MultiLabelDataset(Dataset):
         Mapping functions that act on strings to every data instance
 
         Applies fct to every input element of the dataset. (Can be used for cleaning or preprocessing)
-        :param fct: a function that takes a string as input and returns the transformed string
+
+        Args:
+            fct: A function that takes a string as input and returns the transformed string
         """
         self.x = [fct(sen) for sen in self.x]
 
@@ -76,7 +105,8 @@ class MultiLabelDataset(Dataset):
         """
         Transform the data set into a json string representation
 
-        :return: String representation of the dataset ( only x, y and the classes)
+        Returns:
+             String representation of the dataset ( only x, y and the classes)
         """
         import json
         json_string = json.dumps(self.to_dict())
@@ -86,7 +116,8 @@ class MultiLabelDataset(Dataset):
         """
         Transform the dataset into a dictionary-of-lists representation
 
-        :return: A python dictionary of the training data (only x, y and the classes)
+         Returns:
+              A python dictionary of the training data (only x, y and the classes)
         """
         return {"x": self.x, "y": self.y, "classes":list(self.classes.keys())}
 
@@ -115,7 +146,8 @@ class MultiLabelDataset(Dataset):
         Removes all occurrences of classes argument (string or list of strings) from the dataset.
         Instances with then empty labelsets will be removed completely
 
-        :param classes: A label or list of label names.
+        Args:
+            classes: A label or list of label names.
         """
         if isinstance(classes, str):
             classes = [classes]
@@ -131,7 +163,8 @@ class MultiLabelDataset(Dataset):
 
         Apply label mappings to every data instance. Maps every label string in the dataset according to 'map'.
 
-        :param map: Dictionary of map from current label string to new label string
+        Args:
+            map: Dictionary of map from current label string to new label string
         """
         if any([x not in map.keys() for x in self.classes.keys()]):
             print("Some classes are not present in the map. The will be returned as is.")
@@ -146,7 +179,8 @@ class MultiLabelDataset(Dataset):
         The subset must also provide a new mapping from the new label names to indices.
         All labels not in subset will be removed. Instances with an empty label set will be removed.
 
-        :param subset: A mapping of classes to indices
+        Args:
+            subset: A mapping of classes to indices
         """
         assert all([x in self.classes.keys() for x in subset.keys()]), "Subset contains classes not present in dataset"
         ind = [i for i, labelset in enumerate(self.y) if any([l in subset.keys() for l in labelset])]
@@ -158,8 +192,10 @@ class MultiLabelDataset(Dataset):
         """
         Count the occurrences of all labels in 'label' in the dataset.
 
-        :param label: label name or list of label names
-        :return: Dictionary of label name and frequency in the dataset.
+        Args:
+            label: Label name or list of label names
+        Returns:
+             Dictionary of label name and frequency in the dataset.
         """
         if isinstance(label, list):
             result = {   l: sum([l in s for s in self.y])
@@ -173,7 +209,7 @@ class MultiLabelDataset(Dataset):
         """
         Returns the average label set size per instance.
 
-        :return: The average labelset size per instance
+        Returns: The average labelset size per instance
         """
         return sum([len(x) for x in self.y])/len(self.y)
 

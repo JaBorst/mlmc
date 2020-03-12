@@ -1,25 +1,27 @@
 """
 Loading Embeddings and Word embeddings in an automated fashion.
 """
-import numpy as np
-from transformers import *
-import torch
-from  pathlib import Path
+from pathlib import Path
 from urllib import error
 from urllib.request import urlopen
-from io import BytesIO
 from zipfile import ZipFile
 
+import numpy as np
 import os
-dir_path = os.path.dirname(os.path.realpath(__file__))
-with open(dir_path+"/model.txt", "r") as f : MODELS = {k.replace("\n",""): (AutoModel, AutoTokenizer,k.replace("\n","")) for k in f.readlines()}
+import torch
+from io import BytesIO
+from transformers import *
 
-for k,v in {"bert": (BertModel, BertTokenizer, 'bert-large-uncased'),
-          "albert": (AlbertModel, AlbertTokenizer, 'albert-large-v2'),
-          "ctrl": (CTRLModel, CTRLTokenizer, 'ctrl'),
-          "distilbert": (DistilBertModel, DistilBertTokenizer, 'distilbert-base-uncased'),
-          "roberta": (RobertaModel, RobertaTokenizer, 'roberta-base'),
-          }.items():
+dir_path = os.path.dirname(os.path.realpath(__file__))
+with open(dir_path+"/model.txt", "r") as f:
+    MODELS = {k.replace("\n", ""): (AutoModel, AutoTokenizer, k.replace("\n","")) for k in f.readlines()}
+
+for k, v in {"bert": (BertModel, BertTokenizer, 'bert-large-uncased'),
+             "albert": (AlbertModel, AlbertTokenizer, 'albert-large-v2'),
+             "ctrl": (CTRLModel, CTRLTokenizer, 'ctrl'),
+             "distilbert": (DistilBertModel, DistilBertTokenizer, 'distilbert-base-uncased'),
+             "roberta": (RobertaModel, RobertaTokenizer, 'roberta-base'),
+             }.items():
     if k not in MODELS.keys():
         MODELS[k]=v
 
@@ -32,12 +34,20 @@ STATICS = {
 
 EMBEDDINGCACHE = Path.home() / ".mlmc" / "embedding"
 
-def load_static(embedding="glove300"):
 
+def load_static(embedding):
+    """
+    Load the embedding from a testfile.
+
+    Args:
+        embedding: one of [glove50, glove100, glove200, glove300]
+
+    Returns: The embedding matrix and the vocabulary.
+
+    """
     if not (EMBEDDINGCACHE / STATICS[embedding]).exists():
-        URL ="http://nlp.stanford.edu/data/glove.6B.zip"
         try:
-            resp = urlopen(URL)
+            resp = urlopen("http://nlp.stanford.edu/data/glove.6B.zip")
         except error.HTTPError:
             print(error.HTTPError)
             return None
@@ -48,27 +58,45 @@ def load_static(embedding="glove300"):
     fp = EMBEDDINGCACHE / STATICS[embedding]
 
     glove = np.loadtxt(fp, dtype='str', comments=None)
-    glove = glove[np.unique(glove[:,:1],axis=0, return_index=True)[1]]
+    glove = glove[np.unique(glove[:, :1], axis=0, return_index=True)[1]]
     words = glove[:, 0]
     weights = glove[:, 1:].astype('float')
     weights = np.vstack((
-                            np.array([0]* len(weights[1])), # the vector for the masking
-                            weights,
-                            np.mean(weights, axis=0)), # the vector for the masking)
+        np.array([0] * len(weights[1])),  # the vector for the masking
+        weights,
+        np.mean(weights, axis=0)),  # the vector for the masking
     )
     words = words.tolist()+["<UNK_TOKEN>"]
-    vocabulary = dict(zip(words,range(1,len(words)+1)))
+    vocabulary = dict(zip(words, range(1, len(words) + 1)))
     return weights, vocabulary
 
+
 def map_vocab(query, vocab, maxlen):
+    """
+    Map a query ( a list of lists of tokens ) to indices using the vocab mapping and
+    pad (or cut respectively) all to maxlen.
+    Args:
+        query: a list of lists of tokens
+        vocab: A mapping from tokens to indices
+        maxlen: Maximum lengths of the lists
+
+    Returns: A torch.Tensor with shape (len(query), maxlen)
+
+    """
     ind = [[vocab.get(token, vocab["<UNK_TOKEN>"]) for token in s] for s in query]
-    result = torch.zeros((len(query),maxlen)).long()
+    result = torch.zeros((len(query), maxlen)).long()
     for i, e in enumerate(ind):
-       result[i,:min(len(e),maxlen)] = torch.LongTensor(e[:min(len(e),maxlen)])
+       result[i,:min(len(e), maxlen)] = torch.LongTensor(e[:min(len(e), maxlen)])
     return result
 
 
 def get_embedding(name, **kwargs):
+    """
+    Load a static word embedding from file.
+    Args:
+        name: File name of the word embedding. (Expects a text file in the glove format)
+    Returns: A tuple of embedding and corresponding tokenizer
+    """
     weights, vocabulary = load_static(name)
     e = torch.nn.Embedding(weights.shape[0], weights.shape[1],)
     e = e.from_pretrained(torch.Tensor(weights).float(), **kwargs)
@@ -80,11 +108,15 @@ def get_embedding(name, **kwargs):
 
 
 def get_transformer(model="bert", **kwargs):
-    # Transformers has a unified API
-    # for 10 transformer architectures and 30 pretrained weights.
-    #          Model          | Tokenizer          | Pretrained weights shortcut
+    """
+    Get function for transformer models
+    Args:
+        model: Model name
+        **kwargs: Additional keyword arguments
 
+    Returns:  A tuple of embedding and corresponding tokenizer
 
+    """
     model_class, tokenizer_class, pretrained_weights = MODELS.get(model,(None,None,None))
     if model_class is None:
         print("Model is not a transformer...")
@@ -111,18 +143,30 @@ def get_transformer(model="bert", **kwargs):
         model = model_class.from_pretrained(pretrained_weights, **kwargs)
         return model, list_tokenizer
 
-
-def get_by_arg_(static=None, transformer=None, **kwargs):
-    assert (static is None) != (transformer is None), "Exactly one of the arguments has to be not None"
-    if static is not None:
-        return get_embedding(static, **kwargs)
-    elif transformer is not None:
-        import logging
-        print("Setting transformers.tokenization_utils logger to ERROR.")
-        logging.getLogger("transformers.tokenization_utils").setLevel(logging.ERROR)
-        return get_transformer(transformer, **kwargs)
-
 def get(model, **kwargs):
+    """
+        Universal get function for text embedding methods and tokenizers.
+
+    Args:
+        model: Model name (one of [ glove50, glove100, glove200, glove300] or any of the models on https://huggingface.co/models
+        **kwargs:  Additional arguments in case of transformers. for example ``output_hidden_states=True`` for returning hidden states of transformer models.
+            For details on the parameters for the specific models see https://huggingface.co
+
+
+    Returns:
+         A tuple of embedding and corresponding tokenizer
+
+    Examples:
+        ```
+        embedder, tokenizer = get("bert-base-uncased")
+        embedding = embedder(tokenizer("A sentence of various words"))
+        ```
+    The variable ``embedding`` will contain a torch tensor of shape
+
+     (1, sequence_length, embedding_dim)
+
+
+    """
     logging.getLogger("transformers.tokenization_utils").setLevel(logging.ERROR)
     module = get_transformer(model, **kwargs)
     if module is None:
@@ -134,4 +178,13 @@ def get(model, **kwargs):
         return module
 
 def is_transformer(name):
+    """
+    A check function. True if the ``name`` argument if found to be a valid transformer model name.
+
+    Args:
+        name: model name (see get)
+
+    Returns: bool
+
+    """
     return name in MODELS.keys()

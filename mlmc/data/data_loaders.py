@@ -1,5 +1,4 @@
 """A Collection of function to load, export and cache various datasets.
-Repository for later use: http://manikvarma.org/downloads/XC/XMLRepository.html
 """
 
 import json
@@ -22,7 +21,6 @@ from tqdm import tqdm
 CACHE = Path.home() / ".mlmc" / "datasets"
 URL = "https://aspra29.informatik.uni-leipzig.de:9090/"
 
-
 def _load_from_tmp(dataset):
     if not Path.exists(CACHE):
         Path.mkdir(CACHE)
@@ -33,7 +31,6 @@ def _load_from_tmp(dataset):
         return data
     else:
         return None
-
 
 def _save_to_tmp(dataset, data):
     if not Path.exists(CACHE):
@@ -51,7 +48,6 @@ def _save_to_tmp(dataset, data):
 
 
 def load_aapd():
-    """Load AAPD Datasets"""
     data = _load_from_tmp("aapd")
     if data is not None:
         return data
@@ -80,7 +76,6 @@ def load_aapd():
 
 
 def load_rcv1(path=None):
-
     data = _load_from_tmp("rcv1")
     if data is not None:
         return data
@@ -366,45 +361,8 @@ def load_webofscience():
     #     from zipfile import ZipFile
     #     from io import BytesIO
     #     import re
-    #
     #     resp = urlopen(url)
     #     zipfile = ZipFile(BytesIO(resp.read()))
-
-
-################################
-# Named Entity Recognition
-################################
-import re
-
-
-def read_conll(file, column=3):
-    """Read in the standard tab separated conll format"""
-    with open(file, "r", encoding="utf-8") as file_handler:
-        content = file_handler.read().strip("\n").strip()
-        sentences = [[x.split(" ")[0].strip(" ").strip("\t") for x in sentence.split("\n")] for sentence in
-                     re.split(r"\n\s*\n*\s*\n", content)]
-        ner = [[x.split(" ")[column].strip(" ").strip("\t") for x in sentence.split("\n")] for sentence in
-               re.split(r"\n\s*\n*\s*\n", content)]
-    return sentences, ner
-
-
-def load_conll2003en(path=None):
-    """Load Conll2003 English Named Entity Dataset"""
-    data = _load_from_tmp("conll2003en")
-    if data is not None:
-        return data
-    else:
-        assert path is not None, "Conll2003 path is None. Insert Path to conll2003 directory."
-        path = Path(path)
-        data = {}
-        data["test"] = read_conll(path / "test.txt")
-        data["valid"] = read_conll(path / "valid.txt")
-        data["train"] = read_conll(path / "train.txt")
-        from seq2.data.tagsets import NER
-        classes = dict(zip(NER, range(len(NER))))
-        _save_to_tmp("conll2003en", (data, classes))
-    return data, classes
-
 
 def load_20newsgroup():
     url = "http://qwone.com/~jason/20Newsgroups/20news-bydate.tar.gz"
