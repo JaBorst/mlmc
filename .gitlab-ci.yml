@@ -25,3 +25,5 @@ coverage:
     script:
       - pytest --cov mlmc/ tests/ --cov-report xml
       - coverage report
+
+pages:
