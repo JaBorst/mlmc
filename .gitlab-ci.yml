@@ -25,6 +25,3 @@ coverage:
     script:
       - pytest --cov mlmc/ tests/ --cov-report xml
       - coverage report
-
-pages:
-    - pdoc3 --config show_source_code=False -o public mlmc
