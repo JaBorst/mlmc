@@ -6,11 +6,17 @@
 Welcome to mlmc-doc's documentation!
 ====================================
 
+Package documentation
+=================================
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
+   source/Introduction
+   source/example
    source/mlmc
+   source/modules
 
 Indices and tables
 ==================
