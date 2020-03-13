@@ -13,5 +13,4 @@ bs4
 pytest
 pytest-cov
 pdoc3
-torch-cluster
 torch-geometric
