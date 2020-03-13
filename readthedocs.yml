@@ -20,10 +20,4 @@ formats: all
 python:
   version: 3.7
   install:
-    - method: pip
-      path: torch-scatter==latest+cpu -f https://pytorch-geometric.com/whl/torch-1.4.0.html
-    - method: pip
-      path: torch-sparse==latest+cpu -f https://pytorch-geometric.com/whl/torch-1.4.0.html
-    - method: pip
-      path: torch-spline-conv==latest+cpu -f https://pytorch-geometric.com/whl/torch-1.4.0.html
     - requirements: docs/requirements.txt
