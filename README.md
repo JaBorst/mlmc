@@ -1,5 +1,7 @@
 # mlmc
 
+**M**ulti**l**abel **M**ulti**c**lass
+
 Packaging for experimenting with neural networks and multilabel text classification.
 
 
@@ -12,3 +14,5 @@ Install with
 pip install git+https://git.informatik.uni-leipzig.de/asv-ml/mlmc
 ```
 
+## Documentation
+For more detailed explanations, see the [Documentation](https://mlmc-docs.readthedocs.io/en/latest/contents.html) on readthedocs.org.

@@ -204,7 +204,7 @@ def load_eurlex():
     return data, classes
 
 
-def load_huffpost(path=None, test_split=0.25):
+def load_huffpost(test_split=0.25):
     data = _load_from_tmp("huffpost")
     if data is not None:
         return data

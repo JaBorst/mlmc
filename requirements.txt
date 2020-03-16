@@ -4,10 +4,8 @@ nltk
 node2vec
 scikit-learn
 pytorch-ignite
-torch
 tqdm
 networkx
 bs4
 pytest
 pytest-cov
-pdoc3
