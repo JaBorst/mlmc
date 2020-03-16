@@ -21,7 +21,7 @@ python:
   version: 3.7
   system_packages: True
   install:
-    - requirements: docs_requirements.txt
+    - requirements: doc_requirements.txt
     - method: pip
       path: .
 
