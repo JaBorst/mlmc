@@ -16,7 +16,6 @@ Package documentation
    source/Introduction
    source/example
    source/mlmc
-   source/modules
 
 Indices and tables
 ==================

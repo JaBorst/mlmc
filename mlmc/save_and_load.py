@@ -1,7 +1,5 @@
 """
-A save and load function for models.
-
-.
+A save and load function for models..
 """
 from pathlib import Path
 
@@ -10,14 +8,12 @@ import warnings
 
 
 def save(model, path, only_inference=False):
-    """
-    Saving a model to disk
+    """Saving a model to disk
 
     Args:
         model: The model
         path:  The path to save the model to
         only_inference: If False, the optimizer and loss function are saved to disk aswell.
-
     Returns:
         The path the model was saved to
     """

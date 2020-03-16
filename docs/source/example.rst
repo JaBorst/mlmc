@@ -1,6 +1,3 @@
-Examples
-=========
-
 This section provides some code examples for typical workflows.
 
 Data
@@ -22,7 +19,7 @@ Then a dataset can be loaded via::
 When invoked the first time the function downloads and preprocesses the data from an online source and
 saves them to a cache. It returns a dictionary containing at least the keys "train", "test" and "classes".
 If theres additional information in the dataset, like graph hierarchies, maps or meta information, it will appear in the
-dictionary. ``data["train"]`` and ``data["test"]`` are of type ``mlmc.data.MultilabelDataset``. If there is
+dictionary. ``data["train"]`` and ``data["test"]`` are of type :py:class`MultilabelDataset <mlmc.data.MultilabelDataset>`. If there is
 an official validation split, it can be found under ``data["valid]"``
 
 
@@ -58,7 +55,9 @@ Train a classifier
 ___________________
 
 When training a classifier you will have to load your data first. The instantiation of a model will depend of the
-classes mapping present in the data. A list of available models can be found under ``mlmc.models``::
+classes mapping present in the data. A list of available models can be found under :py:mod:`mlmc.models`.
+The device argument determines on which device the model will be trained. Use "cpu" to train on CPU and "cuda:" for
+training on the GPU. GPU is zero-indexed, so if there is one GPU it will be "cuda:0"::
 
     import mlmc
 
@@ -72,9 +71,9 @@ classes mapping present in the data. A list of available models can be found und
 
     labels = tc.predict("Predict the labels for this sentence", return_scores=True)
 
+If return_scores=True the confidence for the predicted labels is returned along with the labels.
 
-
-Models can be saved loaded with ``mlmc.save`` and ``mlmc.load``::
+Models can be saved loaded with :py:meth:`mlmc.save() <mlmc.save_and_load.save>` and  :py:meth:`mlmc.load() <mlmc.save_and_load.load>`::
 
     mlmc.save(tc, "test.pt",only_inference=False)
     tc = mlmc.load( "test.pt",only_inference=False)
@@ -87,7 +86,7 @@ Embed sentences
 ________________
 
 For the purpose of calculating embeddings outside if the neural network architectures, there is a class
-``mlmc.representation.Embedder``. You can load any of the language models from huggingface or glove and embed text.::
+:py:class:`Embedder <mlmc.representation.embedder.Embedder`. You can load any of the language models from huggingface or glove and embed text.::
 
     from mlmc.representation import Embedder
     e = Embedder("bert-base-uncased")
