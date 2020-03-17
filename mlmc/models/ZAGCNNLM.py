@@ -76,7 +76,7 @@ class ZAGCNNLM(TextClassificationAbstract):
             from ..representation import get_word_embedding_mean
             l = get_word_embedding_mean(
                 [" ".join(re.split("[/ _-]", x.lower())) for x in self.classes.keys()],
-                "/disk1/users/jborst/Data/Embeddings/glove/en/glove.6B.300d.txt")
+                "glove300")
 
         if scale=="mean":
             print("subtracting mean")

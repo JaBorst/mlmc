@@ -21,5 +21,5 @@ except:
     print("pytorch_geometric not installed.")
     pass
 
-
+from .LSANOriginalTransformerNoClasses import LSANOriginalTransformerNoClasses
 from .lm_mogrifier import MogrifierLMCharacter, MogrifierLMWord

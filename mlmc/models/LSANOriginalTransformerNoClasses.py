@@ -8,12 +8,12 @@ from ..representation import get
 import re
 
 
-class LSANOriginalTransformer(TextClassificationAbstract):
+class LSANOriginalTransformerNoClasses(TextClassificationAbstract):
     """
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
     def __init__(self, classes, method, scale, norm, representation="roberta", use_lstm=True, d_a=200, max_len=400, **kwargs):
-        super(LSANOriginalTransformer, self).__init__(**kwargs)
+        super(LSANOriginalTransformerNoClasses, self).__init__(**kwargs)
         #My Stuff
         self.classes = classes
         self.max_len = max_len
@@ -39,15 +39,15 @@ class LSANOriginalTransformer(TextClassificationAbstract):
             self.lstm = torch.nn.Linear(self.embedding_dim, self.label_embedding_dim* 2)
 
         self.linear_first = torch.nn.Linear(self.label_embedding_dim * 2, d_a)
-        self.linear_second = torch.nn.Linear(d_a, self.n_classes)
+        self.linear_second = torch.nn.Linear(self.label_embedding_dim , d_a)
 
         self.weight1 = torch.nn.Linear(self.label_embedding_dim * 2, 1)
         self.weight2 = torch.nn.Linear(self.label_embedding_dim * 2, 1)
 
-        self.output_layer = torch.nn.Linear(self.label_embedding_dim * 2, self.n_classes)
+        self.output_layer = torch.nn.Linear(self.label_embedding_dim * 2, 1)
         self.embedding_dropout = torch.nn.Dropout(p=0.5)
 
-        self.connection = torch.nn.Linear(self.n_classes, self.n_classes)
+        # self.connection = torch.nn.Linear(self.label_embedding_dim * 2, 1)
 
         self.build()
 
@@ -67,7 +67,7 @@ class LSANOriginalTransformer(TextClassificationAbstract):
             outputs = outputs[0]
         # step2 get self-attention
         selfatt = torch.tanh(self.linear_first(outputs))
-        selfatt = self.linear_second(selfatt)
+        selfatt = torch.matmul(selfatt, self.linear_second(self.label_embedding).t())
         selfatt = F.softmax(selfatt, dim=1)
         selfatt = selfatt.transpose(1, 2)
         self_att = torch.bmm(selfatt, outputs)
@@ -80,7 +80,7 @@ class LSANOriginalTransformer(TextClassificationAbstract):
         m1 = torch.bmm(label.expand(x.shape[0], *label.shape), h1.transpose(1, 2))
         m2 = torch.bmm(label.expand(x.shape[0], *label.shape), h2.transpose(1, 2))
         label_att = torch.relu(torch.cat((torch.bmm(m1, h1), torch.bmm(m2, h2)), 2))
-        label_att = self.connection(label_att.transpose(-1,-2)).transpose(-1,-2)
+        # label_att = self.connection(label_att.transpose(-1,-2)).transpose(-1,-2)
 
 
         # label_att = F.normalize(label_att, p=2, dim=-1)
@@ -96,9 +96,9 @@ class LSANOriginalTransformer(TextClassificationAbstract):
         # there two method, for simple, just add
         # also can use linear to do it
         doc = self.embedding_dropout(doc)
-        avg_sentence_embeddings = torch.sum(doc, 1) / self.n_classes
+         # = torch.sum(doc, -1)
 
-        pred = self.output_layer(avg_sentence_embeddings)
+        pred = self.output_layer(doc / self.label_embedding_dim).squeeze()
         return pred
 
     def create_labels(self, classes, method="repeat",scale="mean"):
