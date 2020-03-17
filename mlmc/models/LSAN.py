@@ -25,7 +25,7 @@ class LSANOriginal(TextClassificationAbstract):
             self.label_embed = torch.nn.Embedding(label_embed.shape[0], label_embed.shape[1])
             self.label_embed.from_pretrained(torch.FloatTensor(label_embed), freeze=label_freeze)
         else:
-            self.label_embed = torch.nn.Embedding(label_embed.shape[0],self.embedding_dim)
+            self.label_embed = torch.nn.Embedding(self.n_classes, self.embedding_dim)
 
         self.lstm = torch.nn.LSTM(self.embedding_dim, hidden_size=lstm_hid_dim, num_layers=1,
                                   batch_first=True, bidirectional=True)

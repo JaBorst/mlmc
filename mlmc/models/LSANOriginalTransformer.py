@@ -12,7 +12,7 @@ class LSANOriginalTransformer(TextClassificationAbstract):
     """
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
-    def __init__(self, classes, method, scale, norm, representation="roberta", use_lstm=True, d_a=200, max_len=400, **kwargs):
+    def __init__(self, classes, method="glove", scale="mean", norm=False, representation="roberta", use_lstm=True, d_a=200, max_len=400, **kwargs):
         super(LSANOriginalTransformer, self).__init__(**kwargs)
         #My Stuff
         self.classes = classes

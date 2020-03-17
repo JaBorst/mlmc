@@ -115,7 +115,7 @@ class TextClassificationAbstract(torch.nn.Module):
             "report": report.compute() if return_report else None,
         }
 
-    def fit(self, train, valid = None, epochs=1, batch_size=16, valid_batch_size=50, classes_subset=None):
+    def fit(self, train, valid = None, epochs=1, batch_size=16, valid_batch_size=50, classes_subset=None, patience=-1, tolerance=1e-2):
         """
         Training function
 
@@ -131,6 +131,10 @@ class TextClassificationAbstract(torch.nn.Module):
         """
         validation=[]
         train_history = {"loss": []}
+
+        best_loss = 10000000
+        last_best_loss_update=0
+
         for e in range(epochs):
             losses = {"loss": str(0.)}
             average = Average()
@@ -163,8 +167,23 @@ class TextClassificationAbstract(torch.nn.Module):
                                                            return_roc=False))
                     pbar.postfix[0].update(validation[-1])
                     pbar.update()
-                # torch.cuda.empty_cache()
+
             train_history["loss"].append(average.compute().item())
+            if patience > -1:
+                if  best_loss - average.compute().item() > tolerance:
+                    best_loss = average.compute().item()
+                    torch.save(self.state_dict(), "checkpoint.pt")
+                    #save states
+                    last_best_loss_update = 0
+                else:
+                    last_best_loss_update += 1
+
+                if last_best_loss_update >= patience:
+                    break
+                # torch.cuda.empty_cache()
+        if patience > -1:
+            self.load_state_dict(torch.load("checkpoint.pt"))
+        #Load best
         return{"train":train_history, "valid": validation }
 
 
