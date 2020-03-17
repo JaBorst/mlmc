@@ -14,7 +14,7 @@ class XMLCNN(TextClassificationAbstract):
     """
 
     def __init__(self, classes, mode="transformer", representation="roberta", bottle_neck= None, kernel_sizes=[3, 4, 5, 6], filters=100,
-                 dropout=0.5, max_len=500, **kwargs):
+                 dropout=0.5, max_len=200,n_layers=4, **kwargs):
         """
         Class constructor and intialization of every hyperparameters
         :param classes:  A dictionary of the class label and the corresponding index
@@ -42,6 +42,7 @@ class XMLCNN(TextClassificationAbstract):
         self.filters = filters
         self.representation = representation
         self.dropout = dropout
+        self.n_layers = n_layers
         self.bottle_neck = bottle_neck if bottle_neck is not None else int(len(classes)**0.5)
 
         assert self.mode in self.modes, "%s not in (%s, %s, %s, %s)" % (self.mode, *self.modes)
@@ -73,9 +74,17 @@ class XMLCNN(TextClassificationAbstract):
             self.embedding = torch.nn.ModuleList([self.embedding, self.embedding_untrainable])
 
         elif self.mode == "transformer":
-            self.embedding, self.tokenizer = get(model=self.representation, output_hidden_states=True)
-            self.embeddings_dim = \
-            torch.cat(self.embedding(self.embedding.dummy_inputs["input_ids"])[2][-5:-1], -1).shape[-1]
+            try:
+                if self.n_layers == 1:
+                    self.embedding, self.tokenizer = get(model=self.representation)
+                    self.embeddings_dim = self.embedding(torch.tensor([[0]]))[0].shape[-1]
+                else:
+                    self.embedding, self.tokenizer = get(model=self.representation, output_hidden_states=True)
+                    self.embeddings_dim = torch.cat(self.embedding(self.embedding.dummy_inputs["input_ids"])[2][self.n_layers:], -1).shape[-1]
+            except TypeError:
+                Warning("If your using a model that does not support returning hiddenstates, set n_layers=1")
+                import sys
+                sys.exit()
 
     def forward(self, x):
 
@@ -97,8 +106,12 @@ class XMLCNN(TextClassificationAbstract):
             c = [torch.nn.functional.relu(conv(embedded_1).permute(0, 2, 1).max(1)[0]) for conv in self.convs] + \
                 [torch.nn.functional.relu(conv(embedded_2).permute(0, 2, 1).max(1)[0]) for conv in self.convs]
         elif self.mode == "transformer":
-            with torch.no_grad():
-                embedded = torch.cat(self.embedding(x)[2][-5:-1], -1).permute(0, 2, 1)
+            if self.n_layers == 1:
+                with torch.no_grad():
+                    embedded = self.embedding(x)[0].permute(0, 2, 1)
+            else:
+                with torch.no_grad():
+                    embedded = torch.cat(self.embedding(x)[2][self.n_layers:], -1).permute(0, 2, 1)
             c = [torch.nn.functional.relu(conv(embedded).permute(0, 2, 1).max(1)[0]) for conv in self.convs]
 
         c = torch.cat(c, 1)

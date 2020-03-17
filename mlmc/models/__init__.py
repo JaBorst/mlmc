@@ -8,7 +8,6 @@ from .KimCNN import KimCNN
 
 #LSAN Variants
 from .LSAN import LSANOriginal
-from .LSAN_reimplementation import LabelSpecificAttention
 from .LSANOriginalTransformer import LSANOriginalTransformer
 
 
@@ -21,5 +20,5 @@ except:
     print("pytorch_geometric not installed.")
     pass
 
-
+from .LSANOriginalTransformerNoClasses import LSANOriginalTransformerNoClasses
 from .lm_mogrifier import MogrifierLMCharacter, MogrifierLMWord
