@@ -280,13 +280,23 @@ class TextClassificationAbstract(torch.nn.Module):
     def _init_input_representations(self):
         if is_transformer(self.representation):
             if not hasattr(self, "n_layers"): self.n_layers=4
-            self.embedding, self.tokenizer = get(self.representation, output_hidden_states=True)
-            self.embedding_dim = self.embedding(torch.LongTensor([[0]]))[0].shape[-1]*self.n_layers
+            try:
+                if self.n_layers == 1:
+                    self.embedding, self.tokenizer = get(model=self.representation)
+                    self.embeddings_dim = self.embedding(torch.tensor([[0]]))[0].shape[-1]
+                else:
+                    self.embedding, self.tokenizer = get(model=self.representation, output_hidden_states=True)
+                    self.embeddings_dim = \
+                        torch.cat(self.embedding(self.embedding.dummy_inputs["input_ids"])[2][self.n_layers:], -1).shape[-1]
+            except TypeError:
+                print("If your using a model that does not support returning hiddenstates, set n_layers=1")
+                import sys
+                sys.exit()
             for param in self.embedding.parameters(): param.requires_grad = False
 
         else:
             self.embedding, self.tokenizer = get(self.representation, freeze=True)
-            self.embedding_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
+            self.embeddings_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
             for param in self.embedding.parameters(): param.requires_grad = False
 
     def num_params(self):

@@ -36,23 +36,27 @@ class ZAGCNN(TextClassificationAbstract):
 
 
         self.convs = torch.nn.ModuleList(
-            [torch.nn.Conv1d(self.embedding_dim, self.filters, k) for k in self.kernel_sizes])
+            [torch.nn.Conv1d(self.embeddings_dim, self.filters, k) for k in self.kernel_sizes])
         self.pool = torch.nn.MaxPool1d(3, stride=2)
-        self.document_projection = torch.nn.Linear(self.filters, self.embedding_dim).to(self.device)
+        self.document_projection = torch.nn.Linear(self.filters, self.embeddings_dim).to(self.device)
 
 
 
         self.dropout_layer= torch.nn.Dropout(self.dropout)
         import torch_geometric as torchg
-        self.gcn1 = torchg.nn.GCNConv(in_channels=self.embedding_dim, out_channels=self.hidden_dim)
+        self.gcn1 = torchg.nn.GCNConv(in_channels=self.embeddings_dim, out_channels=self.hidden_dim)
         self.gcn2 = torchg.nn.GCNConv(in_channels=self.hidden_dim, out_channels=self.hidden_dim)
 
-        self.projection = torch.nn.Linear(in_features=self.embedding_dim, out_features=self.hidden_dim+self.label_embeddings.shape[-1])
+        self.projection = torch.nn.Linear(in_features=self.embeddings_dim, out_features=self.hidden_dim + self.label_embeddings.shape[-1])
         self.build()
 
     def forward(self, x):
-        with torch.no_grad():
-            embedded = self.embedding(x)
+        if self.n_layers == 1:
+            with torch.no_grad():
+                embedded = self.embedding(x)[0].permute(0, 2, 1)
+        else:
+            with torch.no_grad():
+                embedded = torch.cat(self.embedding(x)[2][-self.n_layers:-1], -1).permute(0, 2, 1)
         embedded = self.dropout_layer(embedded)
         c = torch.cat([self.pool(torch.nn.functional.relu(conv(embedded.permute(0,2,1)))) for conv in self.convs], dim=-1).permute(0,2,1)
         d2 = torch.tanh(self.document_projection(c))
