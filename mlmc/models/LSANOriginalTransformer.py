@@ -12,7 +12,7 @@ class LSANOriginalTransformer(TextClassificationAbstract):
     """
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
-    def __init__(self, classes, method="glove", scale="mean", norm=False, representation="roberta", use_lstm=True, d_a=200, max_len=400, **kwargs):
+    def __init__(self, classes, method="glove", scale="mean", norm=False, representation="roberta", use_lstm=True, d_a=200, max_len=400, n_layers=4, **kwargs):
         super(LSANOriginalTransformer, self).__init__(**kwargs)
         #My Stuff
         self.classes = classes
@@ -27,6 +27,8 @@ class LSANOriginalTransformer(TextClassificationAbstract):
         # Original
         self.n_classes = len(classes)
         self.representation = representation
+        self.n_layers = n_layers
+
         self._init_input_representations()
         self.embedding_dim = self.embedding(torch.LongTensor([[0]]))[0].shape[-1]*self.n_layers
 
@@ -56,8 +58,12 @@ class LSANOriginalTransformer(TextClassificationAbstract):
                 torch.randn(2, size, self.label_embedding_dim).to(self.device))
 
     def forward(self, x):
-        with torch.no_grad():
-            embeddings = torch.cat(self.embedding(x)[2][(-1 - self.n_layers):-1], -1)
+        if self.n_layers == 1:
+            with torch.no_grad():
+                embeddings = self.embedding(x)[0].permute(0, 2, 1)
+        else:
+            with torch.no_grad():
+                embeddings = torch.cat(self.embedding(x)[2][self.n_layers:], -1)
 
         embeddings = self.embedding_dropout(embeddings)
         # step1 get LSTM outputs

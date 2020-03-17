@@ -32,7 +32,13 @@ def test_KimCNN():
     assertion_function(model_type=mlmc.models.KimCNN, mode="untrainable", representation="glove50")
 
 def test_XMLCNN():
-    assertion_function(model_type=mlmc.models.XMLCNN, representation="glove50")
+    assertion_function(model_type=mlmc.models.XMLCNN, representation="glove50", mode="untrainable")
 
-def test_LSAN():
-    assertion_function(model_type=mlmc.models.LSANOriginalTransformer, representation="roberta")
+def test_KimCNN_transformer():
+    assertion_function(model_type=mlmc.models.KimCNN, mode="transformer", representation="roberta", n_layers=1)
+
+def test_XMLCNN_transformer():
+    assertion_function(model_type=mlmc.models.XMLCNN, representation="roberta", mode="transformer", n_layers=1)
+
+def test_LSAN_transformer():
+    assertion_function(model_type=mlmc.models.LSANOriginalTransformerNoClasses, representation="roberta", n_layers=1)

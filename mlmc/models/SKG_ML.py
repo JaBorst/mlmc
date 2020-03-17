@@ -32,8 +32,13 @@ class SKG(TextClassificationAbstract):
         self.build()
 
     def forward(self, x):
-        with torch.no_grad():
-            e = torch.cat(self.embedder(x)[2][-5:-1],-1)
+        if self.n_layers == 1:
+            with torch.no_grad():
+                e = self.embedder(x)[0].permute(0, 2, 1)
+        else:
+            with torch.no_grad():
+                e = torch.cat(self.embedder(x)[2][(-1 - self.n_layers):-1], -1).permute(0, 2, 1)
+
         initial_belief = self.scorer(e).sum(-2)
         updated_belief = self.ggc(initial_belief, edge_index=self.adjacency)
         return updated_belief

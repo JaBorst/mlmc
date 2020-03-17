@@ -7,7 +7,7 @@ from ..representation import get, is_transformer
 import re
 
 class ZAGCNNLM(TextClassificationAbstract):
-    def __init__(self, classes,   adjacency, method, scale, representation="roberta", max_len=200, dropout = 0.5, norm=False, **kwargs):
+    def __init__(self, classes,   adjacency, method, scale, representation="roberta", max_len=200, dropout = 0.5, norm=False, n_layers=4, **kwargs):
         super(ZAGCNNLM, self).__init__(**kwargs)
 
         self.classes = classes
@@ -23,7 +23,7 @@ class ZAGCNNLM(TextClassificationAbstract):
         self.method = method
         self.adjacency_param = torch.nn.Parameter(torch.from_numpy(adjacency).float())
         self.adjacency_param.requires_grad = False
-        self.n_layers=1
+        self.n_layers=n_layers
         self.norm = norm
         self.representation = representation
         self._init_input_representations()
@@ -31,7 +31,7 @@ class ZAGCNNLM(TextClassificationAbstract):
         self.create_labels(classes, method=self.method, scale=self.scale)
 
         self.convs = torch.nn.ModuleList(
-            [torch.nn.Conv1d(self.embedding_dim, self.filters, k) for k in self.kernel_sizes])
+            [torch.nn.Conv1d(self.embeddings_dim, self.filters, k) for k in self.kernel_sizes])
         self.pool = torch.nn.MaxPool1d(3, stride=2)
         self.document_projection = torch.nn.Linear(self.filters, self.label_embeddings_dim)
 
@@ -44,8 +44,12 @@ class ZAGCNNLM(TextClassificationAbstract):
         self.build()
 
     def forward(self, x):
-        with torch.no_grad():
-            embeddings = torch.cat(self.embedding(x)[2][(-1 - self.n_layers):-1], -1)
+        if self.n_layers == 1:
+            with torch.no_grad():
+                embeddings = self.embedding(x)[0]
+        else:
+            with torch.no_grad():
+                embeddings = torch.cat(self.embedding(x)[2][self.n_layers:], -1)
         embedded = self.dropout_layer(embeddings)
         c = torch.cat([self.pool(torch.nn.functional.relu(conv(embedded.permute(0,2,1)))) for conv in self.convs], dim=-1).permute(0,2,1)
         d2 = torch.tanh(self.document_projection(c))
