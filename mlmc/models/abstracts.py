@@ -1,10 +1,10 @@
-from tqdm import tqdm
 import torch
 from ignite.metrics import Precision, Accuracy, Average
-from ..metrics.multilabel import MultiLabelReport,AUC_ROC
-from ..representation import is_transformer,get
-from ..representation.labels import makemultilabels
+from tqdm import tqdm
 
+from ..metrics.multilabel import MultiLabelReport, AUC_ROC
+from ..representation import is_transformer, get
+from ..representation.labels import makemultilabels
 
 
 class TextClassificationAbstract(torch.nn.Module):
@@ -66,6 +66,7 @@ class TextClassificationAbstract(torch.nn.Module):
             A dictionary with the evaluation measurements.
         """
         self.eval()  # set mode to evaluation to disable dropout
+        from ignite.metrics import Precision, Accuracy, Average
         p_1 = Precision(is_multilabel=True,average=True)
         p_3 = Precision(is_multilabel=True,average=True)
         if len(self.classes)>5: p_5 = Precision(is_multilabel=True,average=True)
