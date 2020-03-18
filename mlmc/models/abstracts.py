@@ -1,5 +1,4 @@
 import torch
-from ignite.metrics import Precision, Accuracy, Average
 from tqdm import tqdm
 
 from ..metrics.multilabel import MultiLabelReport, AUC_ROC
@@ -74,7 +73,7 @@ class TextClassificationAbstract(torch.nn.Module):
         subset_mcut = Accuracy(is_multilabel=True)
         report = MultiLabelReport(self.classes) if mask is None else MultiLabelReport(self.classes, check_zeros=True)
         auc_roc = AUC_ROC(len(self.classes))
-        average = ignite.metrics.Average()
+        average = Average()
         data_loader = torch.utils.data.DataLoader(data, batch_size=batch_size)
 
         with torch.no_grad():
@@ -135,10 +134,10 @@ class TextClassificationAbstract(torch.nn.Module):
 
         best_loss = 10000000
         last_best_loss_update=0
-
+        from ignite.metrics import Precision, Accuracy, Average
         for e in range(epochs):
             losses = {"loss": str(0.)}
-            average = ignite.metrics.Average()
+            average = Average()
             train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size, shuffle=True)
 
             with tqdm(train_loader,
