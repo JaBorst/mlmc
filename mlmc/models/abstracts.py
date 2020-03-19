@@ -1,5 +1,4 @@
 import torch
-from ignite.metrics import Precision, Accuracy, Average
 from tqdm import tqdm
 
 from ..metrics.multilabel import MultiLabelReport, AUC_ROC
@@ -135,7 +134,7 @@ class TextClassificationAbstract(torch.nn.Module):
 
         best_loss = 10000000
         last_best_loss_update=0
-
+        from ignite.metrics import Precision, Accuracy, Average
         for e in range(epochs):
             losses = {"loss": str(0.)}
             average = Average()
