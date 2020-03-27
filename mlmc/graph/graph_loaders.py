@@ -22,7 +22,7 @@ def load_wordnet():
             for hypernym in ss.hypernyms():
                 for hh in hypernym.lemmas():
                     for word in ss.lemmas():
-                        G.add_edge(hh.name(), word.name(), label= "is_a")
+                        G.add_edge(hh.name().replace("_"," "), word.name().replace("_"," "), label="related")
 
     return G
 
@@ -44,7 +44,7 @@ def load_wordnet_sample(num=1000):
             for hypernym in ss.hypernyms():
                 for hh in hypernym.lemmas():
                     for word in ss.lemmas():
-                        G.add_edge(hh.name().replace("_"," "), word.name().replace("_"," "), label="is_a")
+                        G.add_edge(hh.name().replace("_"," "), word.name().replace("_"," "), label="related")
                         i += 1
         if i >=num:
             break
