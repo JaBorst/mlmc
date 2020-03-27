@@ -214,6 +214,15 @@ class MultiLabelDataset(Dataset):
         return sum([len(x) for x in self.y])/len(self.y)
 
 
+class SingleLabelDataset(MultiLabelDataset):
+    def __init__(self, *args, **kwargs):
+        super(SingleLabelDataset, self).__init__(*args, **kwargs)
+        assert all([len(x)==1 for x in self.y]), "This is not a single label dataset. Some labels contain multiple labels."
+
+    def __getitem__(self, idx):
+        return {'text': self.x[idx], 'labels': torch.tensor(self.classes[self.y[idx][0]])}
+
+
 
 #-------------------------------------------------------------------------------------
 
@@ -273,6 +282,23 @@ def get_multilabel_dataset(name, target_dtype=torch._cast_Float):
     :return:
     """
     return get_dataset(name, type=MultiLabelDataset, ensure_valid=False, target_dtype=torch._cast_Float)
+
+
+## Wrapper for singlelabel datasets
+def get_singlelabel_dataset(name, target_dtype=torch._cast_Float):
+    """
+    Load singlelabel training data if available.
+
+    This is the default wrapper function for retrieving SingleLabelDataset datasets.
+    This is a special case of MultilabelDataset.
+
+    :param name: See: mlmc.data.register.keys()
+    :param target_dtype: The target_dtype of the labeldata in training. See MultilabelDataset
+    :return:
+    """
+    return get_dataset(name, type=SingleLabelDataset, ensure_valid=False, target_dtype=torch._cast_Float)
+
+
 
 
 ## Sampler import
