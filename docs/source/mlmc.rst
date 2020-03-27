@@ -24,3 +24,12 @@ mlmc.save\_and\_load module
    :members:
    :undoc-members:
    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: mlmc
+   :members:
+   :undoc-members:
+   :show-inheritance:

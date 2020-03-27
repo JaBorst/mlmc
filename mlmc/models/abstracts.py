@@ -129,6 +129,13 @@ class TextClassificationAbstract(torch.nn.Module):
             A history dictionary with the loss and the validation evaluation measurements.
 
         """
+        from ..data import SingleLabelDataset
+        if isinstance(train, SingleLabelDataset):
+            if not isinstance(self.loss, torch.nn.CrossEntropyLoss):
+                print("If you are using Single labelled data, use a single label loss: "
+                      "Automatically setting loss to torch.nn.CrossEntropyLoss.")
+                self.loss = torch.nn.CrossEntropyLoss().to(self.device)
+
         validation=[]
         train_history = {"loss": []}
 

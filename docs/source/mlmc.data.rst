@@ -4,6 +4,14 @@ mlmc.data package
 Submodules
 ----------
 
+mlmc.data.SingleLabelDataset module
+-----------------------------------
+
+.. automodule:: mlmc.data.SingleLabelDataset
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 mlmc.data.data\_loaders module
 ------------------------------
 

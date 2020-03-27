@@ -28,10 +28,10 @@ mlmc.models.LSANOriginalTransformer module
    :undoc-members:
    :show-inheritance:
 
-mlmc.models.LSAN\_reimplementation module
------------------------------------------
+mlmc.models.LSANOriginalTransformerNoClasses module
+---------------------------------------------------
 
-.. automodule:: mlmc.models.LSAN_reimplementation
+.. automodule:: mlmc.models.LSANOriginalTransformerNoClasses
    :members:
    :undoc-members:
    :show-inheritance:
