@@ -13,8 +13,8 @@ Package documentation
    :maxdepth: 2
    :caption: Contents:
 
-   source/Introduction
-   source/example
+   Introduction
+   example
    source/mlmc
 
 Indices and tables
