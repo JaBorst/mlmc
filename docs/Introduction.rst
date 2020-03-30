@@ -1,11 +1,11 @@
 Introduction
 ============
 
-**M**\ ulti **l**\ abel **M**\ ulti **c**\ lass
+**M**\ ulti **l**\ abel **M**\ ulti **c**\ lass -> **mlmc** (/mɛlmæk/)
 
 
-A python package for training, and application of neural networks for multilabel textclassification, implementing
-SOTA network architectures.
+A python package for training, and application of neural networks for multi label text classification, implementing
+SOTA architectures.
 
 Installation
 ---------------

@@ -46,7 +46,17 @@ An example of two sentences::
 
     dataset = mlmc.data.MultilabelDataset(x=x, y=y, classes=classes)
 
+If your know your data to be only single labelled you can use :py:mod:`mlmc.data.SingleLabelDataset`.
+The process and data format is the same as for MultilabelDataset, but with every labelset in y must contain only one label. ::
 
+    y = [['philosophy'],
+        ['science']]
+
+    all([len(labelset) == 1 for labelset in y]) # must be True!
+
+This will be checked at initialization.
+The SingleLabelDataset provides the classification models with specialized output format for using other losses.
+The default when using a SingleLabelDataset as input for the fit function is `torch.nn.CrossEntropyLoss`.
 
 Classifier
 ------------

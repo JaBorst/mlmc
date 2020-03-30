@@ -42,3 +42,4 @@ def test_XMLCNN_transformer():
 
 def test_LSAN_transformer():
     assertion_function(model_type=mlmc.models.LSANOriginalTransformerNoClasses, representation="roberta", n_layers=1)
+

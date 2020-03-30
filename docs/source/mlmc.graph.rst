@@ -20,6 +20,14 @@ mlmc.graph.graph\_loaders module
    :undoc-members:
    :show-inheritance:
 
+mlmc.graph.graph\_loaders\_elsevir module
+-----------------------------------------
+
+.. automodule:: mlmc.graph.graph_loaders_elsevir
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 mlmc.graph.helpers module
 -------------------------
 
