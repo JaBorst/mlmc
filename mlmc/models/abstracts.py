@@ -5,6 +5,8 @@ from ..metrics.multilabel import MultiLabelReport, AUC_ROC
 from ..representation import is_transformer, get
 from ..representation.labels import makemultilabels
 
+from ..representation import threshold_mcut, threshold_hard,threshold_max
+
 
 class TextClassificationAbstract(torch.nn.Module):
     """
@@ -16,22 +18,48 @@ class TextClassificationAbstract(torch.nn.Module):
         transform(): If self.tokenizer exists the default method wil use this to transform text into the models input
 
     """
-    def __init__(self, loss=torch.nn.BCEWithLogitsLoss, optimizer=torch.optim.Adam, optimizer_params = {"lr": 5e-5}, device="cpu",**kwargs):
+    def __init__(self, target="multi", activation=None, loss=None, optimizer=torch.optim.Adam, optimizer_params={"lr": 5e-5}, device="cpu", **kwargs):
         """
         Abstract initializer of a Text Classification network.
         Args:
-            loss: One of the torch.nn  losses (default: torch.nn.BCEWithLogitsLoss)
+            target: single label oder multilabel mode. defined by keystrings: ("single", "multi"). Sets some basic options, like loss function, activation and
+                    metrics to sensible defaults.
+            activation: The activation function applied to the output. Only used for metrics and when you want to return scores in predict. (default: torch.softmax for "single", torch.sigmoid for "multi")
+            loss: One of the torch.nn  losses (default: torch.nn.BCEWithLogitsLoss for "multi" and torch.nn.CrossEntropyLoss for "single")
             optimizer:  One of toch.optim (default: torch.optim.Adam)
             optimizer_params: A dictionary of optimizer parameters
             device: torch device, destination of training (cpu or cuda:0)
         """
         super(TextClassificationAbstract,self).__init__(**kwargs)
 
+        assert target in ("multi", "single"), 'target must be one of "multi" or "single"'
+
+        # Setting default values for learning mode
+        self.target = target
+        if target == "single":
+            self.activation = torch.softmax
+            self.loss = torch.nn.CrossEntropyLoss
+        elif self.target == "multi":
+            self.activation = torch.sigmoid
+            self.loss = torch.nn.BCEWithLogitsLoss
+
+        # If there were external arguments we will use them
+        if activation is not None:
+            self.activation = activation
+        if loss is not None:
+            self.loss = loss
+
         self.device = device
-        self.loss = loss
         self.optimizer = optimizer
         self.optimizer_params = optimizer_params
         self.PRECISION_DIGITS = 4
+
+    def act(self, x):
+        if "softmax" in self.activation.__name__ or "softmin" in self.activation.__name__:
+            return self.activation(x,-1)
+        else:
+            return self.activation(x)
+
 
     def build(self):
         """
@@ -65,17 +93,34 @@ class TextClassificationAbstract(torch.nn.Module):
             A dictionary with the evaluation measurements.
         """
         self.eval()  # set mode to evaluation to disable dropout
-        from ignite.metrics import Precision, Accuracy, Average
-        p_1 = Precision(is_multilabel=True,average=True)
-        p_3 = Precision(is_multilabel=True,average=True)
-        if len(self.classes)>5: p_5 = Precision(is_multilabel=True,average=True)
-        subset_65 = Accuracy(is_multilabel=True)
-        subset_mcut = Accuracy(is_multilabel=True)
-        report = MultiLabelReport(self.classes) if mask is None else MultiLabelReport(self.classes, check_zeros=True)
-        auc_roc = AUC_ROC(len(self.classes))
+        from ignite.metrics import Average
+        from ..metrics import PrecisionK, AccuracyTreshold
+
+        multilabel_metrics = {
+            "p_1": PrecisionK(k=1, is_multilabel=True, average=True),
+            "p_3": PrecisionK(k=3, is_multilabel=True, average=True),
+            "tr@0.5": AccuracyTreshold(trf=threshold_hard, args_dict={"tr": 0.5}, is_multilabel=True),
+            "mcut": AccuracyTreshold(trf=threshold_mcut, is_multilabel=True),
+            "auc_roc": AUC_ROC(len(self.classes), return_roc=return_roc),
+        }
+        if return_report:
+            multilabel_metrics["report"] = MultiLabelReport(self.classes, trf=threshold_mcut) \
+                if mask is None else MultiLabelReport(self.classes, trf=threshold_mcut, check_zeros=True)
+
+        if len(self.classes) > 5:
+            multilabel_metrics["p_5"] = PrecisionK(k=5, is_multilabel=True, average=True)
+
+        singlelabel_metrics = {
+            "accuracy":  AccuracyTreshold(threshold_max, is_multilabel=False)
+        }
+
+        metrics = multilabel_metrics
+
+        if self.target == "single":
+            metrics = singlelabel_metrics
+
         average = Average()
         data_loader = torch.utils.data.DataLoader(data, batch_size=batch_size)
-
         with torch.no_grad():
             for i, b in enumerate(data_loader):
                 y = b["labels"]
@@ -86,7 +131,7 @@ class TextClassificationAbstract(torch.nn.Module):
                     l = self.loss(output, y) + self.regularize()
                 else:
                     l = self.loss(output, y)
-                output = torch.sigmoid(output)
+                output = self.act(output)
 
                 # Subset evaluation if ...
                 if mask is not None:
@@ -94,26 +139,14 @@ class TextClassificationAbstract(torch.nn.Module):
                     y = y * mask
 
                 average.update(l.item())
-                p_1.update((torch.zeros_like(output).scatter(1, torch.topk(output, k=1)[1],1), y))
-                p_3.update((torch.zeros_like(output).scatter(1, torch.topk(output, k=3)[1],1), y))
-                if len(self.classes)>5:
-                    p_5.update((torch.zeros_like(output).scatter(1, torch.topk(output, k=5)[1],1), y))
-                subset_65.update((self.threshold(output, tr=0.5, method="hard"), y))
-                subset_mcut.update((self.threshold(output, tr=0.5, method="mcut"), y))
-                if return_report: report.update((self.threshold(output, tr=0.5, method="mcut"), y))
-                auc_roc.update((torch.sigmoid(output).detach(),y.detach()))
+                for v in metrics.values():
+                    v.update((output, y))
         self.train()
-        return {
-            # "accuracy": accuracy.compute(),
-            "valid_loss": round(average.compute().item(), 2*self.PRECISION_DIGITS),
-            "p@1": round(p_1.compute(),self.PRECISION_DIGITS),
-            "p@3": round(p_3.compute(),self.PRECISION_DIGITS),
-            "p@5": round(p_5.compute(),self.PRECISION_DIGITS) if len(self.classes)>5 else None,
-            "auc":  auc_roc.compute() if return_roc else round(auc_roc.compute()[0],self.PRECISION_DIGITS),
-            "a@0.5": round(subset_65.compute(),self.PRECISION_DIGITS),
-            "a@mcut": round(subset_mcut.compute(),self.PRECISION_DIGITS),
-            "report": report.compute() if return_report else None,
-        }
+
+        results = {"valid_loss": round(average.compute().item(), 2*self.PRECISION_DIGITS)}
+        results.update({k: round(v.compute(), self.PRECISION_DIGITS) if isinstance(v, float) else v.compute() for k, v in metrics.items()})
+
+        return results
 
     def fit(self, train, valid = None, epochs=1, batch_size=16, valid_batch_size=50, classes_subset=None, patience=-1, tolerance=1e-2):
         """
@@ -130,11 +163,9 @@ class TextClassificationAbstract(torch.nn.Module):
 
         """
         from ..data import SingleLabelDataset
-        if isinstance(train, SingleLabelDataset):
-            if not isinstance(self.loss, torch.nn.CrossEntropyLoss):
-                print("If you are using Single labelled data, use a single label loss: "
-                      "Automatically setting loss to torch.nn.CrossEntropyLoss.")
-                self.loss = torch.nn.CrossEntropyLoss().to(self.device)
+        if isinstance(train, SingleLabelDataset) and self.target != "single":
+            print("You are using the model in multi mode but input is SingeleLabelDataset.")
+            return 0
 
         validation=[]
         train_history = {"loss": []}
@@ -186,6 +217,7 @@ class TextClassificationAbstract(torch.nn.Module):
                     last_best_loss_update += 1
 
                 if last_best_loss_update >= patience:
+                    print("Early Stopping.")
                     break
                 # torch.cuda.empty_cache()
         if patience > -1:
@@ -214,7 +246,7 @@ class TextClassificationAbstract(torch.nn.Module):
         if not hasattr(self, "classes_rev"):
             self.classes_rev = {v: k for k, v in self.classes.items()}
         x = self.transform(x).to(self.device)
-        with torch.no_grad(): output = torch.sigmoid(self(x))
+        with torch.no_grad(): output = self.act(self(x))
         prediction = self.threshold(output, tr=tr, method=method)
         self.train()
         if return_scores:
@@ -249,6 +281,8 @@ class TextClassificationAbstract(torch.nn.Module):
         So far a hard threshold ( tr=0.5, method="hard")  is supported and
         dynamic cutting (method="mcut")
 
+        This is wrapper for functions defined in py:mod:`mlmc.representations.output_transformations`
+
         Args:
             x: A tensor
             tr: Threshold
@@ -258,11 +292,11 @@ class TextClassificationAbstract(torch.nn.Module):
 
         """
         if method=="hard":
-            return (x>tr).int()
+            return threshold_hard(x=x, tr=tr)
         if method=="mcut":
-            x_sorted = torch.sort(x,-1)[0]
-            thresholds = (x_sorted[:,1:] - x_sorted[:,:-1]).max(-1)[0]
-            return (x > thresholds[:, None]).float()
+            return threshold_mcut(x)
+        if method=="max":
+            return threshold_max(x)
 
     def transform(self, x):
         """
