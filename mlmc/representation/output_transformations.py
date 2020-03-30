@@ -28,3 +28,6 @@ def threshold_mcut(x):
     x_sorted = torch.sort(x, -1)[0]
     thresholds = (x_sorted[:, 1:] - x_sorted[:, :-1]).max(-1)[0]
     return (x > thresholds[:, None]).float()
+
+def threshold_max(x):
+    return torch.zeros_like(x).scatter(1, torch.topk(x, k=1)[1], 1)

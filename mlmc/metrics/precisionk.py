@@ -13,11 +13,10 @@ class PrecisionK(Precision):
 
 
 class AccuracyTreshold(Accuracy):
-    def __init__(self, trf, args_dict=None, activation=torch.sigmoid, *args, **kwargs):
+    def __init__(self, trf, args_dict={}, *args, **kwargs):
         self.trf = trf
         self.args_dict = args_dict
-        self.activation = activation
         super(AccuracyTreshold, self).__init__(*args, **kwargs)
 
     def update(self, output):
-        super(AccuracyTreshold, self).update((self.trf(x=self.activation(output[0]), **self.args_dict), output[1]))
+        super(AccuracyTreshold, self).update((self.trf(x=output[0], **self.args_dict), output[1]))
