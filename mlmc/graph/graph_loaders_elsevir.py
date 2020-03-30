@@ -144,6 +144,7 @@ def augment(classes, graph):
     return augmented
 
 def sim_align(classes, graph):
+    raise NotImplementedError
     import mlmc
     emb, tok = mlmc.representation.get("glove50")
 
@@ -174,6 +175,20 @@ def sim_align(classes, graph):
             r[indices] = True
         terms[k] = [t for t,b in zip(v, r) if b]
 
+    # ToDo: Implement this right !
+    l = "Crime, law enforcement"
+    children = []
+    for u, edge_dict in {x:graph.adj[x] for x in terms[l]}.items():
+        if len(edge_dict.keys() )> 0:
+            children.extend( list(edge_dict.keys()))
+
+    tmp_graph = nx.subgraph(graph, terms[l]+ children)
+
+    for n in tmp_graph.nodes:
+        for v in graph.adj[n].keys():
+            if v in tmp_graph.nodes:
+                tmp_graph.add_edge(n,v)
+    list(nx.connected_components(tmp_graph.to_undirected()))
 
 
 def subgraph(classes, graph, depth=2, allow_non_alignment=False):
@@ -188,7 +203,7 @@ def subgraph(classes, graph, depth=2, allow_non_alignment=False):
 
     """
 
-    augmented = augment(classes,graph)
+    augmented = sim_align(classes,graph)
     if not allow_non_alignment:
         assert len(augmented) == len([x for x,v in augmented.items() if len(v) > 0]), \
             "Not every class could be aligned in the graph: "+ ", ".join([x for x,v in augmented.items() if len(v) == 0])
@@ -218,13 +233,13 @@ def subgraph(classes, graph, depth=2, allow_non_alignment=False):
     return subgraph
 
 
-
+#
 # import mlmc
 # # data, classes = mlmc.data.load_blurbgenrecollection()
 # data, classes = mlmc.data.load_rcv1()
 # graph = load_stw()#nx.compose(mlmc.graph.load_wordnet(), load_elsevier())
 # sg = subgraph(classes, graph, depth=1, allow_non_alignment=False)
-# #
+
 # # for clique in nx.enumerate_all_cliques(sg.to_undirected(reciprocal=True)):
 # #     print(len(clique))
 # #
