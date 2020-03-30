@@ -5,6 +5,8 @@ from ..metrics.multilabel import MultiLabelReport, AUC_ROC
 from ..representation import is_transformer, get
 from ..representation.labels import makemultilabels
 
+from ..representation import threshold_mcut, threshold_hard
+
 
 class TextClassificationAbstract(torch.nn.Module):
     """
@@ -66,16 +68,29 @@ class TextClassificationAbstract(torch.nn.Module):
         """
         self.eval()  # set mode to evaluation to disable dropout
         from ignite.metrics import Precision, Accuracy, Average
-        p_1 = Precision(is_multilabel=True,average=True)
-        p_3 = Precision(is_multilabel=True,average=True)
-        if len(self.classes)>5: p_5 = Precision(is_multilabel=True,average=True)
-        subset_65 = Accuracy(is_multilabel=True)
-        subset_mcut = Accuracy(is_multilabel=True)
-        report = MultiLabelReport(self.classes) if mask is None else MultiLabelReport(self.classes, check_zeros=True)
-        auc_roc = AUC_ROC(len(self.classes))
+        from ..metrics import PrecisionK, AccuracyTreshold
+
+        multilabel_metrics = {
+            "p_1": PrecisionK(k=1, is_multilabel=True, average=True),
+            "p_3": PrecisionK(k=3, is_multilabel=True, average=True),
+            "p_5": PrecisionK(k=5, is_multilabel=True, average=True)  if len(self.classes) > 5 else None,
+            "tr@0.5": AccuracyTreshold(trf=threshold_hard, args_dict={"tr": 0.5}, is_multilabel=True),
+            "mcut": AccuracyTreshold(trf=threshold_mcut, is_multilabel=True),
+            "auc_roc": AUC_ROC(len(self.classes)),
+        }
+        if return_report:
+            multilabel_metrics["report"] = MultiLabelReport(self.classes) \
+                if mask is None else MultiLabelReport(self.classes, check_zeros=True)
+
+        singlelabel_metrics = {
+            "accuracy":  AccuracyTreshold(lambda x: x, activation=torch.softmax, is_multilabel=False)
+        }
+
+
+        metrics = multilabel_metrics
+
         average = Average()
         data_loader = torch.utils.data.DataLoader(data, batch_size=batch_size)
-
         with torch.no_grad():
             for i, b in enumerate(data_loader):
                 y = b["labels"]
@@ -94,7 +109,7 @@ class TextClassificationAbstract(torch.nn.Module):
                     y = y * mask
 
                 average.update(l.item())
-                p_1.update((torch.zeros_like(output).scatter(1, torch.topk(output, k=1)[1],1), y))
+                p_1.update()
                 p_3.update((torch.zeros_like(output).scatter(1, torch.topk(output, k=3)[1],1), y))
                 if len(self.classes)>5:
                     p_5.update((torch.zeros_like(output).scatter(1, torch.topk(output, k=5)[1],1), y))
@@ -249,6 +264,8 @@ class TextClassificationAbstract(torch.nn.Module):
         So far a hard threshold ( tr=0.5, method="hard")  is supported and
         dynamic cutting (method="mcut")
 
+        This is wrapper for functions defined in py:mod:`mlmc.representations.output_transformations`
+
         Args:
             x: A tensor
             tr: Threshold
@@ -258,11 +275,9 @@ class TextClassificationAbstract(torch.nn.Module):
 
         """
         if method=="hard":
-            return (x>tr).int()
+            return threshold_hard(x=x, tr=tr)
         if method=="mcut":
-            x_sorted = torch.sort(x,-1)[0]
-            thresholds = (x_sorted[:,1:] - x_sorted[:,:-1]).max(-1)[0]
-            return (x > thresholds[:, None]).float()
+            return threshold_mcut(x)
 
     def transform(self, x):
         """
