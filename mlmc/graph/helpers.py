@@ -14,7 +14,7 @@ def cooc_matrix(labels, classes):
             frequencies[classes[p[1]],0] +=1
             frequencies[classes[p[0]], 0] += 1
 
-    return 1000 * coocs / frequencies / frequencies.transpose()
+    return coocs, frequencies
 
 
 def correlate_similarity(coocs, embeddings, n, classwise=False, corr="spearman"):
