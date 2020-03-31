@@ -179,7 +179,7 @@ class TextClassificationAbstract(torch.nn.Module):
             train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size, shuffle=True)
 
             with tqdm(train_loader,
-                      postfix=[losses], desc="Epoch %i/%i" %(e+1,epochs)) as pbar:
+                      postfix=[losses], desc="Epoch %i/%i" %(e+1,epochs), ncols=100) as pbar:
                 for i, b in enumerate(train_loader):
                     self.optimizer.zero_grad()
                     y = b["labels"].to(self.device)
@@ -271,7 +271,7 @@ class TextClassificationAbstract(torch.nn.Module):
         """
         train_loader = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=True)
         predictions = []
-        for b in tqdm(train_loader):
+        for b in tqdm(train_loader, ncols=100):
             predictions.extend(self.predict(b["text"], tr=tr, method=method))
         return predictions
 
