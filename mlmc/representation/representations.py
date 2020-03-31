@@ -13,8 +13,8 @@ import torch
 from io import BytesIO
 from transformers import *
 
-dir_path = os.path.dirname(os.path.realpath(__file__))
-with open(dir_path+"/model.txt", "r") as f:
+dir_path = Path(os.path.dirname(os.path.realpath(__file__)))
+with open(dir_path/"model.txt", "r") as f:
     MODELS = {k.replace("\n", ""): (AutoModel, AutoTokenizer, k.replace("\n","")) for k in f.readlines()}
 
 for k, v in {"bert": (BertModel, BertTokenizer, 'bert-large-uncased'),
@@ -86,6 +86,10 @@ def empty_cache():
     """
     for file in  EMBEDDINGCACHE.iterdir():
         file.unlink()
+
+def add_test_example():
+    custom_embedding("test",dir_path / "custom_embedding.txt")
+
 
 def load_static(embedding):
     """
