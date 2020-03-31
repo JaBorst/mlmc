@@ -88,7 +88,9 @@ def empty_cache():
         file.unlink()
 
 def add_test_example():
-    custom_embedding("test",dir_path / "custom_embedding.txt")
+    if not EMBEDDINGCACHE.exists():
+        EMBEDDINGCACHE.mkdir(parents=True)
+    custom_embedding("test", dir_path / "custom_embedding.txt")
 
 
 def load_static(embedding):

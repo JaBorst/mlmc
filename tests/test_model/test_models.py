@@ -35,9 +35,6 @@ def test_KimCNN():
 def test_XMLCNN():
     assertion_function(model_type=mlmc.models.XMLCNN, representation="test", mode="untrainable")
 
-def test_KimCNN_transformer():
-    assertion_function(model_type=mlmc.models.KimCNN, mode="transformer", representation="roberta", n_layers=1)
-
 def test_LSAN_transformer():
     assertion_function(model_type=mlmc.models.LSANOriginalTransformerNoClasses, representation="roberta", n_layers=1)
 
