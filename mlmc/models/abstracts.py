@@ -97,8 +97,8 @@ class TextClassificationAbstract(torch.nn.Module):
         from ..metrics import PrecisionK, AccuracyTreshold
 
         multilabel_metrics = {
-            "p_1": PrecisionK(k=1, is_multilabel=True, average=True),
-            "p_3": PrecisionK(k=3, is_multilabel=True, average=True),
+            "p@1": PrecisionK(k=1, is_multilabel=True, average=True),
+            "p@3": PrecisionK(k=3, is_multilabel=True, average=True),
             "tr@0.5": AccuracyTreshold(trf=threshold_hard, args_dict={"tr": 0.5}, is_multilabel=True),
             "mcut": AccuracyTreshold(trf=threshold_mcut, is_multilabel=True),
             "auc_roc": AUC_ROC(len(self.classes), return_roc=return_roc),
@@ -108,7 +108,7 @@ class TextClassificationAbstract(torch.nn.Module):
                 if mask is None else MultiLabelReport(self.classes, trf=threshold_mcut, check_zeros=True)
 
         if len(self.classes) > 5:
-            multilabel_metrics["p_5"] = PrecisionK(k=5, is_multilabel=True, average=True)
+            multilabel_metrics["p@5"] = PrecisionK(k=5, is_multilabel=True, average=True)
 
         singlelabel_metrics = {
             "accuracy":  AccuracyTreshold(threshold_max, is_multilabel=False)

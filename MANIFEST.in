@@ -1,2 +1,3 @@
 include requirements.txt
 include data mlmc/representation/model.txt
+include data mlmc/representation/custom_embedding.txt

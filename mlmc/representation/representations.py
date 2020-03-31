@@ -2,6 +2,7 @@
 Loading Embeddings and Word embeddings in an automated fashion.
 """
 from pathlib import Path
+import shutil
 from urllib import error
 from urllib.request import urlopen
 from zipfile import ZipFile
@@ -12,8 +13,8 @@ import torch
 from io import BytesIO
 from transformers import *
 
-dir_path = os.path.dirname(os.path.realpath(__file__))
-with open(dir_path+"/model.txt", "r") as f:
+dir_path = Path(os.path.dirname(os.path.realpath(__file__)))
+with open(dir_path/"model.txt", "r") as f:
     MODELS = {k.replace("\n", ""): (AutoModel, AutoTokenizer, k.replace("\n","")) for k in f.readlines()}
 
 for k, v in {"bert": (BertModel, BertTokenizer, 'bert-large-uncased'),
@@ -33,6 +34,63 @@ STATICS = {
 }
 
 EMBEDDINGCACHE = Path.home() / ".mlmc" / "embedding"
+EMBEDDINGCACHEINDEX = Path.home() / ".mlmc" / "embedding" / "index.txt"
+
+def custom_embedding(name, file):
+    """
+    Add a custom static embedding file to the cache.
+
+    Use this to register a new embedding file. The file should be a txt file and in the glove format. After loading the file
+    with this function you will be able to load the embedding in any model by its name.
+
+    Args:
+        name: Name of the embedding for later use
+        file: File of the embedding
+    Returns:
+
+    """
+    source_location = Path(file)
+    target_location = EMBEDDINGCACHE / source_location.name
+    if (EMBEDDINGCACHE/source_location.name).exists():
+        print("Embedding already cached")
+    else:
+        shutil.copy(source_location, target_location)
+        with open(EMBEDDINGCACHEINDEX, "a") as f:
+            f.write(name + "\t" + source_location.name)
+        print("Cached successfully you can now load [%s] in any model." % (name,))
+
+def delete_custom_embeddings():
+    """
+    Delete Custom Embeddings from Cache
+    Returns:
+
+    """
+    with open (EMBEDDINGCACHEINDEX, "r") as f:
+        for x in f.read().split("\n"):
+            fp = EMBEDDINGCACHE / x.split("\t")[1]
+            print(fp)
+            fp.unlink()
+    EMBEDDINGCACHEINDEX.unlink()
+
+def empty_cache():
+    """
+    Delete everything from representations cache.
+
+    This does only include static embeddings and custom embeddings. Language Models are downloaded in a different location
+    defined by the huggingface library for now.
+
+    ToDo: Use mlmc cache for huggingface to have more control when trying to free disk space.
+
+    Returns:
+
+    """
+    for file in  EMBEDDINGCACHE.iterdir():
+        file.unlink()
+
+def add_test_example():
+    if not EMBEDDINGCACHE.exists():
+        EMBEDDINGCACHE.mkdir(parents=True)
+    custom_embedding("test", dir_path / "custom_embedding.txt")
 
 
 def load_static(embedding):
@@ -45,6 +103,11 @@ def load_static(embedding):
     Returns: The embedding matrix and the vocabulary.
 
     """
+    if EMBEDDINGCACHEINDEX.exists():
+        with open (EMBEDDINGCACHEINDEX, "r") as f:
+            for x in f.read().split("\n"):
+                STATICS[x.split("\t")[0]] = x.split("\t")[1]
+
     if not (EMBEDDINGCACHE / STATICS[embedding]).exists():
         try:
             resp = urlopen("http://nlp.stanford.edu/data/glove.6B.zip")
