@@ -28,6 +28,8 @@ class ZAGCNNLM(TextClassificationAbstract):
         self.representation = representation
         self._init_input_representations()
 
+        from ..graph import get as gget
+        self.graph = gget(["stw"])
         self.create_labels(classes, method=self.method, scale=self.scale)
 
         self.convs = torch.nn.ModuleList(
@@ -66,7 +68,7 @@ class ZAGCNNLM(TextClassificationAbstract):
         return (torch.relu(self.projection(label_wise_representation)) * labelvectors).sum(-1)
 
     def create_labels(self, classes, method="repeat",scale="mean"):
-        assert method in ("repeat","generate","embed", "glove"), 'method has to be one of ("repeat","generate","embed")'
+        # assert method in ("repeat","generate","embed", "glove", "graph"), 'method has to be one of ("repeat","generate","embed")'
         self.classes = classes
         if method=="repeat":
             from ..representation import get_lm_repeated
@@ -81,6 +83,9 @@ class ZAGCNNLM(TextClassificationAbstract):
             l = get_word_embedding_mean(
                 [" ".join(re.split("[/ _-]", x.lower())) for x in self.classes.keys()],
                 "glove300")
+        if method == "graph":
+            from ..representation import get_graph_augmented
+            l = get_graph_augmented(self.classes, graph=self.graph, model=self.representation, topk=200, batch_size=64, device=self.device)
 
         if scale=="mean":
             print("subtracting mean")

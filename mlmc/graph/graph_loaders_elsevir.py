@@ -49,6 +49,7 @@ def load_mesh():
 
     G = rdflib_to_networkx_graph(rg)
     print("rdflib Graph loaded successfully with {} triples".format(len(rg)))
+    return G
 
 def load_nasa():
     data = _load_from_tmp("nasa")
@@ -117,34 +118,54 @@ def load_stw():
 
 def load_elsevier():
     """https://www.elsevier.com/__data/assets/pdf_file/0010/175249/ACAD_FP_FS_FPEFactSheet2019_WEB.pdf"""
+    print("Be Careful. This is not yet the full elsevier thesaurus. ONly gesis, nasa and stw")
     gesis = load_gesis()
     nasa = load_nasa()
     stw = load_stw()
     c = nx.compose(nx.compose(gesis, nasa), stw)
     return c
 
+
 import re
 import string
 import torch
+
+
+
 def augment(classes, graph):
-    augmented = {label:[x for x in graph.nodes if label.lower() in x ] for label in classes.keys()}
+    def ortho_variant(x, y):
+        return any([
+            x in y,
+            x.replace("sation", "zation") in y,
+            x.replace("zation", "sation") in y,
+            x.replace("ize", "ise") in y,
+            x.replace("ise", "ize") in y,
+            x.replace("yse", "yze") in y,
+            x.replace("yze", "yse") in y,
+        ])
+
+    # see if the class name occurs in the graph in full
+    augmented = {label:[x for x in graph.nodes if ortho_variant(label.lower(), x.lower()) ] for label in classes.keys()}
+    # If not check for words with different ending ("especially: plural  "-s" and "-ies-> -y"
+    augmented = {k:v if len(v)>0 else
+                [x  for x in graph.nodes if  ortho_variant(k[:-1].lower(), x.lower()) or ortho_variant(k[:-3].lower(), x.lower())]
+                 for k,v in augmented.items()}
+    # If not check for tokens
     augmented = {label:v
                     if len(v)>0
                     else [x for x in graph.nodes
                           for w in re.sub("&/, -","","".join([x for x in label if x in string.ascii_letters+" "]).replace("  ", " ").lower()).split(" ")
                           if w.strip() == x and len(w.strip()) != 0 ]  for label,v in augmented.items()}
-    augmented = {k:v if len(v)>0 else
-                [x  for x in graph.nodes for w in re.split("[&/, -]{1,2}", k.lower()) if w.lower() in x.lower() or w[:-1] in x or w[:-3] in x]
-                 for k,v in augmented.items()}
+
     augmented = {
-        label: v if len(v) > 0 else [x for x in graph.nodes for w in re.split("[/, &-]{1,2}", label.lower()) if w[:-1] in x or w[:-3] in x] for
+        label: v if len(v) > 0 else [x for x in graph.nodes for w in re.split("[/, &-]{1,2}", label.lower()) if ortho_variant(w[:-1], x) or ortho_variant(w[:-3], x)] for
         label, v in augmented.items()}
 
     augmented = {k: list(set(v)) for k, v in augmented.items()}
     return augmented
 
 def sim_align(classes, graph):
-    raise NotImplementedError
+    # raise NotImplementedError
     import mlmc
     emb, tok = mlmc.representation.get("glove50")
 
@@ -176,44 +197,61 @@ def sim_align(classes, graph):
         terms[k] = [t for t,b in zip(v, r) if b]
 
     # ToDo: Implement this right !
-    l = "Crime, law enforcement"
-    children = []
-    for u, edge_dict in {x:graph.adj[x] for x in terms[l]}.items():
-        if len(edge_dict.keys() )> 0:
-            children.extend( list(edge_dict.keys()))
+    result = {}
+    for l in  classes.keys():
+        children = []
+        for u, edge_dict in {x:graph.adj[x] for x in terms[l]}.items():
+            if len(edge_dict.keys() )> 0:
+                children.extend( list(edge_dict.keys()))
 
-    tmp_graph = nx.subgraph(graph, terms[l]+ children)
+        tmp_graph = nx.subgraph(graph, terms[l]+ children).copy()
 
-    for n in tmp_graph.nodes:
-        for v in graph.adj[n].keys():
-            if v in tmp_graph.nodes:
-                tmp_graph.add_edge(n,v)
-    list(nx.connected_components(tmp_graph.to_undirected()))
+        for n in tmp_graph.nodes:
+            for v in graph.adj[n].keys():
+                if v in tmp_graph.nodes:
+                    tmp_graph.add_edge(n,v)
+        result[l] = tmp_graph#max(nx.connected_component_subgraphs(tmp_graph.to_undirected()), key=len)
+    return result
+
+def embed_align(classes, graph, model="glove50", topk=10, batch_size=50, device="cpu"):
+    from mlmc.representation import Embedder
+    import re
+    e = Embedder(model, device=device, return_device=device)
+    classes_tokens = [" ".join(re.split("[/ _-]", x.lower())) for x in classes.keys()]
+
+    class_embeddings = torch.stack([x.mean(-2) for x in e.embed(classes_tokens, None)],0)
+
+    from mlmc.representation.similarities import cos
+    scores = []
+    for batch in e.embed_batch_iterator(list(graph.nodes), batch_size=batch_size):
+        scores.append(cos(class_embeddings, torch.stack([x.mean(-2) for x in batch],0)).t())
+
+    scores = torch.cat(scores, 0)
+    similar_nodes = scores.topk(topk, dim=0)[1].t().cpu()
+    return {k:[list(graph.nodes)[x.item()] for x in v] for k,v in zip(classes.keys(), similar_nodes)}
 
 
-def subgraph(classes, graph, depth=2, allow_non_alignment=False):
+def subgraph(classes, graph, augmented, depth=1, allow_non_alignment=False):
     """
-    Return a subgrpah of relevant nodes.
+    Return a subgraph of relevant nodes.
     Args:
         classes: the classes mapping
         graph:  The graph from which to draw the subgraph from
         depth: The longest path from a classes label to any node
 
     Returns:
-
     """
-
-    augmented = sim_align(classes,graph)
     if not allow_non_alignment:
         assert len(augmented) == len([x for x,v in augmented.items() if len(v) > 0]), \
             "Not every class could be aligned in the graph: "+ ", ".join([x for x,v in augmented.items() if len(v) == 0])
     subgraph = nx.DiGraph()
     subgraph.add_nodes_from(classes.keys())
-    for key, node_list in augmented.items():
-        for n in node_list:
-            subgraph.add_edge(key, n, label="related")
+    for key, key_graph in augmented.items():
+        subgraph = nx.compose(subgraph,key_graph)
+        for n in key_graph.nodes:
+            subgraph.add_edge(key,n)
 
-    current_nodes = list(set([y for x in augmented.values() for y in x]))
+    current_nodes = list(subgraph.nodes)[len(classes):]
     for i in range(1,depth):
         next_level = {x:graph.adj[x] for x in current_nodes}
         next_nodes = []
@@ -233,17 +271,3 @@ def subgraph(classes, graph, depth=2, allow_non_alignment=False):
     return subgraph
 
 
-#
-# import mlmc
-# # data, classes = mlmc.data.load_blurbgenrecollection()
-# data, classes = mlmc.data.load_rcv1()
-# graph = load_stw()#nx.compose(mlmc.graph.load_wordnet(), load_elsevier())
-# sg = subgraph(classes, graph, depth=1, allow_non_alignment=False)
-
-# # for clique in nx.enumerate_all_cliques(sg.to_undirected(reciprocal=True)):
-# #     print(len(clique))
-# #
-# # cli = nx.make_max_clique_graph(sg.to_undirected(reciprocal=True))
-# #
-# # nx.cliques_containing_node(sg.to_undirected(reciprocal=True), list(classes.keys())[2])
-# #

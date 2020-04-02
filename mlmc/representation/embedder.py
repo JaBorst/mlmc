@@ -3,8 +3,8 @@ from typing import List
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
-from ..representation import get
-
+from ..representation import get, is_transformer
+import torch
 
 class _temporal_dataset(Dataset):
     def __init__(self, l):
@@ -43,24 +43,32 @@ class Embedder:
         assert method in ("first_token",)
         self.method = method
 
-    def embed(self, sentences: List, pad = None):
+    def embed(self, sentences: List, pad=None):
         """
         Embedding method for a list of sentences.
         :param sentences:  List of sentences
         :param pad: (default: None) If pad is set all sentences will be padded (or cut repectively) to the desired length.
         :return: if pad is None a list of embeddings (with varying lengths) is returned, is pad is set a tensor of (num_sentences, pad, embedding_size) will be returned.
         """
-        t, ind = self.tok(sentences, return_start=True)
-        import torch
-        with torch.no_grad():
-            embeddings = self.emb(t.to(self.device))[0].to(self.return_device)
-        embeddings = [e[i]for e, i in zip(embeddings, ind)]
-        if pad is not None:
-            import torch
-            r = torch.zeros((len(embeddings), pad, embeddings[0].shape[-1]))
-            for i, e in enumerate(embeddings):
-                r[i, :min(e.shape[0]-1, pad), :] = e[min(e.shape[0]-1, pad)]
-            embeddings = r
+
+        if is_transformer(self.representation):
+            t, ind = self.tok(sentences, return_start=True)
+            with torch.no_grad():
+                embeddings = self.emb(t.to(self.device))[0].to(self.return_device)
+            embeddings = [e[i]for e, i in zip(embeddings, ind)]
+            if pad is not None:
+                r = torch.zeros((len(embeddings), pad, embeddings[0].shape[-1]))
+                for i, e in enumerate(embeddings):
+                    r[i, :min(e.shape[0] - 1, pad), :] = e[min(e.shape[0] - 1, pad)]
+                embeddings = r
+        else:
+            s_length = [len(x.split()) for x in sentences]
+            t = self.tok(sentences, pad if pad is not None else max(s_length))
+            with torch.no_grad():
+                embeddings = self.emb(t.to(self.device)).to(self.return_device)
+            if pad is None:
+                embeddings = [e[:i] for e,i in zip(embeddings,s_length)]
+
         return embeddings
 
     def embed_batch(self, sentences: List, batch_size=64, pad = None):
