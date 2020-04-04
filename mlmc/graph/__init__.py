@@ -1,8 +1,8 @@
 from .helpers import cooc_matrix
 from .embeddings import get_nmf, get_node2vec, get_random_projection
-from .graph_loaders import load_wordnet, load_wordnet_sample, load_NELL
-from .graph_loaders_elsevir import subgraph, load_elsevier, load_stw, load_nasa, \
-    load_gesis, load_mesh, augment, sim_align, embed_align
+from .graph_loaders import load_wordnet, load_wordnet_sample, load_NELL,load_elsevier, load_stw, load_nasa, \
+    load_gesis, load_mesh
+from .graph_operations import subgraphs, embed_align
 
 register = {
     "wordnet": load_wordnet,

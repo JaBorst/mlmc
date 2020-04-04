@@ -38,17 +38,3 @@ def get_graph_augmented(classes, model, graph, topk=20, batch_size=64, device="c
         transformed = tok([cls + " | " + ". ".join(keywords) for cls, keywords in doct.items()])
         embeddings = emb(transformed.to(device))[1]
     return embeddings
-
-def get_label_graphs(classes, graph, depth=2):
-    from ..graph import embed_align, subgraph
-    augmented = embed_align(self.classes, graph=self.kb, model="glove300",
-                            topk=self.topk, batch_size=50, device=self.device)
-
-    subgraphs = subgraph(self.classes, self.kb, augmented, depth=1)
-
-import mlmc
-# data, classes = mlmc.data.load_blurbgenrecollection()
-data, classes = mlmc.data.load_rcv1()
-graph = mlmc.graph.get(["stw"])
-
-get_label_graphs()
