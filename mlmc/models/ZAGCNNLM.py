@@ -51,7 +51,7 @@ class ZAGCNNLM(TextClassificationAbstract):
                 embeddings = self.embedding(x)[0]
         else:
             with torch.no_grad():
-                embeddings = torch.cat(self.embedding(x)[2][self.n_layers:], -1)
+                embeddings = torch.cat(self.embedding(x)[2][-self.n_layers:], -1)
         embedded = self.dropout_layer(embeddings)
         c = torch.cat([self.pool(torch.nn.functional.relu(conv(embedded.permute(0,2,1)))) for conv in self.convs], dim=-1).permute(0,2,1)
         d2 = torch.tanh(self.document_projection(c))

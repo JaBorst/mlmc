@@ -328,7 +328,7 @@ class TextClassificationAbstract(torch.nn.Module):
                 else:
                     self.embedding, self.tokenizer = get(model=self.representation, output_hidden_states=True)
                     self.embeddings_dim = \
-                        torch.cat(self.embedding(self.embedding.dummy_inputs["input_ids"])[2][self.n_layers:], -1).shape[-1]
+                        torch.cat(self.embedding(self.embedding.dummy_inputs["input_ids"])[2][-self.n_layers:], -1).shape[-1]
             except TypeError:
                 print("If your using a model that does not support returning hiddenstates, set n_layers=1")
                 import sys
