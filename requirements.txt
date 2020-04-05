@@ -9,3 +9,4 @@ networkx
 bs4
 pytest
 pytest-cov
+rdflib
