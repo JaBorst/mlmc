@@ -81,7 +81,7 @@ def subgraphs(classes, graph, depth=1, model="glove50", topk=10,  allow_non_alig
     if not allow_non_alignment:
         assert len(augmented) == len([x for x,v in augmented.items() if len(v) > 0]), \
             "Not every class could be aligned in the graph: "+ ", ".join([x for x,v in augmented.items() if len(v) == 0])
-    subgraph = nx.Graph()
+    subgraph = nx.DiGraph()
     subgraph.add_nodes_from(classes.keys())
     for key, nodes in augmented.items():
         for n in nodes:
@@ -109,3 +109,40 @@ def subgraphs(classes, graph, depth=1, model="glove50", topk=10,  allow_non_alig
     return subgraph, matrix
 
 
+def plot_activation(graph, classes, scores, tr, target=None):
+    import igraph
+    g = igraph.Graph(directed=True)
+    g.add_vertices(list(graph.nodes()))
+    g.add_edges(graph.edges())
+
+    for x in g.vs:
+        x["score"] = scores[x["name"]] -tr
+
+    def score_color(alpha):
+        if alpha < 0:
+            return igraph.color_name_to_rgb("red") + (-alpha,)
+        else:
+            return igraph.color_name_to_rgb("green") + (alpha,)
+
+    import random
+    random.seed(42)
+    visual_style = {}
+    visual_style["vertex_size"] = 5
+    visual_style["vertex_color"] = [score_color(x) for x in g.vs["score"]]
+    visual_style["vertex_label"] = [x["name"] if x["name"] in classes.keys() or x["score"]>0 else None for x in g.vs]
+    visual_style["vertex_frame_color"] = [score_color(x)[:3] for x in g.vs["score"]]
+    visual_style["vertex_frame_width"] = 0.1
+    visual_style["vertex_label_size"] = 5
+    visual_style["edge_width"] = 0.01
+    # visual_style["edge_color"] = (0.1,0.1,0.1)
+    # visual_style["label_size"] = 0.1
+    # visual_style["edge_width"] = [1 + 2 * int(is_formal) for is_formal in g.es["is_formal"]]
+    visual_style["layout"] = g.layout_lgl(maxiter=500)
+    visual_style["bbox"] =  (1000, 1000)
+    visual_style["margin"] = 20
+    visual_style["edge_arrow_size"] = 0.1
+    visual_style["edge_color"]=  "grey"#"(0.1,0.1,0.1)
+    if target is not None:
+        igraph.plot(g,target, **visual_style)
+    else:
+        return igraph.plot(g, **visual_style)
