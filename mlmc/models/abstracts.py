@@ -248,7 +248,7 @@ class TextClassificationAbstract(torch.nn.Module):
                         print("Early Stopping.")
                         break
 
-        train_history["loss"].append(average.compute().item())
+            train_history["loss"].append(average.compute().item())
         if patience > -1:
             self.load_state_dict(torch.load("checkpoint.pt"))
         #Load best

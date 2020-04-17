@@ -13,8 +13,8 @@ def assertion_function(model_type, **kwargs):
         classes = classes
     )
     model = model_type(classes, **kwargs, target="single", optimizer_params={"lr": 0.001})
-    history = model.fit(train=data, epochs=15, batch_size=3)
-    assert len(history["train"]["loss"]) == 15, "Number of Epochs not reached"
+    history = model.fit(train=data, epochs=5, batch_size=3)
+    assert len(history["train"]["loss"]) == 5, "Number of Epochs not reached"
 
 def test_KimCNN():
     assertion_function(model_type=mlmc.models.KimCNN, mode="untrainable", representation="test")
