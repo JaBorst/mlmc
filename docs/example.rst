@@ -64,6 +64,8 @@ Classifier
 Train a classifier
 ___________________
 
+Multilabel Classification
+--------------------------
 When training a classifier you will have to load your data first. The instantiation of a model will depend of the
 classes mapping present in the data. A list of available models can be found under :py:mod:`mlmc.models`.
 The device argument determines on which device the model will be trained. Use "cpu" to train on CPU and "cuda:" for
@@ -88,6 +90,23 @@ Models can be saved loaded with :py:meth:`mlmc.save() <mlmc.save_and_load.save>`
     mlmc.save(tc, "test.pt",only_inference=False)
     tc = mlmc.load( "test.pt",only_inference=False)
 
+
+Single label Classification
+----------------------------
+The same workflow can be used with single label classification datasets, when using the corresponding functions and keyword arguments: ::
+
+
+   import mlmc
+
+    data = mlmc.data.get_singlelabel_dataset("agnews")
+
+    tc = mlmc.models.KimCNN(classes=data["train"].classes, device="cuda:1", target="single")
+    history = tc.fit(train=data["train"],  epochs=15, batch_size=32)
+
+    tc.evaluate(data["test"])
+
+
+    labels = tc.predict("Predict the labels for this sentence", return_scores=True)
 
 
 Other Functionality
