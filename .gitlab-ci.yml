@@ -48,6 +48,5 @@ pypi_deploy:
     - python setup.py sdist bdist_wheel
 
   script:
-    - echo twine upload -u $PYPI_USER 
-    - twine upload -u $PYPI_USER -p $PYPI_PASSWORD dist/*
+    - twine upload -r melmac -u $PYPI_USER -p $PYPI_PASSWORD dist/*
 
