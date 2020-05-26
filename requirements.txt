@@ -1,13 +1,3 @@
-numpy
-transformers
-nltk
-node2vec
-scikit-learn
-pytorch-ignite
-tqdm
-networkx
-bs4
-pytest
-pytest-cov
-rdflib
-h5py
+pkg_resources
+wheel
+twine
