@@ -3,7 +3,6 @@ before_script:
   - pip install .
 
 stages:
-#  - test
   - deploy
 
 
