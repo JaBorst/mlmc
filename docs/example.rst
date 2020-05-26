@@ -19,7 +19,7 @@ Then a dataset can be loaded via::
 When invoked the first time the function downloads and preprocesses the data from an online source and
 saves them to a cache. It returns a dictionary containing at least the keys "train", "test" and "classes".
 If theres additional information in the dataset, like graph hierarchies, maps or meta information, it will appear in the
-dictionary. ``data["train"]`` and ``data["test"]`` are of type :py:class`MultilabelDataset <mlmc.data.MultilabelDataset>`. If there is
+dictionary. ``data["train"]`` and ``data["test"]`` are of type :py:class`MultiLabelDataset <mlmc.data.MultiLabelDataset>`. If there is
 an official validation split, it can be found under ``data["valid]"``
 
 
@@ -44,10 +44,10 @@ An example of two sentences::
         "politics": 2
     }
 
-    dataset = mlmc.data.MultilabelDataset(x=x, y=y, classes=classes)
+    dataset = mlmc.data.MultiLabelDataset(x=x, y=y, classes=classes)
 
 If your know your data to be only single labelled you can use :py:mod:`mlmc.data.SingleLabelDataset`.
-The process and data format is the same as for MultilabelDataset, but with every labelset in y must contain only one label. ::
+The process and data format is the same as for MultiLabelDataset, but with every labelset in y must contain only one label. ::
 
     y = [['philosophy'],
         ['science']]
