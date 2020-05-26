@@ -4,10 +4,32 @@ before_script:
 
 stages:
   - test
-  - build
   - deploy
 
 
+
+
+test_python3.7:
+    only:
+      - master
+      - tags
+      - merge_requests
+      - dev
+    stage: test
+    image: python:3.7.5-slim-buster
+    script:
+    - python -m pytest tests
+
+test_python3.8:
+    only:
+      - master
+      - tags
+      - merge_requests
+      - dev
+    stage: test
+    image: python:3.8-buster
+    script:
+    - python -m pytest tests
 
 coverage:
     only:
@@ -19,39 +41,6 @@ coverage:
     script:
       - pytest --cov mlmc/ tests/ --cov-report xml
       - coverage report
-
-test_python3.7:
-    only:
-      - master
-      - tags
-      - merge_requests
-      - dev
-    stage: build
-    image: python:3.7.5-slim-buster
-    script:
-    - python -m pytest tests
-
-test_python3.8:
-    only:
-      - master
-      - tags
-      - merge_requests
-      - dev
-    stage: build
-    image: python:3.8-buster
-    script:
-    - python -m pytest tests
-
-
-build:
-    only:
-      - master
-      - dev
-    stage: build
-    image: python:3.7.5-slim-buster
-    script:
-    - python -m pytest tests
-
 
 pypi_deploy:
   stage: deploy
