@@ -28,3 +28,13 @@ def get_lm_generated(classes, model, num=10, device="cuda:0"):
         embeddings = [torch.cat([emb(tok(s).to(device))[1] for s in cls]).mean(0) for cls in generated_sentences]
     return torch.stack(embeddings,0)
 
+def get_graph_augmented(classes, model, graph, topk=20, batch_size=64, device="cuda:0"):
+    from ..graph.graph_loaders_elsevir import embed_align
+    doct = embed_align(classes, graph=graph, model="glove300", topk=topk, batch_size=batch_size, device=device)
+
+    emb, tok = get(model)
+    emb.to(device)
+    with torch.no_grad():
+        transformed = tok([cls + " | " + ". ".join(keywords) for cls, keywords in doct.items()])
+        embeddings = emb(transformed.to(device))[1]
+    return embeddings

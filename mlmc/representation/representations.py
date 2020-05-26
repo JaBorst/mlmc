@@ -152,6 +152,12 @@ def map_vocab(query, vocab, maxlen):
        result[i,:min(len(e), maxlen)] = torch.LongTensor(e[:min(len(e), maxlen)])
     return result
 
+def get_white_space_tokenizer(v):
+    def tokenizer(x, maxlen=500):
+        x = [x] if isinstance(x, str) else x
+        x = [s.lower().split() for s in x]
+        return map_vocab(x, v, maxlen).long()
+    return tokenizer
 
 def get_embedding(name, **kwargs):
     """
@@ -160,13 +166,24 @@ def get_embedding(name, **kwargs):
         name: File name of the word embedding. (Expects a text file in the glove format)
     Returns: A tuple of embedding and corresponding tokenizer
     """
-    weights, vocabulary = load_static(name)
+    import h5py
+
+    file = EMBEDDINGCACHE / (name + ".h5")
+    if not (file).exists():
+        weights, vocabulary = load_static(name)
+        with h5py.File(file, "w") as f:
+            f.create_dataset("weights", data=weights)
+            f.create_dataset("vocab", data=str(vocabulary))
+    else:
+        with h5py.File(file, "r")as f:
+            weights = f["weights"][()]
+            vocabulary = eval(f["vocab"][()])
+
+
     e = torch.nn.Embedding(weights.shape[0], weights.shape[1],)
     e = e.from_pretrained(torch.Tensor(weights).float(), **kwargs)
-    def tokenizer(x, maxlen=500):
-        x = [x] if isinstance(x, str) else x
-        x = [s.lower().split() for s in x]
-        return map_vocab(x, vocabulary, maxlen).long()
+
+    tokenizer = get_white_space_tokenizer(vocabulary)
     return e, tokenizer
 
 

@@ -43,6 +43,7 @@ class LanguageModelAbstract(torch.nn.Module):
         average_pp = Average()
         average_acc= Average()
         average_bpc= Average()
+        entropy = torch.nn.CrossEntropyLoss(reduction="none").to(self.device)
         data_loader = torch.utils.data.DataLoader(data, batch_size=batch_size)
 
         with torch.no_grad():
@@ -61,15 +62,16 @@ class LanguageModelAbstract(torch.nn.Module):
                 probabilities = torch.softmax(output, -1)
                 bpc = (-probabilities * torch.log2(probabilities)).sum(-1)
                 for i in bpc: average_bpc.update(i.item())
-                perplexity = 2**(-(torch.nn.functional.one_hot(y,probabilities.shape[-1]) * torch.log2(probabilities)).sum(-1))
-                for i in perplexity: average_pp.update(i.item())
+                # perplexity =torch.exp(entropy(output,y))#2**(- (torch.nn.functional.one_hot(y,probabilities.shape[-1]) * torch.log2(probabilities)).sum(-1))
+                # for i in perplexity: average_pp.update(i.item())
                 for i in (torch.max(output,-1)[1] == y).int(): average_acc.update(i)
         self.train()
+        l = average_loss.compute()
         return {
             # "accuracy": accuracy.compute(),
-            "valid_loss": round(average_loss.compute().item(), 2*self.PRECISION_DIGITS),
+            "valid_loss": round(l.item(), 2*self.PRECISION_DIGITS),
             "accuracy": round(average_acc.compute().item(),self.PRECISION_DIGITS),
-            "perplexity": round(average_pp.compute().item(), 2*self.PRECISION_DIGITS),
+            "perplexity": round(torch.exp(l).item(), 2*self.PRECISION_DIGITS),
             "BitsPer": round(average_bpc.compute().item(), 2*self.PRECISION_DIGITS)
         }
 

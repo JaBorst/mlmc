@@ -309,7 +309,9 @@ def load_blurbgenrecollection():
         classes = list(set([x for y in data["train"][1] + data["valid"][1] + data["test"][1] + edges for x in y]))
         classes = dict(zip(classes, range(len(classes))))
         edges = [e for e in edges if len(e) == 2]
-        graph = nx.DiGraph(edges)
+        graph = nx.DiGraph()
+        graph.add_nodes_from(classes.keys())
+        graph.add_edges_from(edges)
         data["graph"] = graph
         _save_to_tmp("blurbgenrecollection", (data, classes))
         return data, classes

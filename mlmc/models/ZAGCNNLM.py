@@ -28,6 +28,8 @@ class ZAGCNNLM(TextClassificationAbstract):
         self.representation = representation
         self._init_input_representations()
 
+        from ..graph import get as gget
+        self.graph = gget(["stw"])
         self.create_labels(classes, method=self.method, scale=self.scale)
 
         self.convs = torch.nn.ModuleList(
@@ -49,7 +51,7 @@ class ZAGCNNLM(TextClassificationAbstract):
                 embeddings = self.embedding(x)[0]
         else:
             with torch.no_grad():
-                embeddings = torch.cat(self.embedding(x)[2][self.n_layers:], -1)
+                embeddings = torch.cat(self.embedding(x)[2][-self.n_layers:], -1)
         embedded = self.dropout_layer(embeddings)
         c = torch.cat([self.pool(torch.nn.functional.relu(conv(embedded.permute(0,2,1)))) for conv in self.convs], dim=-1).permute(0,2,1)
         d2 = torch.tanh(self.document_projection(c))
@@ -66,14 +68,14 @@ class ZAGCNNLM(TextClassificationAbstract):
         return (torch.relu(self.projection(label_wise_representation)) * labelvectors).sum(-1)
 
     def create_labels(self, classes, method="repeat",scale="mean"):
-        assert method in ("repeat","generate","embed", "glove"), 'method has to be one of ("repeat","generate","embed")'
+        # assert method in ("repeat","generate","embed", "glove", "graph"), 'method has to be one of ("repeat","generate","embed")'
         self.classes = classes
         if method=="repeat":
             from ..representation import get_lm_repeated
             l = get_lm_repeated(self.classes, self.representation)
         if method == "generate":
-            from ..representation import get_lm_repeated
-            l = get_lm_repeated(self.classes, self.representation)
+            from ..representation import get_lm_generated
+            l = get_lm_generated(self.classes, self.representation)
         if method == "embed":
             l = self.embedding(self.tokenizer(self.classes.keys()).to(list(self.parameters())[0].device))[1]
         if method == "glove":
@@ -81,6 +83,9 @@ class ZAGCNNLM(TextClassificationAbstract):
             l = get_word_embedding_mean(
                 [" ".join(re.split("[/ _-]", x.lower())) for x in self.classes.keys()],
                 "glove300")
+        if method == "graph":
+            from ..representation import get_graph_augmented
+            l = get_graph_augmented(self.classes, graph=self.graph, model=self.representation, topk=200, batch_size=64, device=self.device)
 
         if scale=="mean":
             print("subtracting mean")

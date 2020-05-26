@@ -2,6 +2,16 @@
 Main Module import all submodules.
 """
 
+
+import pkg_resources  # part of setuptools
+
+try:
+    __version__ = pkg_resources.require("mlmc")[0].version
+    __author__ = "Janos Borst"
+except:
+    __version__ = "local"
+
+
 import mlmc.data
 import mlmc.models
 import mlmc.graph

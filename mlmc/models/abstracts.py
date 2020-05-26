@@ -99,6 +99,7 @@ class TextClassificationAbstract(torch.nn.Module):
         multilabel_metrics = {
             "p@1": PrecisionK(k=1, is_multilabel=True, average=True),
             "p@3": PrecisionK(k=3, is_multilabel=True, average=True),
+            "p@5": PrecisionK(k=5, is_multilabel=True, average=True),
             "tr@0.5": AccuracyTreshold(trf=threshold_hard, args_dict={"tr": 0.5}, is_multilabel=True),
             "mcut": AccuracyTreshold(trf=threshold_mcut, is_multilabel=True),
             "auc_roc": AUC_ROC(len(self.classes), return_roc=return_roc),
@@ -107,15 +108,16 @@ class TextClassificationAbstract(torch.nn.Module):
             multilabel_metrics["report"] = MultiLabelReport(self.classes, trf=threshold_mcut) \
                 if mask is None else MultiLabelReport(self.classes, trf=threshold_mcut, check_zeros=True)
 
-        if len(self.classes) > 5:
-            multilabel_metrics["p@5"] = PrecisionK(k=5, is_multilabel=True, average=True)
+        if len(self.classes) <= 5:
+            del multilabel_metrics["p@5"]
+        if len(self.classes) <= 3:
+            del multilabel_metrics["p@3"]
 
         singlelabel_metrics = {
             "accuracy":  AccuracyTreshold(threshold_max, is_multilabel=False)
         }
 
         metrics = multilabel_metrics
-
         if self.target == "single":
             metrics = singlelabel_metrics
 
@@ -124,7 +126,6 @@ class TextClassificationAbstract(torch.nn.Module):
         with torch.no_grad():
             for i, b in enumerate(data_loader):
                 y = b["labels"]
-                y[y!=0] = 1
                 x = self.transform(b["text"])
                 output = self(x.to(self.device)).cpu()
                 if hasattr(self, "regularize"):
@@ -144,11 +145,13 @@ class TextClassificationAbstract(torch.nn.Module):
         self.train()
 
         results = {"valid_loss": round(average.compute().item(), 2*self.PRECISION_DIGITS)}
-        results.update({k: round(v.compute(), self.PRECISION_DIGITS) if isinstance(v, float) else v.compute() for k, v in metrics.items()})
+        results.update({k: round(v.compute(), self.PRECISION_DIGITS) if isinstance(v.compute(), float) else v.compute() for k, v in metrics.items()})
 
         return results
 
-    def fit(self, train, valid = None, epochs=1, batch_size=16, valid_batch_size=50, classes_subset=None, patience=-1, tolerance=1e-2):
+    def fit(self, train,
+            valid=None, epochs=1, batch_size=16, valid_batch_size=50, classes_subset=None, patience=-1, tolerance=1e-2,
+            return_roc=False, return_report=False):
         """
         Training function
 
@@ -158,10 +161,15 @@ class TextClassificationAbstract(torch.nn.Module):
             epochs: Number of epochs (times to iterate the train data)
             batch_size: Number of instances in one batch.
             valid_batch_size: Number of instances in one batch  of validation.
+            patience: (default -1) Early Stopping Arguments. Number of epochs to wait for performance improvements before exiting the training loop.
+            tolerance: (default 1e-2) Early Stopping Arguments. Minimum improvement of an epoch over the best validation loss so far.
+
         Returns:
             A history dictionary with the loss and the validation evaluation measurements.
 
         """
+        import datetime
+        id = str(hash(datetime.datetime.now()))[1:7]
         from ..data import SingleLabelDataset
         if isinstance(train, SingleLabelDataset) and self.target != "single":
             print("You are using the model in multi mode but input is SingeleLabelDataset.")
@@ -179,11 +187,11 @@ class TextClassificationAbstract(torch.nn.Module):
             train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size, shuffle=True)
 
             with tqdm(train_loader,
-                      postfix=[losses], desc="Epoch %i/%i" %(e+1,epochs)) as pbar:
+                      postfix=[losses], desc="Epoch %i/%i" %(e+1,epochs), ncols=100) as pbar:
                 for i, b in enumerate(train_loader):
                     self.optimizer.zero_grad()
                     y = b["labels"].to(self.device)
-                    y[y!=0] = 1
+
                     x = self.transform(b["text"]).to(self.device)
                     output = self(x)
                     if hasattr(self, "regularize"):
@@ -201,27 +209,49 @@ class TextClassificationAbstract(torch.nn.Module):
                     validation.append(self.evaluate_classes(classes_subset=classes_subset,
                                                            data=valid,
                                                            batch_size=valid_batch_size,
-                                                           return_report=False,
-                                                           return_roc=False))
-                    pbar.postfix[0].update(validation[-1])
+                                                           return_report= return_report,
+                                                           return_roc=return_roc))
+                    printable = validation[-1].copy()
+                    if return_roc==True:
+                        printable["auc_roc"] = (printable["auc_roc"][0], "...")
+                    if return_report==True:
+                        printable["report"] = (printable["report"]["micro avg"])
+
+                    pbar.postfix[0].update(printable)
                     pbar.update()
+            if patience > -1:
+                if valid is None :
+                    print("check validation loss")
+                    if best_loss - average.compute().item() > tolerance:
+                        print("update validation and checkoint")
+                        best_loss = average.compute().item()
+                        torch.save(self.state_dict(), id+"_checkpoint.pt")
+                        #save states
+                        last_best_loss_update = 0
+                    else:
+                        print("increment no epochs")
+                        last_best_loss_update += 1
+
+                    if last_best_loss_update >= patience:
+                        print("breaking at %i" % (patience,))
+                        print("Early Stopping.")
+                        break
+                elif valid is not None:
+                    if best_loss - validation[-1]["valid_loss"] > tolerance:
+                        best_loss = validation[-1]["valid_loss"]
+                        torch.save(self.state_dict(), id+"_checkpoint.pt")
+                        # save states
+                        last_best_loss_update = 0
+                    else:
+                        last_best_loss_update += 1
+
+                    if last_best_loss_update >= patience:
+                        print("Early Stopping.")
+                        break
 
             train_history["loss"].append(average.compute().item())
-            if patience > -1:
-                if  best_loss - average.compute().item() > tolerance:
-                    best_loss = average.compute().item()
-                    torch.save(self.state_dict(), "checkpoint.pt")
-                    #save states
-                    last_best_loss_update = 0
-                else:
-                    last_best_loss_update += 1
-
-                if last_best_loss_update >= patience:
-                    print("Early Stopping.")
-                    break
-                # torch.cuda.empty_cache()
         if patience > -1:
-            self.load_state_dict(torch.load("checkpoint.pt"))
+            self.load_state_dict(torch.load(id+"_checkpoint.pt"))
         #Load best
         return{"train":train_history, "valid": validation }
 
@@ -271,7 +301,7 @@ class TextClassificationAbstract(torch.nn.Module):
         """
         train_loader = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=True)
         predictions = []
-        for b in tqdm(train_loader):
+        for b in tqdm(train_loader, ncols=100):
             predictions.extend(self.predict(b["text"], tr=tr, method=method))
         return predictions
 
@@ -328,7 +358,7 @@ class TextClassificationAbstract(torch.nn.Module):
                 else:
                     self.embedding, self.tokenizer = get(model=self.representation, output_hidden_states=True)
                     self.embeddings_dim = \
-                        torch.cat(self.embedding(self.embedding.dummy_inputs["input_ids"])[2][self.n_layers:], -1).shape[-1]
+                        torch.cat(self.embedding(self.embedding.dummy_inputs["input_ids"])[2][-self.n_layers:], -1).shape[-1]
             except TypeError:
                 print("If your using a model that does not support returning hiddenstates, set n_layers=1")
                 import sys

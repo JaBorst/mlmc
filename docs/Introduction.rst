@@ -21,7 +21,7 @@ Optional:
     This dependency is optional, it just reminds you if you try to import models that rely on geometric layers.
     To install, follow the instructions on their github page: https://github.com/rusty1s/pytorch_geometric
 
-After that you can install `mlmc <https://git.informatik.uni-leipzig.de/asv-ml/mlmc>`_  by sample::
+After that you can install `mlmc <https://git.informatik.uni-leipzig.de/asv-ml/mlmc>`_  directly via pip::
 
     pip install git+https://git.informatik.uni-leipzig.de/asv-ml/mlmc
 
