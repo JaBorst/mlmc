@@ -10,3 +10,4 @@ bs4
 pytest
 pytest-cov
 rdflib
+h5py
