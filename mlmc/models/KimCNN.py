@@ -107,7 +107,7 @@ class KimCNN(TextClassificationAbstract):
             else:
                 with torch.no_grad():
                     embedded = torch.cat(self.embedding(x)[2][(self.n_layers):], -1).permute(0, 2, 1)
-
+            # embedded = self.dropout_layer(embedded)
             c = [torch.nn.functional.relu(conv(embedded).permute(0, 2, 1).max(1)[0]) for conv in self.convs]
 
         c = torch.cat(c, 1)

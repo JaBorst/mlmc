@@ -12,9 +12,7 @@ stages:
 test_python3.7:
     only:
       - master
-      - tags
       - merge_requests
-      - dev
     stage: test
     image: python:3.7.5-slim-buster
     script:
@@ -23,9 +21,7 @@ test_python3.7:
 test_python3.8:
     only:
       - master
-      - tags
       - merge_requests
-      - dev
     stage: test
     image: python:3.8-buster
     script:
@@ -35,7 +31,7 @@ coverage:
     only:
         refs:
         - master
-        - dev
+        - merge_requests
     image: python:3.7.5-slim-buster
     stage: test
     script:
