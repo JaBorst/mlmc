@@ -126,7 +126,6 @@ class TextClassificationAbstract(torch.nn.Module):
         with torch.no_grad():
             for i, b in enumerate(data_loader):
                 y = b["labels"]
-                y[y!=0] = 1
                 x = self.transform(b["text"])
                 output = self(x.to(self.device)).cpu()
                 if hasattr(self, "regularize"):
@@ -190,7 +189,7 @@ class TextClassificationAbstract(torch.nn.Module):
                 for i, b in enumerate(train_loader):
                     self.optimizer.zero_grad()
                     y = b["labels"].to(self.device)
-                    y[y!=0] = 1
+
                     x = self.transform(b["text"]).to(self.device)
                     output = self(x)
                     if hasattr(self, "regularize"):
