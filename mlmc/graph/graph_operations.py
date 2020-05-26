@@ -119,7 +119,7 @@ def plot_activation(graph, classes, scores, tr, target=None):
         x["score"] = scores[x["name"]] -tr
 
     def score_color(alpha):
-        if alpha < 0:
+        if alpha <= 0:
             return igraph.color_name_to_rgb("red") + (-alpha,)
         else:
             return igraph.color_name_to_rgb("green") + (alpha,)
