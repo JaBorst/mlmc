@@ -215,7 +215,7 @@ class TextClassificationAbstract(torch.nn.Module):
                     if return_roc==True:
                         printable["auc_roc"] = (printable["auc_roc"][0], "...")
                     if return_report==True:
-                        printable["report"] = (printable["report"]["macro avg"])
+                        printable["report"] = (printable["report"]["micro avg"])
 
                     pbar.postfix[0].update(printable)
                     pbar.update()
