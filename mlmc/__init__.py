@@ -1,16 +1,17 @@
 """
 Main Module import all submodules.
 """
-
-
-import pkg_resources  # part of setuptools
-
-try:
-    __version__ = pkg_resources.require("mlmc")[0].version
-    __author__ = "Janos Borst"
-except:
-    __version__ = "local"
-
+#
+#
+# import pkg_resources  # part of setuptools
+#
+# try:
+#     __version__ = pkg_resources.require("mlmc")[0].version
+#     __author__ = "Janos Borst"
+# except:
+#     __version__ = "local"
+__version__ = "0.1.0"
+__author__ = "Janos Borst"
 
 import mlmc.data
 import mlmc.models
