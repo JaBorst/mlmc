@@ -152,6 +152,12 @@ def map_vocab(query, vocab, maxlen):
        result[i,:min(len(e), maxlen)] = torch.LongTensor(e[:min(len(e), maxlen)])
     return result
 
+def get_white_space_tokenizer(v):
+    def tokenizer(x, maxlen=500):
+        x = [x] if isinstance(x, str) else x
+        x = [s.lower().split() for s in x]
+        return map_vocab(x, v, maxlen).long()
+    return tokenizer
 
 def get_embedding(name, **kwargs):
     """
