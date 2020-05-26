@@ -106,14 +106,14 @@ class LSANOriginalTransformerNoClasses(TextClassificationAbstract):
         return pred
 
     def create_labels(self, classes, method="repeat",scale="mean"):
-        assert method in ("repeat","generate","embed", "glove"), 'method has to be one of ("repeat","generate","embed")'
+        assert method in ("repeat","generate","embed", "glove"), 'method has to be one of ("repeat","generate","embed", "glove")'
         self.classes = classes
         if method=="repeat":
             from ..representation import get_lm_repeated
             l = get_lm_repeated(self.classes, self.representation)
         if method == "generate":
-            from ..representation import get_lm_repeated
-            l = get_lm_repeated(self.classes, self.representation)
+            from ..representation import get_lm_generated
+            l = get_lm_generated(self.classes, self.representation)
         if method == "embed":
             l = self.embedding(self.tokenizer(self.classes.keys()).to(list(self.parameters())[0].device))[1]
         if method == "glove":
