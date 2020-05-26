@@ -74,8 +74,8 @@ class ZAGCNNLM(TextClassificationAbstract):
             from ..representation import get_lm_repeated
             l = get_lm_repeated(self.classes, self.representation)
         if method == "generate":
-            from ..representation import get_lm_repeated
-            l = get_lm_repeated(self.classes, self.representation)
+            from ..representation import get_lm_generated
+            l = get_lm_generated(self.classes, self.representation)
         if method == "embed":
             l = self.embedding(self.tokenizer(self.classes.keys()).to(list(self.parameters())[0].device))[1]
         if method == "glove":
