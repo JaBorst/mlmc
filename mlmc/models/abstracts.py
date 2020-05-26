@@ -168,6 +168,8 @@ class TextClassificationAbstract(torch.nn.Module):
             A history dictionary with the loss and the validation evaluation measurements.
 
         """
+        import datetime
+        id = str(hash(datetime.datetime.now()))[1:7]
         from ..data import SingleLabelDataset
         if isinstance(train, SingleLabelDataset) and self.target != "single":
             print("You are using the model in multi mode but input is SingeleLabelDataset.")
@@ -223,7 +225,7 @@ class TextClassificationAbstract(torch.nn.Module):
                     if best_loss - average.compute().item() > tolerance:
                         print("update validation and checkoint")
                         best_loss = average.compute().item()
-                        torch.save(self.state_dict(), "checkpoint.pt")
+                        torch.save(self.state_dict(), id+"_checkpoint.pt")
                         #save states
                         last_best_loss_update = 0
                     else:
@@ -237,7 +239,7 @@ class TextClassificationAbstract(torch.nn.Module):
                 elif valid is not None:
                     if best_loss - validation[-1]["valid_loss"] > tolerance:
                         best_loss = validation[-1]["valid_loss"]
-                        torch.save(self.state_dict(), "checkpoint.pt")
+                        torch.save(self.state_dict(), id+"_checkpoint.pt")
                         # save states
                         last_best_loss_update = 0
                     else:
@@ -249,7 +251,7 @@ class TextClassificationAbstract(torch.nn.Module):
 
             train_history["loss"].append(average.compute().item())
         if patience > -1:
-            self.load_state_dict(torch.load("checkpoint.pt"))
+            self.load_state_dict(torch.load(id+"_checkpoint.pt"))
         #Load best
         return{"train":train_history, "valid": validation }
 
