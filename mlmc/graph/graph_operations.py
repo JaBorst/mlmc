@@ -109,7 +109,7 @@ def subgraphs(classes, graph, depth=1, model="glove50", topk=10,  allow_non_alig
     return subgraph, matrix
 
 
-def plot_activation(graph, classes, scores, tr, target=None):
+def plot_activation(graph, classes, scores, tr, target=None, title = None, layout="lgl", options={}):
     import igraph
     g = igraph.Graph(directed=True)
     g.add_vertices(list(graph.nodes()))
@@ -137,11 +137,15 @@ def plot_activation(graph, classes, scores, tr, target=None):
     # visual_style["edge_color"] = (0.1,0.1,0.1)
     # visual_style["label_size"] = 0.1
     # visual_style["edge_width"] = [1 + 2 * int(is_formal) for is_formal in g.es["is_formal"]]
-    visual_style["layout"] = g.layout_lgl(maxiter=500)
+    visual_style["layout"] =  g.layout(layout, **options)
     visual_style["bbox"] =  (1000, 1000)
     visual_style["margin"] = 20
     visual_style["edge_arrow_size"] = 0.1
     visual_style["edge_color"]=  "grey"#"(0.1,0.1,0.1)
+
+    if title is not None:
+        visual_style["main"] = title
+
     if target is not None:
         igraph.plot(g,target, **visual_style)
     else:
