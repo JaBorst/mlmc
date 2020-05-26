@@ -7,25 +7,25 @@ stages:
   - deploy
 
 
-
-
-test_python3.7:
-    only:
-      - master
-      - merge_requests
-    stage: test
-    image: python:3.7.5-slim-buster
-    script:
-    - python -m pytest tests
-
-test_python3.8:
-    only:
-      - master
-      - merge_requests
-    stage: test
-    image: python:3.8-buster
-    script:
-    - python -m pytest tests
+#
+#
+#test_python3.7:
+#    only:
+#      - master
+#      - merge_requests
+#    stage: test
+#    image: python:3.7.5-slim-buster
+#    script:
+#    - python -m pytest tests
+#
+#test_python3.8:
+#    only:
+#      - master
+#      - merge_requests
+#    stage: test
+#    image: python:3.8-buster
+#    script:
+#    - python -m pytest tests
 
 coverage:
     only:
