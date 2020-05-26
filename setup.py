@@ -48,7 +48,8 @@ setup(
                       'bs4',
                       'pytest',
                       'pytest-cov',
-                      'rdflib'
+                      'rdflib',
+                      'h5py'
                       ],
     include_package_data=True,
 )
