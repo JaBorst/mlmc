@@ -7,46 +7,47 @@ stages:
   - deploy
 
 
-
-
-test_python3.7:
-    only:
-      - master
-      - merge_requests
-    stage: test
-    image: python:3.7.5-slim-buster
-    script:
-    - python -m pytest tests
-
-test_python3.8:
-    only:
-      - master
-      - merge_requests
-    stage: test
-    image: python:3.8-buster
-    script:
-    - python -m pytest tests
-
-coverage:
-    only:
-        refs:
-        - master
-        - merge_requests
-    image: python:3.7.5-slim-buster
-    stage: test
-    script:
-      - pytest --cov=mlmc --cov-report xml
-      - coverage report
-
-#pypi_deploy:
-#  stage: deploy
-#  only:
-#    - tags
-#  image: python:3.7-stretch
-#  before_script:
-#    - pip install -r requirements.txt
-#    - python setup.py sdist bdist_wheel
 #
-#  script:
-#    - twine upload -u $PYPI_USER -p $PYPI_PASSWORD dist/*
+#
+#test_python3.7:
+#    only:
+#      - master
+#      - merge_requests
+#    stage: test
+#    image: python:3.7.5-slim-buster
+#    script:
+#    - python -m pytest tests
+#
+#test_python3.8:
+#    only:
+#      - master
+#      - merge_requests
+#    stage: test
+#    image: python:3.8-buster
+#    script:
+#    - python -m pytest tests
+#
+#coverage:
+#    only:
+#        refs:
+#        - master
+#        - merge_requests
+#    image: python:3.7.5-slim-buster
+#    stage: test
+#    script:
+#      - pytest --cov=mlmc --cov-report xml
+#      - coverage report
+
+pypi_deploy:
+  stage: deploy
+  only:
+    - tags
+    - dev
+  image: python:3.7-stretch
+  before_script:
+    - pip install -r requirements.txt
+    - python setup.py sdist bdist_wheel
+
+  script:
+    - twine upload -u $PYPI_USER -p $PYPI_PASSWORD dist/*
 

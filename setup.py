@@ -23,7 +23,7 @@ with open("mlmc/_version.py", "w") as f:
     f.write(f"__version__='{version}'")
 
 setup(
-    name='mlmc',
+    name='melmac',
     python_requires='>=3.6',
     version=version,
     packages=['mlmc',
