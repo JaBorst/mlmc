@@ -13,11 +13,14 @@ elif os.environ.get('CI_JOB_ID'):
 else:
     try:
         # Get latest git tag
-        result = subprocess.run("git for-each-ref --sort=-taggerdate --count=1 --format '%(tag)' refs/tags", shell=True, stdout=subprocess.PIPE)
+        result = subprocess.run("git describe --tags", shell=True, stdout=subprocess.PIPE)
         version = result.stdout.decode('utf-8')[1:-1] + "-local"
     except:
         version = "local"
 
+
+with open("mlmc/_version.py", "w") as f:
+    f.write(f"__version__='{version}'")
 
 setup(
     name='mlmc',
