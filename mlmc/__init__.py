@@ -15,5 +15,5 @@ import mlmc.models
 import mlmc.graph
 import mlmc.metrics
 import mlmc.representation
-# Save and load models for inference without the language models representaition to save disc space
+# Save and load models for inference
 from .save_and_load import save, load
