@@ -336,6 +336,7 @@ def load_blurbgenrecollection_de():
             for i in soup.findAll("book"):
                 text.append(i.find("body").text)
                 labels.append([x.text for x in i.find("categories").findAll("topic")])
+            labels = list(list(set(x)) for x in labels)
             if purpose == "dev":
                 data["valid"] = (text, labels)
             else:
