@@ -458,6 +458,135 @@ def load_agnews():
         _save_to_tmp("agnews", (data, classes))
         return data, classes
 
+def load_dbpedia():
+    url = "https://github.com/le-scientifique/torchDatasets/raw/master/dbpedia_csv.tar.gz"
+    data = _load_from_tmp("dbpedia")
+    if data is not None:
+        return data
+    else:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            resp = urlopen(url)
+            tf = tarfile.open(fileobj=resp, mode="r|gz")
+            tf.extractall(Path(tmpdir))
+            testdir = Path(tmpdir) / 'dbpedia_csv/test.csv'
+            traindir = Path(tmpdir) / 'dbpedia_csv/train.csv'
+            classesdir = Path(tmpdir) / 'dbpedia_csv/classes.txt'
+#
+            with open(testdir, "r", encoding="iso-8859-1") as f:
+                testdata = [x.replace("\n", "").split(',') for x in f.readlines()]
+                testlabel = [int(x[0]) for x in testdata]
+                testtitle = [x[1] for x in testdata]
+                testdescription = [x[2] for x in testdata]
+                testtext = [" \n ".join([t, d]) for t, d in zip(testtitle, testdescription)]
+            with open(traindir, "r", encoding="iso-8859-1") as f:
+                traindata = [x.replace("\n", "").split(',') for x in f.readlines()]
+                trainlabel = [int(x[0]) for x in traindata]
+                traintitle = [x[1] for x in traindata]
+                traindescription = [x[2] for x in traindata]
+                traintext = [" \n ".join([t, d]) for t, d in zip(traintitle, traindescription)]
+            with open(classesdir,"r") as f:
+                classes = [x.replace("\n","") for x in f.readlines()]
+                classes = dict(zip(classes, range(len(classes))))
+                rev_classes = {v: k for k, v in classes.items()}
+        data = {
+            "train": (traintext, [[rev_classes[x-1]] for x in trainlabel]),
+            "test": (testtext, [[rev_classes[x-1]] for x in testlabel]),
+            "test_title": testtitle,
+            "test_description": testdescription,
+            "train_title": traintitle,
+            "train_description": traindescription
+        }
+        _save_to_tmp("dbpedia", (data, classes))
+        return data, classes
+
+def load_ohsumed():
+    url = "http://disi.unitn.eu/moschitti/corpora/ohsumed-first-20000-docs.tar.gz"
+    url_classes = "http://disi.unitn.eu/moschitti/corpora/First-Level-Categories-of-Cardiovascular-Disease.txt"
+    data = _load_from_tmp("ohsumed")
+    if data is not None:
+        return data
+    else:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            resp = urlopen(url)
+            tf = tarfile.open(fileobj=resp, mode="r|gz")
+            tf.extractall(Path(tmpdir))
+            testdir = Path(tmpdir) / 'ohsumed-first-20000-docs/test'
+            traindir = Path(tmpdir) / 'ohsumed-first-20000-docs/training'
+
+            testdict = {}
+            for catg in testdir.iterdir():
+                catg_name = int(catg.name[1:].replace("0", ""))
+                for file in catg.iterdir():
+                    if file.name not in testdict:
+                        testdict[file.name] = [catg_name]
+                    else:
+                        if int(catg_name) not in testdict[file.name]:
+                            testdict[file.name].append(catg_name)
+
+            traindict = {}
+            for catg in traindir.iterdir():
+                catg_name = int(catg.name[1:].replace("0", ""))
+                for file in catg.iterdir():
+                    if file.name not in traindict:
+                        traindict[file.name] = [catg_name]
+                    else:
+                        if int(catg_name) not in traindict[file.name]:
+                            traindict[file.name].append(catg_name)
+
+            testdata, testlabel, testlist = [], [], []
+            for catg in testdir.iterdir():
+                for file in catg.iterdir():
+                    if file.name not in testlist:
+                        testlist.append(file.name)
+                        with open(file, 'r') as f:
+                            testdata.append(f.read().split(("\n"), 1))
+                            testlabel.append(testdict.get(file.name))
+            testtitle = [x[0] for x in testdata]
+            testdescription = [x[1].replace("\n", "").strip() for x in testdata]
+            testtext = [" \n ".join([t, d]) for t, d in zip(testtitle, testdescription)]
+
+            traindata, trainlabel, trainlist = [], [], []
+            for catg in traindir.iterdir():
+                for file in catg.iterdir():
+                    if file.name not in trainlist:
+                        trainlist.append(file.name)
+                        with open(file, 'r') as f:
+                            traindata.append(f.read().split(("\n"), 1))
+                            trainlabel.append(traindict.get(file.name))
+            traintitle = [x[0] for x in traindata]
+            traindescription = [x[1].replace("\n", "").strip() for x in traindata]
+            traintext = [" \n ".join([t, d]) for t, d in zip(traintitle, traindescription)]
+
+            classes_file = urlopen(url_classes).read().decode("utf-8")
+            classes_file = classes_file.split("\n")
+            classes_list = [x[:-3].strip() for x in classes_file]
+            classes_list.pop()
+            classes = dict(zip(classes_list, range(len(classes_list))))
+            rev_classes = {v: k for k, v in classes.items()}
+
+            testlabellist, trainlabellist, tmp = [], [], []
+            for x in testlabel:
+                for v in x:
+                    tmp.append(rev_classes[v-1])
+                testlabellist.append(tmp)
+                tmp = []
+
+            for x in trainlabel:
+                for v in x:
+                    tmp.append(rev_classes[v-1])
+                trainlabellist.append(tmp)
+                tmp = []
+        data = {
+            "train": (traintext, trainlabellist),
+            "test": (testtext, testlabellist),
+            "test_title": testtitle,
+            "test_description": testdescription,
+            "train_title": traintitle,
+            "train_description": traindescription
+        }
+        _save_to_tmp("ohsumed", (data, classes))
+        return data, classes
+
 def export(data, classes, path=Path("./export")):
     path = Path(path)
     if not path.exists():
