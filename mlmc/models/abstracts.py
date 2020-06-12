@@ -7,6 +7,7 @@ from ..representation.labels import makemultilabels
 
 from ..representation import threshold_mcut, threshold_hard,threshold_max
 
+from ..data import SingleLabelDataset,MultiLabelDataset
 
 class TextClassificationAbstract(torch.nn.Module):
     """
@@ -96,12 +97,16 @@ class TextClassificationAbstract(torch.nn.Module):
         from ignite.metrics import Average
         from ..metrics import PrecisionK, AccuracyTreshold
 
+
+        assert not (type(data)== SingleLabelDataset and self.target=="multi"), "You inserted a SingleLabelDataset but chose multi as target."
+        assert not (type(data) == MultiLabelDataset and self.target=="single"), "You inserted a MultiLabelDataset but chose single as target."
+
         multilabel_metrics = {
             "p@1": PrecisionK(k=1, is_multilabel=True, average=True),
             "p@3": PrecisionK(k=3, is_multilabel=True, average=True),
             "p@5": PrecisionK(k=5, is_multilabel=True, average=True),
-            "tr@0.5": AccuracyTreshold(trf=threshold_hard, args_dict={"tr": 0.5}),
-            "mcut": AccuracyTreshold(trf=threshold_mcut),
+            "tr@0.5": AccuracyTreshold(trf=threshold_hard, args_dict={"tr": 0.5}, is_multilabel=True),
+            "mcut": AccuracyTreshold(trf=threshold_mcut, is_multilabel=True),
             "auc_roc": AUC_ROC(len(self.classes), return_roc=return_roc),
         }
         if return_report:
@@ -114,7 +119,7 @@ class TextClassificationAbstract(torch.nn.Module):
             del multilabel_metrics["p@3"]
 
         singlelabel_metrics = {
-            "accuracy":  AccuracyTreshold(threshold_max)
+            "accuracy":  AccuracyTreshold(threshold_max, is_multilabel=False)
         }
 
         metrics = multilabel_metrics
@@ -177,6 +182,10 @@ class TextClassificationAbstract(torch.nn.Module):
 
         validation=[]
         train_history = {"loss": []}
+
+        assert not (type(train)== SingleLabelDataset and self.target=="multi"), "You inserted a SingleLabelDataset but chose multi as target."
+        assert not (type(train) == MultiLabelDataset and self.target=="single"), "You inserted a MultiLabelDataset but chose single as target."
+
 
         best_loss = 10000000
         last_best_loss_update=0
