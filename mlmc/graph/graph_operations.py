@@ -65,7 +65,7 @@ def subgraphs(classes, graph, depth=1, model="glove50", topk=10,  allow_non_alig
     import re
 
     e = Embedder(model, device=device, return_device=device)
-    classes_tokens = [" ".join(re.split("[/ _-]", x.lower())) for x in classes.keys()]
+    classes_tokens = [" ".join(re.split("[/ _.-]", x.lower())) for x in classes.keys()]
 
     class_embeddings = torch.stack([x.mean(-2) for x in e.embed(classes_tokens, None)],0)
 

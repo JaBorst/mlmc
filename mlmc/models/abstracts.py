@@ -100,8 +100,8 @@ class TextClassificationAbstract(torch.nn.Module):
             "p@1": PrecisionK(k=1, is_multilabel=True, average=True),
             "p@3": PrecisionK(k=3, is_multilabel=True, average=True),
             "p@5": PrecisionK(k=5, is_multilabel=True, average=True),
-            "tr@0.5": AccuracyTreshold(trf=threshold_hard, args_dict={"tr": 0.5}, is_multilabel=True),
-            "mcut": AccuracyTreshold(trf=threshold_mcut, is_multilabel=True),
+            "tr@0.5": AccuracyTreshold(trf=threshold_hard, args_dict={"tr": 0.5}),
+            "mcut": AccuracyTreshold(trf=threshold_mcut),
             "auc_roc": AUC_ROC(len(self.classes), return_roc=return_roc),
         }
         if return_report:
@@ -114,7 +114,7 @@ class TextClassificationAbstract(torch.nn.Module):
             del multilabel_metrics["p@3"]
 
         singlelabel_metrics = {
-            "accuracy":  AccuracyTreshold(threshold_max, is_multilabel=False)
+            "accuracy":  AccuracyTreshold(threshold_max)
         }
 
         metrics = multilabel_metrics
@@ -273,6 +273,7 @@ class TextClassificationAbstract(torch.nn.Module):
 
         """
         self.eval()
+
         if not hasattr(self, "classes_rev"):
             self.classes_rev = {v: k for k, v in self.classes.items()}
         x = self.transform(x).to(self.device)

@@ -12,11 +12,12 @@ class PrecisionK(Precision):
         super(PrecisionK, self).update((transformed, output[1]))
 
 
-class AccuracyTreshold(Accuracy):
-    def __init__(self, trf, args_dict={}, *args, **kwargs):
+class AccuracyTreshold():
+    def __init__(self, trf, args_dict={}):
         self.trf = trf
         self.args_dict = args_dict
-        super(AccuracyTreshold, self).__init__(*args, **kwargs)
-
+        self.l = []
     def update(self, output):
-        super(AccuracyTreshold, self).update((self.trf(x=output[0], **self.args_dict), output[1]))
+        self.l.extend((self.trf(output[0], **self.args_dict) == output[1]).all(-1).tolist())
+    def compute(self):
+        return sum(self.l)/len(self.l)
