@@ -97,4 +97,3 @@ def test_AccuracyTresholdMultiThreshold():
 
     d.update(example2)
     assert d.compute() == 0.5
-
