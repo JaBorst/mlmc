@@ -11,7 +11,7 @@ for your cuda setup. Download the right version from
 
 Install with
 ```
-pip install git+https://git.informatik.uni-leipzig.de/asv-ml/mlmc@v0.1.1
+pip install git+https://git.informatik.uni-leipzig.de/asv-ml/mlmc@v0.1.2
 ```
 
 ## Documentation
