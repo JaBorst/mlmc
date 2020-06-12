@@ -282,6 +282,9 @@ class TextClassificationAbstract(torch.nn.Module):
 
         """
         self.eval()
+        print(self.training)
+        if self.target =="single":
+            method=="max"
 
         if not hasattr(self, "classes_rev"):
             self.classes_rev = {v: k for k, v in self.classes.items()}
@@ -309,7 +312,7 @@ class TextClassificationAbstract(torch.nn.Module):
             A list of labels
 
         """
-        train_loader = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=True)
+        train_loader = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=False)
         predictions = []
         for b in tqdm(train_loader, ncols=100):
             predictions.extend(self.predict(b["text"], tr=tr, method=method))
