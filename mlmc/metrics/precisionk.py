@@ -11,13 +11,11 @@ class PrecisionK(Precision):
         transformed = torch.zeros_like(output[0]).scatter(1, torch.topk(output[0], k=self.k)[1], 1)
         super(PrecisionK, self).update((transformed, output[1]))
 
-
-class AccuracyTreshold():
-    def __init__(self, trf, args_dict={}):
+class AccuracyTreshold(Accuracy):
+    def __init__(self, trf, args_dict={}, *args, **kwargs):
         self.trf = trf
         self.args_dict = args_dict
-        self.l = []
+        super(AccuracyTreshold, self).__init__(*args, **kwargs)
+
     def update(self, output):
-        self.l.extend((self.trf(output[0], **self.args_dict) == output[1]).all(-1).tolist())
-    def compute(self):
-        return sum(self.l)/len(self.l)
+        super(AccuracyTreshold, self).update((self.trf(x=output[0], **self.args_dict), output[1]))
