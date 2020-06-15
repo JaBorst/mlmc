@@ -50,6 +50,11 @@ class TextClassificationAbstract(torch.nn.Module):
         if loss is not None:
             self.loss = loss
 
+        assert not(self.loss is torch.nn.BCEWithLogitsLoss and target=="single"),\
+            "You are using BCE with a single label target. Not possible, please use torch.nn.CrossEntropy with a single label target."
+        assert not(self.loss is torch.nn.CrossEntropyLoss and target=="multi"),\
+            "You are using CrossEntropy with a multi label target. Not possible, please use torch.nn.BCELossWithLogits with a multi label target."
+
         self.device = device
         self.optimizer = optimizer
         self.optimizer_params = optimizer_params
@@ -282,6 +287,8 @@ class TextClassificationAbstract(torch.nn.Module):
 
         """
         self.eval()
+        if self.target =="single":
+            method=="max"
 
         if not hasattr(self, "classes_rev"):
             self.classes_rev = {v: k for k, v in self.classes.items()}
@@ -309,7 +316,7 @@ class TextClassificationAbstract(torch.nn.Module):
             A list of labels
 
         """
-        train_loader = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=True)
+        train_loader = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=False)
         predictions = []
         for b in tqdm(train_loader, ncols=100):
             predictions.extend(self.predict(b["text"], tr=tr, method=method))

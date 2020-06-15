@@ -55,7 +55,7 @@ def test_AccuracyTresholdSingleThreshold():
 def test_AccuracyTresholdMultiIdentity():
     d = AccuracyTreshold(lambda x: x, is_multilabel=True)
 
-    example1 = (torch.tensor([[0, 1, 0], [0, 1, 0]]), torch.tensor([[0,1,1], [0,0,1]]))
+    example1 = (torch.tensor([[0, 1, 1], [0, 1, 0]]), torch.tensor([[0,1,1], [0,0,1]]))
     example2 = (torch.tensor([[0, 1, 0], [0, 1, 0]]), torch.tensor([[0,1,0], [0,1,0]]))
 
     d.update(example1)
