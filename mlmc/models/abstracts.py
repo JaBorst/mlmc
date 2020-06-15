@@ -282,7 +282,6 @@ class TextClassificationAbstract(torch.nn.Module):
 
         """
         self.eval()
-        print(self.training)
         if self.target =="single":
             method=="max"
 
