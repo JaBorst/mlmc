@@ -50,6 +50,11 @@ class TextClassificationAbstract(torch.nn.Module):
         if loss is not None:
             self.loss = loss
 
+        assert not(self.loss is torch.nn.BCEWithLogitsLoss and target=="single"),\
+            "You are using BCE with a single label target. Not possible, please use torch.nn.CrossEntropy with a single label target."
+        assert not(self.loss is torch.nn.CrossEntropyLoss and target=="multi"),\
+            "You are using CrossEntropy with a multi label target. Not possible, please use torch.nn.BCELossWithLogits with a multi label target."
+
         self.device = device
         self.optimizer = optimizer
         self.optimizer_params = optimizer_params
