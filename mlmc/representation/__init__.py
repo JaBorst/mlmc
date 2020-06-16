@@ -35,3 +35,5 @@ from .label_embeddings import get_word_embedding_mean, get_lm_generated, get_lm_
 from .embedder import Embedder
 
 from .output_transformations import threshold_mcut, threshold_hard, threshold_max
+
+from .TokenizerWrapper import TokenizerWrapper
