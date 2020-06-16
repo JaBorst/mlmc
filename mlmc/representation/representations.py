@@ -186,6 +186,7 @@ def get_embedding(name, **kwargs):
     tokenizer = get_white_space_tokenizer(vocabulary)
     return e, tokenizer
 
+import pathlib
 
 def get_transformer(model="bert", **kwargs):
     """
@@ -197,12 +198,18 @@ def get_transformer(model="bert", **kwargs):
     Returns:  A tuple of embedding and corresponding tokenizer
 
     """
-    model_class, tokenizer_class, pretrained_weights = MODELS.get(model,(None,None,None))
+    if pathlib.Path(model).exists() and pathlib.Path(model).is_dir():
+        model_class, tokenizer_class, pretrained_weights = AutoModel, AutoTokenizer, model
+    else:
+        model_class, tokenizer_class, pretrained_weights = MODELS.get(model,(None,None,None))
+
     if model_class is None:
         print("Model is not a transformer...")
         return None
     else:
         # Load pretrained model/tokenizer
+        # from .TokenizerWrapper import TokenizerWrapper
+        # tokenizer = TokenizerWrapper(tokenizer_class, pretrained_weights)
         tokenizer = tokenizer_class.from_pretrained(pretrained_weights)
 
         def list_tokenizer(x, maxlen=500, return_start=False):
@@ -221,7 +228,8 @@ def get_transformer(model="bert", **kwargs):
             return i
 
         model = model_class.from_pretrained(pretrained_weights, **kwargs)
-        return model, list_tokenizer
+        # from .TokenizerWrapper import TokenizerWrapper
+        return model, list_tokenizer,
 
 def get(model, **kwargs):
     """
