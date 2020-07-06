@@ -1,4 +1,5 @@
 import torch
+from pkg_resources import _by_version_descending
 from tqdm import tqdm
 
 from ..metrics.multilabel import MultiLabelReport, AUC_ROC
@@ -7,9 +8,12 @@ from ..representation.labels import makemultilabels
 
 from ..representation import threshold_mcut, threshold_hard,threshold_max
 
-from ..data import SingleLabelDataset,MultiLabelDataset
+from ..data import SingleLabelDataset,MultiLabelDataset,MultiOutputMultiLabelDataset,MultiOutputSingleLabelDataset
+import re
 
-class TextClassificationAbstract(torch.nn.Module):
+
+
+class TextClassificationAbstractMultiOutput(torch.nn.Module):
     """
     Abstract class for Multilabel Models. Defines fit, evaluate, predict and threshold methods for virtually any
     multilabel training.
@@ -19,7 +23,7 @@ class TextClassificationAbstract(torch.nn.Module):
         transform(): If self.tokenizer exists the default method wil use this to transform text into the models input
 
     """
-    def __init__(self, target="multi", activation=None, loss=None, optimizer=torch.optim.Adam, optimizer_params={"lr": 5e-5}, device="cpu", **kwargs):
+    def __init__(self, n_outputs, aggregation="mean", weights = None, target="single", finetune=False, activation=None, loss=None, optimizer=torch.optim.Adam, optimizer_params={"lr": 5e-5}, device="cpu", **kwargs):
         """
         Abstract initializer of a Text Classification network.
         Args:
@@ -31,12 +35,17 @@ class TextClassificationAbstract(torch.nn.Module):
             optimizer_params: A dictionary of optimizer parameters
             device: torch device, destination of training (cpu or cuda:0)
         """
-        super(TextClassificationAbstract,self).__init__(**kwargs)
+        super(TextClassificationAbstractMultiOutput,self).__init__(**kwargs)
 
         assert target in ("multi", "single"), 'target must be one of "multi" or "single"'
 
         # Setting default values for learning mode
         self.target = target
+        self.class_weights = weights
+        self.n_outputs = n_outputs
+        self.use_amp=False
+        self.finetune = finetune
+
         if target == "single":
             self.activation = torch.softmax
             self.loss = torch.nn.CrossEntropyLoss
@@ -44,11 +53,15 @@ class TextClassificationAbstract(torch.nn.Module):
             self.activation = torch.sigmoid
             self.loss = torch.nn.BCEWithLogitsLoss
 
+        self.aggregation = aggregation
+
         # If there were external arguments we will use them
         if activation is not None:
-            self.activation = activation
+            print("This has no effect as of yet")
+            # self.activation = activation
         if loss is not None:
-            self.loss = loss
+            print("This has no effect as of yet")
+            # self.loss = loss
 
         assert not(self.loss is torch.nn.BCEWithLogitsLoss and target=="single"),\
             "You are using BCE with a single label target. Not possible, please use torch.nn.CrossEntropy with a single label target."
@@ -72,20 +85,15 @@ class TextClassificationAbstract(torch.nn.Module):
         Internal build method.
         """
         if isinstance(self.loss, type) and self.loss is not None:
-            self.loss = self.loss().to(self.device)
+            if self.class_weights is not None:
+                self.loss = [self.loss(torch.FloatTensor(w).to(self.device)) for w in self.class_weights]
+            else:
+                self.loss = [self.loss() for _ in range(self.n_outputs)]
         if isinstance(self.optimizer, type) and self.optimizer is not None:
             self.optimizer = self.optimizer(filter(lambda p: p.requires_grad, self.parameters()), **self.optimizer_params)
         self.to(self.device)
 
-    def evaluate_classes(self, classes_subset=None, **kwargs):
-        """wrapper for evaluation function if you just want to evaluate on subsets of the classes."""
-        if classes_subset is None:
-            return self.evaluate(**kwargs)
-        else:
-            mask = makemultilabels([list(classes_subset.values())], maxlen=len(self.classes))
-            return self.evaluate(**kwargs, mask=mask)
-
-    def evaluate(self, data, batch_size=50, return_roc=False, return_report=False, mask=None):
+    def evaluate(self, data, batch_size=50, return_roc=False, return_report=False):
         """
         Evaluation, return accuracy and loss and some multilabel measure
 
@@ -103,29 +111,32 @@ class TextClassificationAbstract(torch.nn.Module):
         from ..metrics import PrecisionK, AccuracyTreshold
 
 
-        assert not (type(data)== SingleLabelDataset and self.target=="multi"), "You inserted a SingleLabelDataset but chose multi as target."
-        assert not (type(data) == MultiLabelDataset and self.target=="single"), "You inserted a MultiLabelDataset but chose single as target."
+        assert not (type(data)== MultiOutputSingleLabelDataset and self.target=="multi"), "You inserted a SingleLabelDataset but chose multi as target."
+        assert not (type(data) == MultiOutputMultiLabelDataset and self.target=="single"), "You inserted a MultiLabelDataset but chose single as target."
 
-        multilabel_metrics = {
-            "p@1": PrecisionK(k=1, is_multilabel=True, average=True),
-            "p@3": PrecisionK(k=3, is_multilabel=True, average=True),
-            "p@5": PrecisionK(k=5, is_multilabel=True, average=True),
-            "tr@0.5": AccuracyTreshold(trf=threshold_hard, args_dict={"tr": 0.5}, is_multilabel=True),
-            "mcut": AccuracyTreshold(trf=threshold_mcut, is_multilabel=True),
-            "auc_roc": AUC_ROC(len(self.classes), return_roc=return_roc),
-        }
+
+        multilabel_metrics = [{
+            f"p@1_{i}": PrecisionK(k=1, is_multilabel=True, average=True),
+            f"p@3_{i}": PrecisionK(k=3, is_multilabel=True, average=True),
+            f"p@5_{i}": PrecisionK(k=5, is_multilabel=True, average=True),
+            f"tr@0.5_{i}": AccuracyTreshold(trf=threshold_hard, args_dict={"tr": 0.5}, is_multilabel=True),
+            f"mcut_{i}": AccuracyTreshold(trf=threshold_mcut, is_multilabel=True),
+            f"auc_roc_{i}": AUC_ROC(len(self.classes), return_roc=return_roc),
+        } for i in range(len(self.n_classes))]
+
         if return_report:
-            multilabel_metrics["report"] = MultiLabelReport(self.classes, trf=threshold_mcut) \
-                if mask is None else MultiLabelReport(self.classes, trf=threshold_mcut, check_zeros=True)
+            for i, k in enumerate(multilabel_metrics):
+                k[f"report_{i}"] = MultiLabelReport(self.classes, trf=threshold_hard, tr=0.5)
 
         if len(self.classes) <= 5:
-            del multilabel_metrics["p@5"]
+            for i, d in enumerate(multilabel_metrics): del d[f"p@5_{i}"]
         if len(self.classes) <= 3:
-            del multilabel_metrics["p@3"]
+            for i, d in enumerate(multilabel_metrics): del d[f"p@3_{i}"]
 
-        singlelabel_metrics = {
-            "accuracy":  AccuracyTreshold(threshold_max, is_multilabel=False)
-        }
+        singlelabel_metrics = [{
+            f"accuracy_{i}":  AccuracyTreshold(threshold_max, is_multilabel=False),
+            f"report_{i}": MultiLabelReport(self.classes[i],threshold_max)
+        } for i in range(len(self.n_classes))]
 
         metrics = multilabel_metrics
         if self.target == "single":
@@ -137,31 +148,34 @@ class TextClassificationAbstract(torch.nn.Module):
             for i, b in enumerate(data_loader):
                 y = b["labels"]
                 x = self.transform(b["text"])
-                output = self(x.to(self.device)).cpu()
-                if hasattr(self, "regularize"):
-                    l = self.loss(output, y) + self.regularize()
-                else:
-                    l = self.loss(output, y)
-                output = self.act(output)
+                output = self(x.to(self.device))
+                l = torch.stack([l(o , t) for l, o, t in zip(self.loss,output, y.to(self.device).transpose(0, 1))])
+                if self.aggregation == "sum":
+                    l = l.sum()
+                if self.aggregation == "mean":
+                    l = l.mean()
 
-                # Subset evaluation if ...
-                if mask is not None:
-                    output = output * mask
-                    y = y * mask
+                if hasattr(self, "regularize"):
+                    l = l + self.regularize()
 
                 average.update(l.item())
-                for v in metrics.values():
-                    v.update((output, y))
+                output = [o.cpu() for o in output]
+                for o, t, m in zip(output,y.transpose(0, 1), metrics):
+                    for k,v in m.items():
+                        if self.target == "single" and "report" in k:
+                            v.update((o, torch.nn.functional.one_hot(t,o.shape[-1])))
+                        else:
+                            v.update((o, t))
         self.train()
 
         results = {"valid_loss": round(average.compute().item(), 2*self.PRECISION_DIGITS)}
-        results.update({k: round(v.compute(), self.PRECISION_DIGITS) if isinstance(v.compute(), float) else v.compute() for k, v in metrics.items()})
+        for val in metrics: results.update({k: round(v.compute(), self.PRECISION_DIGITS) if isinstance(v.compute(), float) else v.compute() for k, v in val.items()})
 
         return results
 
     def fit(self, train,
-            valid=None, epochs=1, batch_size=16, valid_batch_size=50, classes_subset=None, patience=-1, tolerance=1e-2,
-            return_roc=False, return_report=False):
+            valid=None, epochs=1, batch_size=16, valid_batch_size=50, patience=-1, tolerance=1e-2,
+            return_roc=False, return_report=False, reg=[".*"]):
         """
         Training function
 
@@ -188,8 +202,8 @@ class TextClassificationAbstract(torch.nn.Module):
         validation=[]
         train_history = {"loss": []}
 
-        assert not (type(train)== SingleLabelDataset and self.target=="multi"), "You inserted a SingleLabelDataset but chose multi as target."
-        assert not (type(train) == MultiLabelDataset and self.target=="single"), "You inserted a MultiLabelDataset but chose single as target."
+        assert not (type(train)== MultiOutputSingleLabelDataset and self.target=="multi"), "You inserted a SingleLabelDataset but chose multi as target."
+        assert not (type(train) == MultiOutputMultiLabelDataset and self.target=="single"), "You inserted a MultiLabelDataset but chose single as target."
 
 
         best_loss = 10000000
@@ -208,10 +222,14 @@ class TextClassificationAbstract(torch.nn.Module):
 
                     x = self.transform(b["text"]).to(self.device)
                     output = self(x)
+                    l = torch.stack([l(o, t) for l,o,t in zip(self.loss,output,y.transpose(0,1))])
+
+                    if self.aggregation == "sum":
+                        l = l.sum()
+                    if self.aggregation == "mean":
+                        l = l.mean()
                     if hasattr(self, "regularize"):
-                        l = self.loss(output, y) + self.regularize()
-                    else:
-                        l = self.loss(output, y)
+                        l = l + self.regularize()
                     l.backward()
 
                     self.optimizer.step()
@@ -220,16 +238,27 @@ class TextClassificationAbstract(torch.nn.Module):
                     pbar.update()
                 # torch.cuda.empty_cache()
                 if valid is not None:
-                    validation.append(self.evaluate_classes(classes_subset=classes_subset,
-                                                           data=valid,
-                                                           batch_size=valid_batch_size,
-                                                           return_report= return_report,
-                                                           return_roc=return_roc))
+                    validation.append(self.evaluate(data=valid,
+                                                    batch_size=valid_batch_size,
+                                                    return_report= return_report,
+                                                    return_roc=return_roc)
+                                      )
                     printable = validation[-1].copy()
+                    reg = [reg] if isinstance(reg, str) else reg
+                    combined = "(" + ")|(".join(reg) + ")" if len(reg) > 1 else reg[0]
+                    printable = {k:x for k,x in printable.items()  if re.match(combined, k) or k=="valid_loss"}
                     if return_roc==True:
                         printable["auc_roc"] = (printable["auc_roc"][0], "...")
                     if return_report==True:
-                        printable["report"] = (printable["report"]["micro avg"])
+                        for k in list(printable.keys()):
+                            if "report" in k:
+                                printable[k+"_weighted"] = printable[k]["weighted avg"]
+                                printable[k+"_macro"] = printable[k]["macro avg"]
+                                del printable[k]
+                    else:
+                        for k in list(printable.keys()):
+                            if "report" in k:
+                                del printable[k]
 
                     pbar.postfix[0].update(printable)
                     pbar.update()
@@ -288,17 +317,20 @@ class TextClassificationAbstract(torch.nn.Module):
         """
         self.eval()
         if self.target =="single":
-            method=="max"
+            method="max"
 
         if not hasattr(self, "classes_rev"):
-            self.classes_rev = {v: k for k, v in self.classes.items()}
+            self.classes_rev = [{v: k for k, v in classes.items()} for classes in self.classes]
         x = self.transform(x).to(self.device)
-        with torch.no_grad(): output = self.act(self(x))
-        prediction = self.threshold(output, tr=tr, method=method)
+        with torch.no_grad(): output = [self.act(o) for o in  self(x)]
+        predictions = [self.threshold(o, tr=tr, method=method) for o in output]
         self.train()
         if return_scores:
-            return [[(self.classes_rev[i.item()], s[i].item()) for i in torch.where(p==1)[0]] for s, p in zip(output,prediction)]
-        return [[self.classes_rev[i.item()] for i in torch.where(p==1)[0]] for p in prediction]
+            labels = [[[(d[i.item()], s[i].item())  for i in torch.where(p == 1)[0]] for s, p in zip(o1,prediction)] for d, prediction, o1 in zip(self.classes_rev, predictions, output)]
+        else:
+            labels = [[[d[i.item()] for i in torch.where(p == 1)[0]] for p in prediction] for d, prediction in
+                      zip(self.classes_rev, predictions)]
+        return list(zip(*labels))
 
     def predict_dataset(self, data, batch_size=50, tr=0.5, method="hard"):
         """
@@ -371,17 +403,19 @@ class TextClassificationAbstract(torch.nn.Module):
             try:
                 if self.n_layers == 1:
                     self.embedding, self.tokenizer = get(model=self.representation)
-                    self.embeddings_dim = self.embedding(torch.tensor([[0]]))[0].shape[-1]
+                    self.embeddings_dim = self.embedding(input_ids=torch.tensor([[0]]))[0].shape[-1]
                 else:
                     self.embedding, self.tokenizer = get(model=self.representation, output_hidden_states=True)
                     self.embeddings_dim = \
-                        torch.cat(self.embedding(self.embedding.dummy_inputs["input_ids"])[2][-self.n_layers:], -1).shape[-1]
+                        torch.cat(self.embedding(input_ids=self.embedding.dummy_inputs["input_ids"])[2][-self.n_layers:], -1).shape[-1]
             except TypeError:
                 print("If your using a model that does not support returning hiddenstates, set n_layers=1")
                 import sys
                 sys.exit()
-            for param in self.embedding.parameters(): param.requires_grad = False
-
+            for param in self.embedding.parameters(): param.requires_grad = self.finetune
+            if self.finetune:
+                # self.embedding = torch.quantization.quantize(self.embedding, dtype=torch.float16)
+                self.embedding.requires_grad=True
         else:
             self.embedding, self.tokenizer = get(self.representation, freeze=True)
             self.embeddings_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
@@ -401,3 +435,20 @@ class TextClassificationAbstract(torch.nn.Module):
               "Fixed:\t%i\n"
               "-----------\n"
               "Total:\t%i" % (trainable, total-trainable,total))
+
+    def predict_restricted(self, x, restrictions):
+        self.eval()
+        if not hasattr(self, "classes_rev"):
+            self.classes_rev = [{v: k for k, v in classes.items()} for classes in self.classes]
+        x = self.transform(x).to(self.device)
+        with torch.no_grad():
+            output = [self.act(o) for o in self(x)]
+
+        triple_indices = [[self.classes[i][x] for i,x in enumerate(triple)] for triple in restrictions]
+        scores = [[(triple, sum([o[0][i] for o, i in zip(output, triple)]).item() ) for triple in triple_indices] for n in range(output[0].shape[0])]
+        for i in range(len(scores)):
+            scores[i].sort(key=lambda x: x[1], reverse=True)
+        prediction = [tuple([[self.classes_rev[i][x]] for i, x in enumerate(x[0][0])]) for x in scores]
+        self.train()
+
+        return prediction
