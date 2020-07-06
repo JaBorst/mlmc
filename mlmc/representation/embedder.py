@@ -40,8 +40,56 @@ class Embedder:
         self.device = device
         self.emb = self.emb.to(self.device)
         self.return_device = return_device
-        assert method in ("first_token",)
-        self.method = method
+
+        self.methods =  ("first_token", "all", "sentence", "pool")
+        assert method in self.methods
+        self.set_method(method)
+
+        self.maxlen=500
+
+    def set_method(self, m=None):
+        if m is None:
+            print(f"m should be one of the following: {self.methods}")
+            return False
+        assert m in self.methods, f"m should be one of the following: {self.methods}"
+
+        self.method = m
+        return True
+
+    def _get_all(self, sentences, pad):
+        t = self.tok(x=sentences, return_start=False, maxlen=self.maxlen, pad=True, as_mask=False, add_special_tokens=False)
+        with torch.no_grad():
+            embeddings = self.emb(t.to(self.device))[0].to(self.return_device)
+        embeddings = [e[i] for e, i in zip(embeddings, t !=self.tok.tokenizer.pad_token_id)]
+        return self._pad_it(embeddings,pad)
+
+    def _get_first_token(self, sentences, pad):
+        t, ind = self.tok(x=sentences, return_start=True,maxlen=self.maxlen, pad=True, as_mask=False, add_special_tokens=False)
+        with torch.no_grad():
+            embeddings = self.emb(t.to(self.device))[0].to(self.return_device)
+        embeddings =  [e[i[i < embeddings.shape[1]]] for e, i in zip(embeddings, ind)]
+        return self._pad_it(embeddings,pad)
+
+    def _get_sentence(self, sentences, pad):
+        t = self.tok(x=sentences, return_start=False, maxlen=self.maxlen, pad=True, as_mask=False, add_special_tokens=False)
+        with torch.no_grad():
+            embeddings = self.emb(t.to(self.device))[1].to(self.return_device)
+        return embeddings
+
+    def _get_pool(self, sentences, pad):
+        t, ind = self.tok(x=sentences, return_start=True, maxlen=self.maxlen, pad=True, as_mask=False, add_special_tokens=False)
+        with torch.no_grad():
+            embeddings = self.emb(t.to(self.device))[0].to(self.return_device)
+        embeddings = [torch.stack([e[start:end].max(0)[0] for start,end in zip(i.tolist(), i.tolist()[1:] + [i[-1]+5 if i[-1]+5 <embeddings.shape[1] else None] )]) for e, i in zip(embeddings, ind) ]
+        return self._pad_it(embeddings,pad)
+
+    def _pad_it(self, emb: List, pad):
+        if pad is not None:
+            padded = torch.zeros(len(emb) if isinstance(emb,list) else emb.shape[0], pad, emb[0][0].shape[-1])
+            for i, e in enumerate(emb):
+                padded[i, :min(e.shape[0], pad), :] = e[:min(e.shape[0], pad)]
+            emb = padded
+        return emb
 
     def embed(self, sentences: List, pad=None):
         """
@@ -52,15 +100,14 @@ class Embedder:
         """
 
         if is_transformer(self.representation):
-            t, ind = self.tok(sentences, return_start=True)
-            with torch.no_grad():
-                embeddings = self.emb(t.to(self.device))[0].to(self.return_device)
-            embeddings = [e[i]for e, i in zip(embeddings, ind)]
-            if pad is not None:
-                r = torch.zeros((len(embeddings), pad, embeddings[0].shape[-1]))
-                for i, e in enumerate(embeddings):
-                    r[i, :min(e.shape[0] - 1, pad), :] = e[min(e.shape[0] - 1, pad)]
-                embeddings = r
+            if self.method == "all":
+                embeddings = self._get_all(sentences, pad=pad)
+            elif self.method == "first_token":
+                embeddings = self._get_first_token(sentences, pad=pad)
+            elif self.method == "sentence":
+                embeddings = self._get_sentence(sentences, pad=pad)
+            elif self.method == "pool":
+                embeddings = self._get_pool(sentences, pad=pad)
         else:
             s_length = [len(x.split()) for x in sentences]
             t = self.tok(sentences, pad if pad is not None else max(s_length))
