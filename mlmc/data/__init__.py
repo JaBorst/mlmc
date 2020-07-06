@@ -225,6 +225,83 @@ class SingleLabelDataset(MultiLabelDataset):
         return {'text': self.x[idx], 'labels': torch.tensor(self.classes[self.y[idx][0]])}
 
 
+class MultiOutputMultiLabelDataset(MultiLabelDataset):
+    def __init__(self, classes, x, y,target_dtype=torch._cast_Float, **kwargs):
+        super(MultiLabelDataset, self).__init__( **kwargs)
+        if isinstance(classes, dict):
+            self.classes = [classes.copy() for _ in range(len(y[0]))]
+        else:
+            self.classes = classes
+
+        assert isinstance(y[0][0], list), "Each element of a multiple out multilabel dataset has to be a list"
+
+        assert len(y[0]) == len(self.classes), "Number of labels and number of class dicts do not agree"
+
+        assert len(set([len(labelset) for labelset in y])) == 1, \
+            "Not all instances have the same number of labels."
+        self.target_dtype = torch._cast_Float
+        self.x = x
+        self.y = y
+
+    def __getitem__(self, item):
+        result = { "text": self.x[item]}
+        label_one_hot = [torch.stack([torch.nn.functional.one_hot(torch.tensor(x[label]),len(x)) for label in labelset],0) for x, labelset in zip(self.classes, self.y[item])]
+        result.update({f"labels_{i}":v for i , v in enumerate(label_one_hot)})
+        return result
+
+
+class MultiOutputSingleLabelDataset(MultiLabelDataset):
+    def __init__(self, classes, x, y=None,target_dtype=torch._cast_Float, **kwargs):
+        super(MultiLabelDataset, self).__init__( **kwargs)
+        if y is not None:
+            if isinstance(classes, dict):
+                self.classes = [classes.copy() for _ in range(len(y[0]))]
+            else:
+                self.classes = classes
+
+            assert len(y[0]) == len(self.classes), "Number of labels and number of class dicts do not agree"
+
+            assert len(set([len(labelset) for labelset in y])) == 1, \
+                "Not all instances have the same number of labels."
+        self.target_dtype = torch._cast_Float
+        self.x = x
+        self.y = y
+
+    def __getitem__(self, item):
+        if self.y is None:
+            return {'text': self.x[item]}
+        else:
+            return {'text': self.x[item], 'labels': torch.tensor([d[y] for d, y in zip(self.classes,self.y[item])])}
+
+    def reduce(self, subset):
+        assert len(subset) == len(self.classes), "Subset and existing classes have varying outputsizes"
+        assert all([all([x in c.keys() for x in s.keys()]) for s,c in  zip(subset, self.classes)]), "Subset contains classes not present in dataset"
+
+
+        keep = [i for i,labelset in enumerate(self.y) if all(x in y.keys() for x,y in zip(labelset, subset))]
+        self.x = [self.x[i] for i in keep]
+        self.y = [self.y[i] for i in keep]
+        self.classes = subset
+
+    def __add__(self, o):
+        new_classes = [list(set( list(c1.keys()) +  list(c2.keys()) )) for c1, c2 in zip(self.classes,o.classes)]
+        new_classes = [dict(zip(c, range(len(c)))) for c in new_classes]
+
+        new_data = list(set(self.x + o.x))
+        new_labels = [[] for _ in range(len(new_data))]
+
+        for i, x in enumerate(self.x):
+            new_labels[new_data.index(x)]=self.y[i]
+
+        for i, x in enumerate(o.x):
+            new_labels[new_data.index(x)]=o.y[i]
+
+        assert all([len(l)==len(new_classes) for l in new_labels]), "Some data points have mor label than allowed outputs exist"
+
+
+        return MultiOutputSingleLabelDataset(x=new_data, y=new_labels, classes=new_classes)
+
+
 
 #-------------------------------------------------------------------------------------
 
