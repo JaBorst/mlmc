@@ -1,5 +1,6 @@
 import torch
 from tqdm import tqdm
+from collections.abc import Iterable
 
 from ..metrics.multilabel import MultiLabelReport, AUC_ROC
 from ..representation import is_transformer, get
@@ -8,6 +9,11 @@ from ..representation.labels import makemultilabels
 from ..representation import threshold_mcut, threshold_hard,threshold_max
 
 from ..data import SingleLabelDataset,MultiLabelDataset
+
+try:
+    from apex import amp
+except:
+    pass
 
 class TextClassificationAbstract(torch.nn.Module):
     """
@@ -19,7 +25,7 @@ class TextClassificationAbstract(torch.nn.Module):
         transform(): If self.tokenizer exists the default method wil use this to transform text into the models input
 
     """
-    def __init__(self, target="multi", activation=None, loss=None, optimizer=torch.optim.Adam, optimizer_params={"lr": 5e-5}, device="cpu", **kwargs):
+    def __init__(self, target="multi", activation=None, loss=None, optimizer=torch.optim.Adam, optimizer_params={"lr": 5e-5}, device="cpu", finetune=False, **kwargs):
         """
         Abstract initializer of a Text Classification network.
         Args:
@@ -54,7 +60,8 @@ class TextClassificationAbstract(torch.nn.Module):
             "You are using BCE with a single label target. Not possible, please use torch.nn.CrossEntropy with a single label target."
         assert not(self.loss is torch.nn.CrossEntropyLoss and target=="multi"),\
             "You are using CrossEntropy with a multi label target. Not possible, please use torch.nn.BCELossWithLogits with a multi label target."
-
+        self.use_amp = False
+        self.finetune=finetune
         self.device = device
         self.optimizer = optimizer
         self.optimizer_params = optimizer_params
@@ -116,7 +123,7 @@ class TextClassificationAbstract(torch.nn.Module):
         }
         if return_report:
             multilabel_metrics["report"] = MultiLabelReport(self.classes, trf=threshold_mcut) \
-                if mask is None else MultiLabelReport(self.classes, trf=threshold_mcut, check_zeros=True)
+                if mask is None else MultiLabelReport(self.classes, trf=threshold_hard, check_zeros=True, tr=0.5)
 
         if len(self.classes) <= 5:
             del multilabel_metrics["p@5"]
@@ -137,11 +144,14 @@ class TextClassificationAbstract(torch.nn.Module):
             for i, b in enumerate(data_loader):
                 y = b["labels"]
                 x = self.transform(b["text"])
-                output = self(x.to(self.device)).cpu()
+                output = self(x).cpu()
                 if hasattr(self, "regularize"):
                     l = self.loss(output, y) + self.regularize()
                 else:
                     l = self.loss(output, y)
+
+                if self.use_amp:
+                    l =  amp.scale_loss(l, self.optimizer)
                 output = self.act(output)
 
                 # Subset evaluation if ...
@@ -206,13 +216,17 @@ class TextClassificationAbstract(torch.nn.Module):
                     self.optimizer.zero_grad()
                     y = b["labels"].to(self.device)
 
-                    x = self.transform(b["text"]).to(self.device)
+                    x = self.transform(b["text"])
                     output = self(x)
                     if hasattr(self, "regularize"):
                         l = self.loss(output, y) + self.regularize()
                     else:
                         l = self.loss(output, y)
-                    l.backward()
+                    if self.use_amp:
+                        with amp.scale_loss(l, self.optimizer) as scaled_loss:
+                            scaled_loss.backward()
+                    else:
+                        l.backward()
 
                     self.optimizer.step()
                     average.update(l.item())
@@ -288,11 +302,11 @@ class TextClassificationAbstract(torch.nn.Module):
         """
         self.eval()
         if self.target =="single":
-            method=="max"
+            method="max"
 
         if not hasattr(self, "classes_rev"):
             self.classes_rev = {v: k for k, v in self.classes.items()}
-        x = self.transform(x).to(self.device)
+        x = self.transform(x)
         with torch.no_grad(): output = self.act(self(x))
         prediction = self.threshold(output, tr=tr, method=method)
         self.train()
@@ -363,7 +377,7 @@ class TextClassificationAbstract(torch.nn.Module):
                                            "transform(self, x)  method yourself. TOkenizer can be allocated with " \
                                            "embedder, tokenizer = mlmc.helpers.get_embedding() or " \
                                            "embedder, tokenizer = mlmc.helpers.get_transformer()"
-        return self.tokenizer(x,self.max_len)
+        return self.tokenizer(x, maxlen=self.max_len).to(self.device)
 
     def _init_input_representations(self):
         if is_transformer(self.representation):
@@ -380,8 +394,9 @@ class TextClassificationAbstract(torch.nn.Module):
                 print("If your using a model that does not support returning hiddenstates, set n_layers=1")
                 import sys
                 sys.exit()
-            for param in self.embedding.parameters(): param.requires_grad = False
-
+            for param in self.embedding.parameters(): param.requires_grad = self.finetune
+            if self.finetune:
+                self.embedding.requires_grad = True
         else:
             self.embedding, self.tokenizer = get(self.representation, freeze=True)
             self.embeddings_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
