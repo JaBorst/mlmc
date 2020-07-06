@@ -87,7 +87,7 @@ def load_nasa():
         rg = RDFGraph()
         rg = rg.parse(data=content)
         literal_triples = transform_triples(rg)
-        g = nx.DiGraph()
+        g = nx.OrderedDiGraph()
         for triple in literal_triples:
             for u in triple[0]:
                 for v in triple[2]:
@@ -110,7 +110,7 @@ def load_gesis():
         rg = RDFGraph()
         rg = rg.parse(data = content)
         literal_triples = transform_triples(rg)
-        g = nx.DiGraph()
+        g = nx.OrderedDiGraph()
         for triple in literal_triples:
             for u in triple[0]:
                 for v in triple[2]:
@@ -134,7 +134,7 @@ def load_stw():
         stw_ids = [str(x).split("/")[-1] for x in rg.all_nodes() if "zb" in str(x)]
         descriptions = get_wikidata_desc(stw_ids)
         literal_triples = transform_triples(rg)
-        g = nx.DiGraph()
+        g = nx.OrderedDiGraph()
         for triple in tqdm(literal_triples):
             u,p,v = triple
             if isinstance(p, list):
@@ -202,7 +202,7 @@ def load_wordnet():
         from nltk.corpus import wordnet as wn
     except:
         print("To use this function you have to install nltk.")
-    G = nx.DiGraph()
+    G = nx.OrderedDiGraph()
     for ss in wn.all_synsets():
         if ss.hypernyms() != []:
             for hypernym in ss.hypernyms():
@@ -223,7 +223,7 @@ def load_wordnet_sample(num=1000):
         from nltk.corpus import wordnet as wn
     except:
         print("To use this function you have to install nltk.")
-    G = nx.DiGraph()
+    G = nx.OrderedDiGraph()
     i=0
     for ss in wn.all_synsets():
         if ss.hypernyms() != []:
@@ -255,7 +255,7 @@ def load_NELL():
             x = content.decode().split("\n")
 
             import networkx as nx
-            G = nx.DiGraph()
+            G = nx.OrderedDiGraph()
             for line in x[1:]:
                 test = line.split("\t")
                 if len(test) < 10: continue

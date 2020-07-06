@@ -83,7 +83,7 @@ def subgraphs(classes, graph, depth=1, model="glove50", topk=10,  allow_non_alig
     if not allow_non_alignment:
         assert len(augmented) == len([x for x,v in augmented.items() if len(v) > 0]), \
             "Not every class could be aligned in the graph: "+ ", ".join([x for x,v in augmented.items() if len(v) == 0])
-    subgraph = nx.DiGraph()
+    subgraph = nx.OrderedDiGraph()
     subgraph.add_nodes_from(classes.keys(), type="label")
     for key, nodes in augmented.items():
         for n in nodes:
