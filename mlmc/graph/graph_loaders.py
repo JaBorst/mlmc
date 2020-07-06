@@ -17,8 +17,10 @@ def transform(x, rg, lang="en"):
     if isinstance(x, rdflib.term.URIRef):
         from rdflib.namespace import SKOS
         if str(SKOS) in str(x): return [x.split("#")[-1]]
+        # elif "zbw.eu" in str(x): return ["stw_"+ x.split("/")[-1]]
+        elif "wikidata" in str(x): return[str(x)]
         else:
-            return [str(l[1]) for l in rg.preferredLabel(x) if l[1].language==lang]
+            return ([str(l[1]) for l in rg.preferredLabel(x) if l[1].language==lang], "stw_"+ x.split("/")[-1])
     elif isinstance(x, rdflib.term.Literal):
         if x.language != lang: return None
         else: return [str(x)]
@@ -33,7 +35,30 @@ def transform_triples(rg,lang="en"):
                 if (not (any([r==[] for r in x]) or any([r is None for r in x]))) and ( "prefLabel" not in x[1])]
     return new_list
 
+def get_wikidata_desc(x):
+    import requests
+    output = []
 
+    batch_size = 150
+    for ind in tqdm(list(range(0,len(x),batch_size))):
+        batch = x[ind:(ind+batch_size)]
+        clause = '||'.join(['?att="'+i+'"' for i in batch if len(i) < 10])
+
+        query = f"SELECT ?item ?itemLabel ?att ?itemDescription" \
+                f"        WHERE{{?item wdt:P3911 ?att." \
+                f"              Filter ({clause}). " \
+                f"SERVICE wikibase:label {{ bd:serviceParam wikibase:language \"[AUTO_LANGUAGE],en\".}}}}"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
+
+        r = requests.get('https://query.wikidata.org/sparql', params={'format': 'json', 'query': query},headers=headers)
+        data = r.json()
+
+        for item in data['results']['bindings']:
+            output.append(dict({
+                label: item[label]['value'] for label in item.keys() if label in item}))
+    descriptions = {d["att"]: d["itemLabel"] + " is a " + d["itemDescription"] for d in output if "itemDescription" in d.keys()}
+    return descriptions
 
 def load_mesh():
 
@@ -99,20 +124,63 @@ def load_stw():
     if data is not None:
         return data
     else:
-        url = "https://aspra29.informatik.uni-leipzig.de:9090/stw.rdf.zip"
+        url = "https://aspra29.informatik.uni-leipzig.de/stw.rdf.zip"
         response = urlopen(url)
         zf = ZipFile(BytesIO(response.read()))
         with zf.open("stw.rdf") as f:
             content = f.read()
         rg = RDFGraph()
         rg = rg.parse(data=content)
+        stw_ids = [str(x).split("/")[-1] for x in rg.all_nodes() if "zb" in str(x)]
+        descriptions = get_wikidata_desc(stw_ids)
         literal_triples = transform_triples(rg)
         g = nx.DiGraph()
-        for triple in literal_triples:
-            for u in triple[0]:
-                for v in triple[2]:
-                    for p in triple[1]:
-                        g.add_edge(u, v, label=p)
+        for triple in tqdm(literal_triples):
+            u,p,v = triple
+            if isinstance(p, list):
+                pr = p[0]
+            if isinstance(p, tuple):
+                pr = p[1]
+            if pr == "inScheme" or pr == "historyNote" or u == [] or v ==[] or p ==[] or p[0]==[]:
+                continue
+            else:
+                if u[0] == [] or v[0] == []: continue
+                if isinstance(u,tuple):
+                    if u[1].split("_")[-1] in descriptions:
+                        g.add_node(u[0][0], stw=u[1].split("_")[-1], description=descriptions[u[1].split("_")[-1]])
+                    else:
+                        g.add_node(u[0][0], stw=u[1].split("_")[-1])
+                    m=u[0]
+                else:
+                    m=u
+                if isinstance(v, tuple):
+                    if v[1].split("_")[-1] in descriptions:
+                        g.add_node(v[0][0], stw=v[1].split("_")[-1], description=descriptions[v[1].split("_")[-1]])
+                    else:
+                        g.add_node(v[0][0], stw=v[1].split("_")[-1])
+                    n=v[0]
+                else:
+                    n=v
+                g.add_edge(m[0], n[0], label=pr)
+        url2 ="https://aspra29.informatik.uni-leipzig.de/stw_wikidata_mapping.rdf.zip"
+        response = urlopen(url2)
+        zf = ZipFile(BytesIO(response.read()))
+        with zf.open("stw_wikidata_mapping.rdf") as f:
+            content = f.read()
+        rg2 = RDFGraph()
+        rg2 = rg2.parse(data=content)
+        mapping = transform_triples(rg2, "en")
+        mapping = [(str(x[0][0]),str(x[2][0][0])) if "wikidata.org" in str(x[0][0]) else (str(x[2][0]),str(x[0][0][0])) for x in mapping if "Match" in x[1][0]]
+
+        for wid, node in mapping:
+            g.node[node]["wikidata"] = wid
+
+        from .graph_operations import augment_wikiabstracts
+        g = augment_wikiabstracts(g)
+        try:
+            g.remove_node("STW Thesaurus for Economics")
+        except:
+            pass
         _save_to_tmp("stw",g)
         return g
 
