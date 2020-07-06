@@ -73,18 +73,21 @@ def subgraphs(classes, graph, depth=1, model="glove50", topk=10,  allow_non_alig
     scores = []
     for batch in e.embed_batch_iterator(list(graph.nodes), batch_size=batch_size):
         scores.append(cos(class_embeddings, torch.stack([x.mean(-2) for x in batch],0)).t())
-
     scores = torch.cat(scores, 0)
+    scores[torch.isnan(scores)] = 0
+
     similar_nodes = scores.topk(topk, dim=0)[1].t().cpu()
     augmented = {k:[list(graph.nodes)[x.item()] for x in v] for k,v in zip(classes.keys(), similar_nodes)}
+
 
     if not allow_non_alignment:
         assert len(augmented) == len([x for x,v in augmented.items() if len(v) > 0]), \
             "Not every class could be aligned in the graph: "+ ", ".join([x for x,v in augmented.items() if len(v) == 0])
     subgraph = nx.DiGraph()
-    subgraph.add_nodes_from(classes.keys())
+    subgraph.add_nodes_from(classes.keys(), type="label")
     for key, nodes in augmented.items():
         for n in nodes:
+            subgraph.add_node(n, **graph.nodes(True)[n])
             subgraph.add_edge(key,n)
 
     current_nodes = list(subgraph.nodes)[len(classes):]
@@ -94,6 +97,7 @@ def subgraphs(classes, graph, depth=1, model="glove50", topk=10,  allow_non_alig
         for u, v_dict in next_level.items():
             for v, l in v_dict.items():
                 next_nodes.append(v)
+                subgraph.add_node(v, **graph.nodes(True)[v])
                 subgraph.add_edge(u,v, label=l["label"])
         current_nodes = next_nodes
 
@@ -102,11 +106,7 @@ def subgraphs(classes, graph, depth=1, model="glove50", topk=10,  allow_non_alig
         for k, v in graph.adj.get(node,{}).items():
             if k in subgraph.nodes:
                 subgraph.add_edge(node, k, label=v["label"])
-
-
-    matrix = e.embed(list(subgraph.nodes), pad=4)
-
-    return subgraph, matrix
+    return subgraph
 
 
 def plot_activation(graph, classes, scores, tr, target=None, title = None, layout="lgl", options={}):
@@ -150,3 +150,44 @@ def plot_activation(graph, classes, scores, tr, target=None, title = None, layou
         igraph.plot(g,target, **visual_style)
     else:
         return igraph.plot(g, **visual_style)
+
+from tqdm import tqdm
+import requests
+import string
+def augment_wikiabstracts(graph):
+    abstracts = {}
+    batch_size = 20
+    for ind in tqdm(list(range(0, len(graph), batch_size))):
+        batch = list(graph)[ind:(ind + batch_size)]
+        batch_mapping = {n:"".join([i for i in n.replace("&amp;"," and ") if i in string.ascii_letters+" &"]).split("  ")[-1] for n in batch}
+        url = "https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro&explaintext&redirects=1&titles=" + "|".join(batch_mapping.values())
+        r = requests.get(url)
+        data = r.json()
+        mappings = {}
+        if "redirects" in data["query"]:
+            mappings = {x["from"]:x["to"] for x in data["query"]["redirects"]}
+
+        extract_dict = {v["title"]:{"extract": v["extract"], "pageid": v["pageid"]} for k,v in data["query"]["pages"].items() if int(k)>0}
+        for b in batch:
+            if mappings.get(batch_mapping[b],batch_mapping[b]) in extract_dict.keys():
+                abstracts[b] = extract_dict.get(mappings.get(batch_mapping[b],batch_mapping[b]))
+    nx.set_node_attributes(graph, abstracts)
+    return graph
+
+def ascii_graph(graph):
+    import string
+    from copy import deepcopy
+    def char_string(text):
+        if isinstance(text, int) or isinstance(text, float): text = str(text)
+        if not isinstance(text, str): return text
+        return ''.join([i if i in string.ascii_letters+string.digits+" " else " " for i in text ])
+    def char_dict(d):
+        return {char_string(k):char_string(v) for k, v in d.items()}
+
+    new_graph = deepcopy(graph)
+    new_graph = nx.relabel.relabel_nodes(new_graph, {x:char_string(x) for x in graph.nodes()})
+
+    nx.set_node_attributes(new_graph,
+                        {x:{char_string(k):char_string(v) if not isinstance(v, dict) else char_dict(v) for k,v in att.items()} for x,att in dict(new_graph.nodes(True)).items()}
+                             )
+    return new_graph
