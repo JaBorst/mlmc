@@ -1,5 +1,7 @@
 import torch
 import transformers
+import string
+import re
 
 import time
 def timeit(method):
@@ -15,7 +17,7 @@ def timeit(method):
 
 
 class TokenizerWrapper():
-    def __init__(self, tokenizer_class, path):
+    def __init__(self, tokenizer_class, path, cased=False):
         self.tokenizer = tokenizer_class.from_pretrained(path)
 
         tmp = self.tokenizer.encode("a")
@@ -25,6 +27,9 @@ class TokenizerWrapper():
         else:
             self._bos = []
             self._eos = []
+
+        self._umlautmap = {ord(x):y for x,y in zip("öäüÖÄÜ", "oauOAU")}
+        self.cased = cased
 
     def _tokenize_without_index(self, x):
         x = [x] if isinstance(x, str) else x
@@ -47,22 +52,32 @@ class TokenizerWrapper():
         text = re.sub('</w>$', '', text)  # XLM models
         return text
     def _compare(self, tokens, wp):
+        assert len(tokens) > 0, "Empty string input to Embedder"
         tokens_iter = iter(tokens)
         ids = []
         token = next(tokens_iter)
-        for i,w in enumerate(wp):
-            if token.startswith(self._remove_special_markup(w)):
-                ids.append(i)
-            if token != tokens[-1]:
-                token=next(tokens_iter)
+        try:
+            for i,w in enumerate(wp):
+                if token.startswith(self._remove_special_markup(w).upper()):
+                    ids.append(i)
+                    token = next(tokens_iter)
+        except StopIteration:
+            pass
         if token != tokens[-1]:
             print("Alignment mismatch")
+        if len(tokens) != len(ids):
+            print("Alignment Mismatch between length of ids and length of tokens")
         return torch.tensor(ids)
 
     def _tokenize_with_index(self, x):
         x = [x] if isinstance(x, str) else x
+        if not self.cased:
+            x = [sentence.translate(self._umlautmap).lower() for sentence in x]
+        else:
+            x = [sentence.translate(self._umlautmap) for sentence in x]
 
-        split_sentences = [w.split(" ") for w in x]
+
+        split_sentences = [w.upper().split() for w in x]# <- This is not perfect
 
         # ts = time.time()
         # tokenized = self.tokenizer.batch_encode_plus(x, pad_to_max_length=False)["input_ids"]
@@ -94,8 +109,9 @@ class TokenizerWrapper():
 
     def _pad_to_maxlen(self, x, maxlen):
         r = torch.nn.utils.rnn.pad_sequence(x, batch_first=True, padding_value=self.tokenizer.pad_token_id)
-        r = r[:, :min(maxlen, r.shape[-1])]
-        return r
+        padded = torch.zeros(r.shape[0], maxlen).long() + self.tokenizer.pad_token_id
+        padded[:, :min(maxlen, r.shape[-1])] = r[:, :min(maxlen, r.shape[-1])]
+        return padded
 
     def _ids_to_mask(self, ids, shape):
         mask = torch.zeros(shape)
@@ -104,7 +120,7 @@ class TokenizerWrapper():
         return mask == 1.
 
     # @timeit
-    def tokenize(self, x, return_start=False, maxlen=200, pad=True, as_mask=True, add_special_tokens=False):
+    def tokenize(self, x, maxlen=500, return_start=False, pad=True, as_mask=True, add_special_tokens=False):
         assert not(return_start and not pad and as_mask), "Returning start ids as mask only possible for padded tokenized output"
         self.add_special_tokens = add_special_tokens
         if return_start:
@@ -119,3 +135,8 @@ class TokenizerWrapper():
             if pad:
                 r = self._pad_to_maxlen(r, maxlen)
         return r
+    def __call__(self, *args, **kwargs):
+        return self.tokenize(*args, **kwargs)
+
+
+
