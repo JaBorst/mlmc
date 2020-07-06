@@ -5,6 +5,8 @@ Submodule containing implementations of neural network models for Multilabel Arc
 # Well Tested
 from .XMLCNN import XMLCNN
 from .KimCNN import KimCNN
+from .MoKimCNN import MoKimCNN
+from .MoKimCNNhierarchical import MoKimCNNH
 
 #LSAN Variants
 from .LSAN import LSANOriginal
@@ -14,6 +16,8 @@ from .LSANOriginalTransformer import LSANOriginalTransformer
 # Geometric Models
 try:
     from .ZAGCNN import ZAGCNN
+    from .MoZAGCNNLM import MoZAGCNNLM
+    from .MoTransformer import MoTransformer
     from .ZAGCNNLM import ZAGCNNLM
     from .SKG_ML import SKG
 except:
@@ -22,3 +26,16 @@ except:
 
 from .LSANOriginalTransformerNoClasses import LSANOriginalTransformerNoClasses
 from .lm_mogrifier import MogrifierLMCharacter, MogrifierLMWord
+
+
+def finetune_mixed_precision_model(model, finetune=True):
+    try:
+        from apex import amp
+        model.use_amp=True
+        opt = model.optimizer.__class__(filter(lambda p: p.requires_grad, model.parameters()), **model.optimizer_params)
+        model, opt = amp.initialize(model, opt,opt_level="O2",
+   keep_batchnorm_fp32=True, loss_scale="dynamic")
+        model.optimizer = opt
+    except ModuleNotFoundError:
+        model.use_amp = False
+    return model
