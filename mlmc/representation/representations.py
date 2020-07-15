@@ -18,13 +18,17 @@ EMBEDDINGCACHE = Path.home() / ".mlmc" / "embedding"
 EMBEDDINGCACHEINDEX = Path.home() / ".mlmc" / "embedding" / "index.txt"
 EMBEDDINGCACHEMODELS = Path.home() / ".mlmc" / "models.txt"
 
-if not(EMBEDDINGCACHEMODELS).exists():
+
+def reload_transformers():
     import requests
     import re
     s = requests.get("https://huggingface.co/models")
     with open(EMBEDDINGCACHEMODELS, "w") as f:
         f.writelines([x + "\n" for x in re.findall("<a href=\"/(\S{5,50})\"", s.text)][8:])
 
+
+if not(EMBEDDINGCACHEMODELS).exists():
+    reload_transformers()
 with open(EMBEDDINGCACHEMODELS, "r") as f:
     MODELS = {k.replace("\n", ""): (AutoModel, AutoTokenizer, k.replace("\n","")) for k in f.readlines()}
 
@@ -34,6 +38,7 @@ for k, v in {"bert": (BertModel, BertTokenizer, 'bert-large-uncased'),
              "ctrl": (CTRLModel, CTRLTokenizer, 'ctrl'),
              "distilbert": (DistilBertModel, DistilBertTokenizer, 'distilbert-base-uncased'),
              "roberta": (RobertaModel, RobertaTokenizer, 'roberta-base'),
+             # "electra-small": (AutoModel, AutoModelWithLMHead, "google/electra-small-generator")
              }.items():
     if k not in MODELS.keys():
         MODELS[k]=v
@@ -168,7 +173,7 @@ def map_vocab(query, vocab, maxlen):
     return result
 
 def get_white_space_tokenizer(v):
-    def tokenizer(x, maxlen=500):
+    def tokenizer(x, maxlen=500, pad=True):
         x = [x] if isinstance(x, str) else x
         x = [s.lower().split() for s in x]
         return map_vocab(x, v, maxlen).long()
@@ -220,7 +225,6 @@ def get_transformer(model="bert", **kwargs):
         model_class, tokenizer_class, pretrained_weights = MODELS.get(model,(None,None,None))
 
     if model_class is None:
-        print("Model is not a transformer...")
         return None
     else:
         # Load pretrained model/tokenizer
@@ -260,8 +264,10 @@ def get(model, **kwargs):
         module = get_embedding(model, **kwargs)
         if module is None:
             raise FileNotFoundError
+        # print("Loaded Static Embedding")
         return module
     else:
+        # print("Loaded Transformer Embedding")
         return module
 
 def is_transformer(name):
