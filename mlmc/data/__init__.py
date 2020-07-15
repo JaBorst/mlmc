@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 import torch
 from .data_loaders  import load_eurlex, load_wiki30k, load_huffpost, load_aapd, load_rcv1, \
     load_moviesummaries,load_blurbgenrecollection, load_blurbgenrecollection_de, load_20newsgroup,export,\
-    load_agnews, load_dbpedia, load_ohsumed
+    load_agnews, load_dbpedia, load_ohsumed, load_yahoo_answers
 
 # String Mappings
 register = {
@@ -21,7 +21,8 @@ register = {
     "20newsgroup": load_20newsgroup,
     "agnews": load_agnews,
     "dbpedia": load_dbpedia,
-    "ohsumed": load_ohsumed
+    "ohsumed": load_ohsumed,
+    "yahoo_answers": load_yahoo_answers,
 }
 
 
@@ -158,6 +159,9 @@ class MultiLabelDataset(Dataset):
         emptylabelsets = [i for i, x in enumerate(self.y) if x == []]
         self.x = [ x for i,x in enumerate(self.x) if i not in emptylabelsets]
         self.y = [ x for i,x in enumerate(self.y) if i not in emptylabelsets]
+
+        new_classes = [x for x in self.classes.keys() if x not in classes]
+        self.classes = dict(zip(new_classes, range(len(new_classes))))
 
     def map(self, map: dict):
         """
@@ -317,37 +321,37 @@ def get_dataset(name, type, ensure_valid=False, valid_split=0.25, target_dtype=t
     :param target_dtype: Target Tensortype of the label multihot representation. (default torch.FloatTensor)
     :return: a dictionary with keys: "train", "valid" and "test" and additional information the dataset provides (graphs, maps, classes,..)
     """
-    data, classes = register.get(name, None)()
-    if data is None:
-        Warning("data not found")
-        return None
-    else:
-        if "valid" not in data.keys():
-            print("No Validation data found.")
-            if ensure_valid:
-                print("Providing random split...")
-                from sklearn.model_selection import train_test_split
-                splits_from_train = train_test_split(*data["train"], test_size=valid_split)
-                train=[splits_from_train[0],splits_from_train[2]]
-                valid = [splits_from_train[1],splits_from_train[3]]
-                data["train"]=train
-                data["valid"]=valid
-            else:
-                data["valid"]= None
-        datasets = {
-            split: type(x=data[split][0],
-                                     y=data[split][1],
-                                     classes=classes,
-                                     purpose=split,
-                                     target_dtype=target_dtype) if data[split] is not None else None
-        for split in ["test","train","valid"]
-        }
-        for k in data.keys():
-            if k not in ["test", "train", "valid"]:
-                datasets[k] = data[k]
-        datasets["classes"]=classes
+    f =  register.get(name, None)
+    assert f is not None, "Dataset name not found"
 
-        return datasets
+    data, classes = f()
+
+    if "valid" not in data.keys():
+        print("No Validation data found.")
+        if ensure_valid:
+            print("Providing random split...")
+            from sklearn.model_selection import train_test_split
+            splits_from_train = train_test_split(*data["train"], test_size=valid_split)
+            train=[splits_from_train[0],splits_from_train[2]]
+            valid = [splits_from_train[1],splits_from_train[3]]
+            data["train"]=train
+            data["valid"]=valid
+        else:
+            data["valid"]= None
+    datasets = {
+        split: type(x=data[split][0],
+                                 y=data[split][1],
+                                 classes=classes,
+                                 purpose=split,
+                                 target_dtype=target_dtype) if data[split] is not None else None
+    for split in ["test","train","valid"]
+    }
+    for k in data.keys():
+        if k not in ["test", "train", "valid"]:
+            datasets[k] = data[k]
+    datasets["classes"]=classes
+
+    return datasets
 
 ## Wrapper for multilabel datasets
 def get_multilabel_dataset(name, target_dtype=torch._cast_Float):

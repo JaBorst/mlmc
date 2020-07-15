@@ -147,7 +147,7 @@ def load_rcv1(path=None):
     import re
     edges = [(re.split(" +", x)[1], re.split(" +", x)[3]) for x in content]
     edges = [(topicmap.get(x[0],x[0]).capitalize(),topicmap.get(x[1],x[1]).capitalize()) for x in edges]
-    graph = nx.DiGraph(edges[1:])
+    graph = nx.OrderedDiGraph(edges[1:])
     data["graph"] = graph
 
 
@@ -309,7 +309,7 @@ def load_blurbgenrecollection():
         classes = list(set([x for y in data["train"][1] + data["valid"][1] + data["test"][1] + edges for x in y]))
         classes = dict(zip(classes, range(len(classes))))
         edges = [e for e in edges if len(e) == 2]
-        graph = nx.DiGraph()
+        graph = nx.OrderedDiGraph()
         graph.add_nodes_from(classes.keys())
         graph.add_edges_from(edges)
         data["graph"] = graph
@@ -346,7 +346,7 @@ def load_blurbgenrecollection_de():
         classes = list(set([x for y in data["train"][1] + data["valid"][1] + data["test"][1] + edges for x in y]))
         classes = dict(zip(classes, range(len(classes))))
         edges = [e for e in edges if len(e) == 2]
-        graph = nx.DiGraph(edges)
+        graph = nx.OrderedDiGraph(edges)
         data["graph"] = graph
         _save_to_tmp("blurbgenrecollection_de", (data, classes))
         return data, classes
@@ -411,7 +411,7 @@ def load_20newsgroup():
                 for x in classes for y in range(len(x.split(".")) - 1)]
             edges += list(set([("ROOT", x.split(".")[0]) for x in classes]))
 
-            graph = nx.DiGraph(edges)
+            graph = nx.OrderedDiGraph(edges)
             data = {"train": traindata, "test": testdata, "graph": graph}
         _save_to_tmp("20newsgroup", (data, classes))
 
@@ -604,3 +604,35 @@ def export(data, classes, path=Path("./export")):
 
     with open(path / "classes.txt", "w") as o:
         o.writelines([x + "\n" for x in classes.keys()])
+
+def load_yahoo_answers():
+    url = (URL+"/yahoo_answers_csv.tar.gz").replace("https","http")
+    data = _load_from_tmp("yahoo_answers")
+    if data is not None:
+        return data
+    else:
+        import csv
+        with tempfile.TemporaryDirectory() as tmpdir:
+            resp = urlopen(url)
+            tf = tarfile.open(fileobj=resp, mode="r|gz")
+            tf.extractall(Path(tmpdir))
+
+            with open(Path(tmpdir) /'yahoo_answers_csv'/'classes.txt',"r") as f:
+                classes = [x.replace("\n","") for x in f.readlines()]
+                classes_rev =dict(zip(range(len(classes)) ,classes))
+                classes = dict(zip(classes, range(len(classes))))
+
+
+
+            with open(Path(tmpdir) /'yahoo_answers_csv'/'test.csv',"r") as f:
+                test = [(",".join([s for s in x[1:] if s != ""]), [classes_rev[int(x[0]) - 1]]) for x in csv.reader(f, dialect="unix")]
+            with open(Path(tmpdir) /'yahoo_answers_csv'/'train.csv', "r") as f:
+                train = [(",".join([s for s in x[1:] if s != ""]), [classes_rev[int(x[0]) - 1]]) for x in csv.reader(f, dialect="unix")]
+
+
+        data = {
+            "train": ([x[0] for x in train], [x[1] for x in train]),
+            "test": ([x[0] for x in test], [x[1] for x in test]),
+        }
+        _save_to_tmp("yahoo_answers", (data, classes))
+        return data, classes
