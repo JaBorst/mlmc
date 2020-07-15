@@ -3,14 +3,14 @@ Multi-Label Zero-Shot Learning with Structured Knowledge Graphs Lee, Fang, Yeh (
 """
 
 import torch
-from ..models.abstracts import TextClassificationAbstract
-from ..layers import  LabelEmbeddingScoring
-from ..representation.representations import get
+from mlmc.models.abstracts import TextClassificationAbstract
+from mlmc.layers import  LabelEmbeddingScoring
+from mlmc.representation.representations import get
 import torch_geometric as torch_g
 
 
 class SKGLM(TextClassificationAbstract):
-    def __init__(self, adjacency, label_embed, classes, static=None, transformer="bert", max_len=300, **kwargs):
+    def __init__(self, label_embed, classes, static=None, transformer="bert", max_len=300, **kwargs):
         super(SKGLM,self).__init__(**kwargs)
         self.classes=classes
         self.n_classes = len(classes)

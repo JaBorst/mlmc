@@ -2,12 +2,15 @@
 Few-Shot and Zero-Shot Multi-Label Learning for Structured Label Spaces - Rios & Kavuluru (2018)
 """
 import torch
-from ..models.abstracts import TextClassificationAbstract
+from ..models.abstracts_graph import TextClassificationAbstractGraph
+from ..models.abstracts_zeroshot import TextClassificationAbstractZeroShot
 from ..representation import get, is_transformer
 import re
+import networkx as nx
 
-class ZAGCNNLM(TextClassificationAbstract):
-    def __init__(self, classes,   adjacency, method, scale, representation="roberta", max_len=200, dropout = 0.5, norm=False, n_layers=4, **kwargs):
+
+class ZAGCNNLM(TextClassificationAbstractGraph, TextClassificationAbstractZeroShot):
+    def __init__(self, classes, method, scale, representation="roberta", max_len=200, dropout = 0.5, norm=False, n_layers=4, **kwargs):
         super(ZAGCNNLM, self).__init__(**kwargs)
 
         self.classes = classes
@@ -17,20 +20,16 @@ class ZAGCNNLM(TextClassificationAbstract):
         self.filters = 300
         self.hidden_dim=512
         self.scale = scale
-        self.kernel_sizes = [3,10]
+        self.kernel_sizes = [3,4,5,6]
         self.dropout = dropout
-        self.adjacency = adjacency
         self.method = method
-        self.adjacency_param = torch.nn.Parameter(torch.from_numpy(adjacency).float())
-        self.adjacency_param.requires_grad = False
         self.n_layers=n_layers
         self.norm = norm
         self.representation = representation
-        self._init_input_representations()
 
-        from ..graph import get as gget
-        self.graph = gget(["stw"])
-        self.create_labels(classes, method=self.method, scale=self.scale)
+        self._init_input_representations()
+        self.label_dict = self.create_label_dict(method=self.method, scale=self.scale)
+        self.create_labels(classes)
 
         self.convs = torch.nn.ModuleList(
             [torch.nn.Conv1d(self.embeddings_dim, self.filters, k) for k in self.kernel_sizes])
@@ -46,12 +45,19 @@ class ZAGCNNLM(TextClassificationAbstract):
         self.build()
 
     def forward(self, x):
-        if self.n_layers == 1:
-            with torch.no_grad():
-                embeddings = self.embedding(x)[0]
+        if self.finetune:
+            if self.n_layers == 1:
+                embeddings = self.embedding(input_ids=x)[0]
+            else:
+                embeddings = torch.cat(self.embedding(input_ids=x)[2][(self.n_layers):], -1)
         else:
             with torch.no_grad():
-                embeddings = torch.cat(self.embedding(x)[2][-self.n_layers:], -1)
+                if self.n_layers == 1:
+                    embeddings = self.embedding(input_ids=x)[0]
+                else:
+                    embeddings = torch.cat(self.embedding(input_ids=x)[2][(self.n_layers):], -1)
+
+
         embedded = self.dropout_layer(embeddings)
         c = torch.cat([self.pool(torch.nn.functional.relu(conv(embedded.permute(0,2,1)))) for conv in self.convs], dim=-1).permute(0,2,1)
         d2 = torch.tanh(self.document_projection(c))
@@ -61,31 +67,39 @@ class ZAGCNNLM(TextClassificationAbstract):
 
         label_wise_representation = self.dropout_layer(label_wise_representation)
 
-        labelgcn = self.gcn1(self.label_embeddings, torch.stack(torch.where(self.adjacency_param == 1), dim=0))
+        labelgcn = self.gcn1(self.label_embeddings, self.adj)
         labelgcn = self.dropout_layer(labelgcn)
-        labelgcn = self.gcn2(labelgcn, torch.stack(torch.where(self.adjacency_param == 1), dim=0))
+        labelgcn = self.gcn2(labelgcn, self.adj)
         labelvectors = torch.cat([self.label_embeddings, labelgcn], dim=-1)
         return (torch.relu(self.projection(label_wise_representation)) * labelvectors).sum(-1)
 
-    def create_labels(self, classes, method="repeat",scale="mean"):
+    def create_label_dict(self, method="repeat",scale="mean"):
         # assert method in ("repeat","generate","embed", "glove", "graph"), 'method has to be one of ("repeat","generate","embed")'
-        self.classes = classes
         if method=="repeat":
             from ..representation import get_lm_repeated
-            l = get_lm_repeated(self.classes, self.representation)
+            with torch.no_grad():
+                l = get_lm_repeated(self.classes, self.representation)
         if method == "generate":
             from ..representation import get_lm_generated
-            l = get_lm_generated(self.classes, self.representation)
+            with torch.no_grad():
+                l = get_lm_generated(self.classes, self.representation)
         if method == "embed":
-            l = self.embedding(self.tokenizer(self.classes.keys()).to(list(self.parameters())[0].device))[1]
+            with torch.no_grad():
+                l = self.embedding(self.tokenizer(self.classes.keys()).to(list(self.parameters())[0].device))[1]
         if method == "glove":
             from ..representation import get_word_embedding_mean
-            l = get_word_embedding_mean(
-                [" ".join(re.split("[/ _-]", x.lower())) for x in self.classes.keys()],
-                "glove300")
-        if method == "graph":
-            from ..representation import get_graph_augmented
-            l = get_graph_augmented(self.classes, graph=self.graph, model=self.representation, topk=200, batch_size=64, device=self.device)
+            with torch.no_grad():
+                l = get_word_embedding_mean(
+                    [" ".join(re.split("[/ _-]", x.lower())) for x in self.classes.keys()],
+                    "glove300")
+        if method == "wiki":
+            from ..graph.graph_operations import augment_wikiabstracts
+            tmp_graph = nx.Graph()
+            tmp_graph.add_nodes_from(self.classes.keys())
+            tmp_graph = augment_wikiabstracts(tmp_graph)
+            ls = [dict(val).get("extract",node)  for node, val in  dict(tmp_graph.nodes(True)).items()]
+            with torch.no_grad():
+                l = self.embedding(self.tokenizer(ls).to(list(self.parameters())[0].device))[1]
 
         if scale=="mean":
             print("subtracting mean")
@@ -93,12 +107,29 @@ class ZAGCNNLM(TextClassificationAbstract):
         if scale == "normalize":
             print("normalizing")
             l = l/l.norm(p=2,dim=-1,keepdim=True)
+        self.label_embeddings_dim = l.shape[-1]
+        return  {w:e for w,e in zip(self.classes, l)}
 
-        self.label_embeddings = torch.nn.Parameter(l.to(self.device))
-        self.label_embeddings.requires_grad = False
-        self.label_embeddings_dim = self.label_embeddings.shape[-1]
+    def create_labels(self, classes):
+        self.classes = classes
+        self.n_classes = len(classes)
 
-    def set_adjacency(self, adj):
-        del self.adjacency_param
-        self.adjacency_param = torch.nn.Parameter(torch.from_numpy(adj).float().to(self.device))
-        self.adjacency_param.requires_grad = False
+        ind = [list(self.kb.nodes).index(k) for k in classes.keys()]
+        tmp_adj = torch.from_numpy(nx.adjacency_matrix(self.kb).toarray()).float()
+
+        tmp_adj = torch.stack([tmp_adj[i] for i in ind])
+        tmp_adj = torch.stack([tmp_adj[:, i] for i in ind], 1)
+        tmp_adj = tmp_adj + torch.eye(tmp_adj.shape[0])
+        self.adj = torch.stack(torch.where(tmp_adj.t() == 1), dim=0).to(self.device)
+
+
+        if hasattr(self, "label_dict"):
+            try:
+                self.label_embeddings = torch.stack([self.label_dict[cls] for cls in classes.keys()])
+            except:
+                self.create_label_dict(method=self.method, scale=self.scale)
+                self.label_embeddings = torch.stack([self.label_dict[cls] for cls in classes.keys()])
+        self.label_embeddings = self.label_embeddings.to(self.device)
+
+
+
