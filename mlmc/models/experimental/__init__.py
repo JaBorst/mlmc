@@ -4,5 +4,4 @@ try:
     from .SKGLM import SKGLMGGC
     from .SKGLMConv import SKGLMConv
 except:
-    print("pytorch_geometric not installed.")
     pass
