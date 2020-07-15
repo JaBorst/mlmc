@@ -2,7 +2,6 @@
 
 import networkx as nx
 import numpy as np
-from node2vec import Node2Vec
 from sklearn import random_projection
 from sklearn.decomposition import NMF
 
@@ -24,6 +23,7 @@ def get_node2vec(graph, classes, dim, return_all=False):
     :param return_all: If True the embedding to every node will be returned. If False only the subset of embeddings for nodes that are in 'classes' will be returned.
     :return: A Matrix of embedding vectors
     """
+    from node2vec import Node2Vec
     node2vec = Node2Vec(graph, dimensions=dim, walk_length=30, num_walks=500, workers=4)
     model = node2vec.fit(window=50, min_count=1, batch_words=4)
     W = model.wv.vectors

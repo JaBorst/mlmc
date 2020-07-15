@@ -44,7 +44,6 @@ setup(
     install_requires=['numpy',
                       'transformers',
                       'nltk',
-                      'node2vec',
                       'scikit-learn',
                       'pytorch-ignite',
                       'tqdm',
