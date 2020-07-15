@@ -33,7 +33,7 @@ setup(
               'mlmc.loss',
               'mlmc.metrics',
               'mlmc.models',
-              'mlmc.representation'
+              'mlmc.representation',
               'mlmc.models.experimental'
               ],
     url='',
