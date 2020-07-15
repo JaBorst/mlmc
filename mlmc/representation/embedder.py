@@ -151,5 +151,5 @@ class Embedder:
         :return: Yields the embeddings of a batch per iteration
         """
         ds = _temporal_dataset(sentences,)
-        for b in tqdm(DataLoader(ds, batch_size=batch_size)):
+        for b in DataLoader(ds, batch_size=batch_size):
             yield self.embed(b, pad=pad)
