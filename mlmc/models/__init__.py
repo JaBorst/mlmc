@@ -6,13 +6,12 @@ Submodule containing implementations of neural network models for Multilabel Arc
 from .XMLCNN import XMLCNN
 from .KimCNN import KimCNN
 from .MoKimCNN import MoKimCNN
-from .MoKimCNNhierarchical import MoKimCNNH
 
 #LSAN Variants
 from .LSAN import LSANOriginal
 from .LSANOriginalTransformer import LSANOriginalTransformer
 
-
+from mlmc.models.experimental.ZAGCNNLMAttention import ZAGCNNAttention
 # Geometric Models
 try:
     from .ZAGCNN import ZAGCNN
@@ -20,6 +19,8 @@ try:
     from .MoTransformer import MoTransformer
     from .ZAGCNNLM import ZAGCNNLM
     from .SKG_ML import SKG
+    from mlmc.models.experimental.SKG_MLLM import SKGLM
+
 except:
     print("pytorch_geometric not installed.")
     pass

@@ -395,7 +395,7 @@ class TextClassificationAbstractMultiOutput(torch.nn.Module):
                                            "transform(self, x)  method yourself. TOkenizer can be allocated with " \
                                            "embedder, tokenizer = mlmc.helpers.get_embedding() or " \
                                            "embedder, tokenizer = mlmc.helpers.get_transformer()"
-        return self.tokenizer(x,self.max_len)
+        return self.tokenizer(x,self.max_len).to(self.device)
 
     def _init_input_representations(self):
         if is_transformer(self.representation):
@@ -436,19 +436,50 @@ class TextClassificationAbstractMultiOutput(torch.nn.Module):
               "-----------\n"
               "Total:\t%i" % (trainable, total-trainable,total))
 
-    def predict_restricted(self, x, restrictions):
+    def predict_restricted(self, x, restrictions, batch_size):
         self.eval()
         if not hasattr(self, "classes_rev"):
             self.classes_rev = [{v: k for k, v in classes.items()} for classes in self.classes]
-        x = self.transform(x).to(self.device)
-        with torch.no_grad():
-            output = [self.act(o) for o in self(x)]
-
         triple_indices = [[self.classes[i][x] for i,x in enumerate(triple)] for triple in restrictions]
-        scores = [[(triple, sum([o[0][i] for o, i in zip(output, triple)]).item() ) for triple in triple_indices] for n in range(output[0].shape[0])]
-        for i in range(len(scores)):
-            scores[i].sort(key=lambda x: x[1], reverse=True)
-        prediction = [tuple([[self.classes_rev[i][x]] for i, x in enumerate(x[0][0])]) for x in scores]
+
+        from ..data import MultiOutputSingleLabelDataset
+        tmp = MultiOutputSingleLabelDataset(classes = {"":0},x=x, y=[["","",""] for _ in range(len(x))])
+        loader = torch.utils.data.DataLoader(tmp, batch_size=batch_size, drop_last=False)
+
+        results = []
+        for b in tqdm(loader):
+            x = self.transform(b["text"])
+            with torch.no_grad():
+                output = [self.act(o) for o in self(x)]
+
+
+            for n in range(output[0].shape[0]):
+                topk = [o[n].topk(15) for o in output]
+                ind = [0,0,0]
+                curr = [topk[0][1][ind[0]].item(), topk[1][1][ind[1]].item(), topk[2][1][ind[2]].item()]
+
+
+                for _ in range(14):
+                    if curr in triple_indices:
+                        results.append(curr)
+                        print("changed")
+                        found=True
+                        break
+                    else:
+                        found=False
+                        score_curr1 = sum([topk[0][0][ind[0]+1].item(), topk[1][0][ind[1]].item(), topk[2][0][ind[2]].item()])
+                        score_curr2 = sum([topk[0][0][ind[0]].item(), topk[1][0][ind[1]+1].item(), topk[2][0][ind[2]].item()])
+                        # new_curr3 = [topk[0][1][ind[0]].item(), topk[1][1][ind[1]].item(), topk[2][1][ind[2]+1].item()]
+                        score_curr3 = sum([topk[0][0][ind[0]].item(), topk[1][0][ind[1]].item(), topk[2][0][ind[2]+1].item()])
+                        max = torch.tensor([score_curr1,score_curr2,score_curr3]).argmax().item()
+                        ind = [x if i!= max else x+1 for i,x in enumerate(ind)]
+
+                if not found:
+                    ind = [0,0,0]
+                results.append([topk[0][1][ind[0]].item(), topk[1][1][ind[1]].item(), topk[2][1][ind[2]].item()])
+
+
+        prediction = [tuple([[self.classes_rev[i][x]] for i, x in enumerate(x)]) for x in results]
         self.train()
 
         return prediction

@@ -5,6 +5,9 @@ from .abstracts_zeroshot import TextClassificationAbstractZeroShot
 from ..graph import get as graph_get
 import networkx as nx
 from ..graph import subgraphs
+from ..data import SingleLabelDataset,MultiLabelDataset,MultiOutputMultiLabelDataset,MultiOutputSingleLabelDataset
+from tqdm import tqdm
+import random
 
 
 class TextClassificationAbstractGraph(TextClassificationAbstract, TextClassificationAbstractZeroShot):
@@ -17,7 +20,7 @@ class TextClassificationAbstractGraph(TextClassificationAbstract, TextClassifica
         transform(): If self.tokenizer exists the default method wil use this to transform text into the models input
 
     """
-    def __init__(self, graph, topk=20, depth=2, **kwargs):
+    def __init__(self, graph, topk=20, depth=2, embed="label", **kwargs):
         """
         Abstract initializer of a Text Classification network.
         Args:
@@ -31,27 +34,49 @@ class TextClassificationAbstractGraph(TextClassificationAbstract, TextClassifica
         """
         super(TextClassificationAbstractGraph,self).__init__(**kwargs)
 
-
+        self.embed=embed
+        self.topk = topk
+        self.depth = depth
         if isinstance(graph, str) or isinstance(graph, list):
-            self.topk = topk
-            self.depth = depth
             self.graph = graph
             self.kb = graph_get(graph)
+            self.dynamic_graph=True
         elif isinstance(graph, nx.Graph):
             self.kb = graph
+            self.dynamic_graph=False
 
+    def create_labels(self, classes, embed="label", reflexive=True):
 
-    def create_labels(self, classes):
-        # ToDo still needs to be checked for sort order
-        self.label_subgraph = subgraphs(self.classes, self.kb, model="glove300", topk=self.topk,
-                                           depth=self.depth, device=self.device)
+        #Set new class labels
         self.classes = classes
         self.n_classes = len(classes)
-        tmp_adj = torch.from_numpy(nx.adjacency_matrix(self.label_subgraph).toarray()).float()
-        tmp_adj = tmp_adj + torch.eye(tmp_adj.shape[0])
 
-        self.adj = torch.stack(torch.where(tmp_adj.t() == 1), dim=0).to(self.device)
-        self.label_embeddings = self.tokenizer(list(self.label_subgraph.nodes), pad=True, maxlen=10).to(self.device)
+        # Create a new graph
+        if self.dynamic_graph:
+            self.label_subgraph = subgraphs(self.classes, self.kb, model="glove300", topk=self.topk,
+                                            depth=self.depth, device=self.device)
+
+            self.label_subgraph = self.label_subgraph.to_undirected(reciprocal=False)
+        else:
+            self.label_subgraph=self.kb
+            assert all([x in self.kb for x in
+                        self.classes.keys()]), "If a non dynamic graph is used, all classes have to be present in the graph."
+
+        tmp_adj = torch.from_numpy(nx.adjacency_matrix(self.label_subgraph).toarray()).float()
+        assert all([sorted([list(self.label_subgraph.nodes).index(x[1]) for x in list(self.label_subgraph.edges(list(self.label_subgraph.nodes)[i]))]) == sorted(torch.where(tmp_adj[i]!=0)[0].tolist()) for i in range(len(self.label_subgraph))]), "A conversion error between graph adjacency and embedding has happened"
+
+        if reflexive: tmp_adj = tmp_adj + torch.eye(tmp_adj.shape[0])
+        tmp_adj[tmp_adj != 0] = 1
+        self.adj = torch.stack(torch.where(tmp_adj == 1), dim=0).to(self.device)
+        self.adjacency = tmp_adj
+
+        if embed=="label":
+            self.label_embeddings = self.tokenizer(list(self.label_subgraph.nodes), pad=True, maxlen=10).to(self.device)
+        else:
+            embedsequences = [x[1][embed] if embed in x[1].keys() and x[1][embed] != "" else x[0] for x in self.label_subgraph.nodes(True)]
+            p = max([len(x) for x in embedsequences])
+            self.label_embeddings = self.tokenizer(embedsequences, pad=True, maxlen=min(int(p/3),200)).to(self.device)
+
         self.label_embeddings_dim = self.embeddings_dim
         self.no_nodes = len(self.label_subgraph)
 
@@ -78,7 +103,7 @@ class TextClassificationAbstractGraph(TextClassificationAbstract, TextClassifica
     def score_graph(self,x, n=20, method="mcut"):
         x = [x] if isinstance(x, str) else x
         scores = self.act(self(self.transform(x), return_graph_scores=True))
-        new_graph = nx.DiGraph()
+        new_graph = nx.OrderedDiGraph()
         for sentence, sentence_scores, ones in zip(x, scores, self.threshold(scores, method=method)):
             keywords = str([list(self.label_subgraph.nodes)[i] for score, i in zip(*sentence_scores.topk(n)) if i > self.n_classes])
 
@@ -111,3 +136,161 @@ class TextClassificationAbstractGraph(TextClassificationAbstract, TextClassifica
                                            "embedder, tokenizer = mlmc.helpers.get_embedding() or " \
                                            "embedder, tokenizer = mlmc.helpers.get_transformer()"
         return self.tokenizer(x, maxlen=self.max_len).to(self.device)
+
+    def fit_graphsubsample(self, train, valid, epochs=1, negative=1., batch_size=16, valid_batch_size=50, classes_subset=None, patience=-1, tolerance=1e-2,
+            return_roc=False):
+        history = []
+        evaluation = []
+        zeroshot_classes = list(set(valid.classes.keys()) - set(train.classes.keys()))
+        print("Found Zero-shot Classes: ", str(zeroshot_classes))
+
+        import datetime
+        id = str(hash(datetime.datetime.now()))[1:7]
+        from ..data import SingleLabelDataset
+        if isinstance(train, SingleLabelDataset) and self.target != "single":
+            print("You are using the model in multi mode but input is SingeleLabelDataset.")
+            return 0
+
+        validation = []
+        train_history = {"loss": []}
+
+        assert not (type(
+            train) == SingleLabelDataset and self.target == "multi"), "You inserted a SingleLabelDataset but chose multi as target."
+        assert not (type(
+            train) == MultiLabelDataset and self.target == "single"), "You inserted a MultiLabelDataset but chose single as target."
+
+        best_loss = 10000000
+        last_best_loss_update = 0
+        classes_backup = self.classes.copy()
+        label_subgraph_backup = self.label_subgraph.copy()
+        from ignite.metrics import Average
+        for e in range(epochs):
+            losses = {"loss": str(0.)}
+            average = Average()
+            train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size, shuffle=True)
+            with tqdm(train_loader,
+                      postfix=[losses], desc="Epoch %i/%i" % (e + 1, epochs), ncols=100) as pbar:
+                for i, b in enumerate(train_loader):
+
+                    self.optimizer.zero_grad()
+
+
+                    self.classes=classes_backup.copy()
+                    self.label_subgraph = label_subgraph_backup.copy()
+                    y = self.subsample(b["labels"].to(self.device), negative=negative)
+
+
+                    x = self.transform(b["text"])
+                    output = self(x)
+                    if hasattr(self, "regularize"):
+                        l = self.loss(output, y) + self.regularize()
+                    else:
+                        l = self.loss(output, y)
+                    if self.use_amp:
+                        with amp.scale_loss(l, self.optimizer) as scaled_loss:
+                            scaled_loss.backward()
+                    else:
+                        l.backward()
+
+                    self.optimizer.step()
+                    average.update(l.item())
+                    pbar.postfix[0]["loss"] = round(average.compute().item(), 2 * self.PRECISION_DIGITS)
+                    pbar.update()
+                # EVALUATION
+                self.create_labels(classes_backup)
+                validation.append(self.evaluate_classes(classes_subset=classes_subset,
+                                                        data=valid,
+                                                        batch_size=valid_batch_size,
+                                                        return_report=True,
+                                                        return_roc=return_roc))
+                printable = {
+                    "overall": {"micro": validation[-1]["report"]["micro avg"],
+                                "macro": validation[-1]["report"]["macro avg"]},
+                    "zeroshot": {
+                        x: validation[-1]["report"][x] for x in zeroshot_classes
+                    }
+
+                }
+
+                pbar.postfix[0].update(printable)
+                pbar.update()
+                if patience > -1:
+                    if valid is None:
+                        print("check validation loss")
+                        if best_loss - average.compute().item() > tolerance:
+                            print("update validation and checkoint")
+                            best_loss = average.compute().item()
+                            torch.save(self.state_dict(), id + "_checkpoint.pt")
+                            # save states
+                            last_best_loss_update = 0
+                        else:
+                            print("increment no epochs")
+                            last_best_loss_update += 1
+
+                        if last_best_loss_update >= patience:
+                            print("breaking at %i" % (patience,))
+                            print("Early Stopping.")
+                            break
+                    elif valid is not None:
+                        if best_loss - validation[-1]["valid_loss"] > tolerance:
+                            best_loss = validation[-1]["valid_loss"]
+                            torch.save(self.state_dict(), id + "_checkpoint.pt")
+                            # save states
+                            last_best_loss_update = 0
+                        else:
+                            last_best_loss_update += 1
+
+                        if last_best_loss_update >= patience:
+                            print("Early Stopping.")
+                            break
+
+            train_history["loss"].append(average.compute().item())
+        if patience > -1:
+            self.load_state_dict(torch.load(id + "_checkpoint.pt"))
+
+        return {"train": history, "valid": evaluation}
+
+    def subsample(self, batch, negative=1.0, embed="extract"):
+        occurring_labels = [list(self.classes.keys())[x] for x in list(set(torch.where(batch == 1)[1].tolist()))]
+
+        remaining_classes = list(set(self.classes.keys()) - set(occurring_labels))
+        negative_classes = random.sample(remaining_classes, min(int(negative*len(occurring_labels)),len(remaining_classes)) )
+
+        current_classes = sorted(occurring_labels+negative_classes)
+
+        subgraph = nx.OrderedGraph()
+        subgraph.add_nodes_from(current_classes)
+        for n in current_classes:
+            neighbours =[x for x in self.label_subgraph[n]]
+            neighbours = random.sample(neighbours,int(len(neighbours)/2))
+            subgraph.add_nodes_from( neighbours)
+        nx.set_node_attributes(subgraph, dict([x for x in self.label_subgraph.nodes(True) if x in subgraph]))
+
+        current_classes = dict(zip(current_classes,range(len(current_classes))))
+        mapping = {self.classes[k]:v  for k,v in current_classes.items()}
+
+        self.label_subgraph=subgraph
+        self.classes = current_classes
+
+        new_ind = [[mapping[m.item()] for m in torch.where(x==1)[0]] for x in batch]
+        batch = torch.stack([ torch.nn.functional.one_hot(torch.LongTensor(labels), len(self.classes)).sum(0) for labels in new_ind]).float().to(self.device)
+
+
+        tmp_adj = torch.from_numpy(nx.adjacency_matrix(self.label_subgraph).toarray()).float()
+
+        tmp_adj = tmp_adj + torch.eye(tmp_adj.shape[0])
+        tmp_adj[tmp_adj != 0] = 1
+        self.adfdense= tmp_adj
+        self.adj = torch.stack(torch.where(tmp_adj == 1), dim=0).to(self.device)
+
+        if embed=="label":
+            self.label_embeddings = self.tokenizer(list(self.label_subgraph.nodes), pad=True, maxlen=10).to(self.device)
+        else:
+            embedsequences = [x[1][embed] if embed in x[1].keys() and x[1][embed] != "" else x[0] for x in self.label_subgraph.nodes(True)]
+            p = max([len(x) for x in embedsequences])
+            self.label_embeddings = self.tokenizer(embedsequences, pad=True, maxlen=min(int(p/3),512)).to(self.device)
+
+        self.label_embeddings_dim = self.embeddings_dim
+        self.no_nodes = len(self.label_subgraph)
+        self.n_classes = len(current_classes)
+        return batch

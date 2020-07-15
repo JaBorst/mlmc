@@ -145,6 +145,8 @@ class TextClassificationAbstract(torch.nn.Module):
                 y = b["labels"]
                 x = self.transform(b["text"])
                 output = self(x).cpu()
+                if x.shape[0] == 1 and output.shape[0] != 1:
+                    output = output[None]
                 if hasattr(self, "regularize"):
                     l = self.loss(output, y) + self.regularize()
                 else:
@@ -218,6 +220,8 @@ class TextClassificationAbstract(torch.nn.Module):
 
                     x = self.transform(b["text"])
                     output = self(x)
+                    if x.shape[0] == 1 and output.shape[0] != 1:
+                        output = output[None]
                     if hasattr(self, "regularize"):
                         l = self.loss(output, y) + self.regularize()
                     else:
@@ -243,7 +247,8 @@ class TextClassificationAbstract(torch.nn.Module):
                     if return_roc==True:
                         printable["auc_roc"] = (printable["auc_roc"][0], "...")
                     if return_report==True:
-                        printable["report"] = (printable["report"]["micro avg"])
+                        printable["micro"] = (printable["report"]["micro avg"])
+                        del printable["report"]
 
                     pbar.postfix[0].update(printable)
                     pbar.update()
@@ -304,7 +309,7 @@ class TextClassificationAbstract(torch.nn.Module):
         if self.target =="single":
             method="max"
 
-        if not hasattr(self, "classes_rev"):
+        if not hasattr(self, "classes_rev") or (list(self.classes_rev.values())[0] not in self.classes.keys()):
             self.classes_rev = {v: k for k, v in self.classes.items()}
         x = self.transform(x)
         with torch.no_grad(): output = self.act(self(x))
@@ -332,8 +337,11 @@ class TextClassificationAbstract(torch.nn.Module):
         """
         train_loader = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=False)
         predictions = []
+        if not hasattr(self, "classes_rev"):
+            self.classes_rev = {v: k for k, v in self.classes.items()}
         for b in tqdm(train_loader, ncols=100):
             predictions.extend(self.predict(b["text"], tr=tr, method=method))
+        del self.classes_rev
         return predictions
 
     def threshold(self, x, tr=0.5, method="hard"):
@@ -398,9 +406,9 @@ class TextClassificationAbstract(torch.nn.Module):
             if self.finetune:
                 self.embedding.requires_grad = True
         else:
-            self.embedding, self.tokenizer = get(self.representation, freeze=True)
+            self.embedding, self.tokenizer = get(self.representation, freeze= not self.finetune)
             self.embeddings_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
-            for param in self.embedding.parameters(): param.requires_grad = False
+            for param in self.embedding.parameters(): param.requires_grad = self.finetune
 
     def num_params(self):
         """
