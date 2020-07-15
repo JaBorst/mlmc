@@ -161,7 +161,7 @@ def load_stw():
                     n=v[0]
                 else:
                     n=v
-                g.add_edge(m[0], n[0], label=pr)
+                g.add_edge(m[0], n[0], label=pr[0])
         url2 ="https://aspra29.informatik.uni-leipzig.de/stw_wikidata_mapping.rdf.zip"
         response = urlopen(url2)
         zf = ZipFile(BytesIO(response.read()))
