@@ -34,6 +34,7 @@ setup(
               'mlmc.metrics',
               'mlmc.models',
               'mlmc.representation'
+              'mlmc.models.experimental'
               ],
     url='',
     license='',
