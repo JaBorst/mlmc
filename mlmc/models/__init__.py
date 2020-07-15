@@ -11,16 +11,14 @@ from .MoKimCNN import MoKimCNN
 from .LSAN import LSANOriginal
 from .LSANOriginalTransformer import LSANOriginalTransformer
 
-from mlmc.models.experimental.ZAGCNNLMAttention import ZAGCNNAttention
 # Geometric Models
 try:
+    from mlmc.models.experimental.ZAGCNNLMAttention import ZAGCNNAttention
     from .ZAGCNN import ZAGCNN
     from .MoZAGCNNLM import MoZAGCNNLM
     from .MoTransformer import MoTransformer
     from .ZAGCNNLM import ZAGCNNLM
     from .SKG_ML import SKG
-    from mlmc.models.experimental.SKG_MLLM import SKGLM
-
 except:
     print("pytorch_geometric not installed.")
     pass
