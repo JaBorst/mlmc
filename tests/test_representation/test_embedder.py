@@ -27,5 +27,3 @@ def test_embedder():
         assert all(v.shape[0]==len(example) for v in results.values())
         assert all(v.shape[-1]==results["sentence"].shape[-1] for v in results.values())
         assert all(v.shape[1]==results["pool"].shape[1] for v in results.values() if len(v.shape)==3), f"Padding error for {mod}"
-
-test_embedder()

@@ -33,7 +33,7 @@ coverage:
     image: python:3.7.5-slim-buster
     stage: test
     script:
-      - pytest --cov mlmc/ tests/ --cov-report xml
+      - pytest --cov mlmc/ tests/ 
       - coverage report
 
 
