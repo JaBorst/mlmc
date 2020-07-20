@@ -8,7 +8,7 @@ from urllib.request import urlopen
 from zipfile import ZipFile
 
 import numpy as np
-import os
+import tempfile
 import torch
 from io import BytesIO
 from transformers import *
@@ -111,7 +111,10 @@ def empty_cache():
 def add_test_example():
     if not EMBEDDINGCACHE.exists():
         EMBEDDINGCACHE.mkdir(parents=True)
-    custom_embedding("test", EMBEDDINGCACHE / "custom_embedding.txt")
+    with tempfile.TemporaryDirectory() as tempdir:
+        with open(Path(tempdir)/"embedding", "w") as f:
+            f.write('Text 0.1 0.2 0.3 0.4 0.5\n1   0.2 0.1 -0.01 0.2 0.1\nexample -0.001 0.01 0.1 -0.5 0.2\ntext 0.5 0.0 0.0 0.0 0.02\n2 0.04 0.34 0.2 -0.24 0.4')
+        custom_embedding("test", Path(tempdir)/"embedding")
 
 
 def load_static(embedding):
