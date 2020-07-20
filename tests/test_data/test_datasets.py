@@ -77,9 +77,9 @@ def test_MultiLabelDataset_add():
                              y=[["e"], ["c"], ["d"]],
                              classes={"e": 0, "b": 1, "c": 2, "d": 3})
 
-    d = d1 + d2
+    d = d2 + d1
     d.one_hot=False
     assert set(d.classes.keys()) == {"a", "b", "c", "d", "e"}
     assert set(d.x) == {"1", "2", "3", "4"}
-    assert set([ tuple(x) for x in d.y]) == set([tuple(x) for x in [["b","a"], ["e", "b"], ["c"], ["d"]]])
+    assert set([ tuple(sorted(x)) for x in d.y]) == set([tuple(sorted(x)) for x in [["b","a"], ["e", "b"], ["c"], ["d"]]])
 

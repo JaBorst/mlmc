@@ -36,5 +36,5 @@ def test_XMLCNN():
     assertion_function(model_type=mlmc.models.XMLCNN, representation="test", mode="untrainable", filters=10, kernel_sizes=[3,4])
 
 def test_LSAN_transformer():
-    assertion_function(model_type=mlmc.models.LSANOriginalTransformerNoClasses, representation="roberta", n_layers=1, filters=10, kernel_sizes=[3,4])
+    assertion_function(model_type=mlmc.models.LSANOriginalTransformerNoClasses, representation="roberta", n_layers=1)
 
