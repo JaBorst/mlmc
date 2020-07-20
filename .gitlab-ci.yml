@@ -29,6 +29,7 @@ coverage:
         refs:
         - master
         - merge_requests
+        - dev
     image: python:3.7.5-slim-buster
     stage: test
     script:
