@@ -156,9 +156,11 @@ class MultiLabelDataset(Dataset):
             classes = [classes]
         assert all([x in self.classes.keys() for x in classes]), "Some of the provided classes are not contained in the dataset"
         self.y = [[label for label in labelset if label not in classes] for labelset in self.y]
-        emptylabelsets = [i for i, x in enumerate(self.y) if x == []]
-        self.x = [ x for i,x in enumerate(self.x) if i not in emptylabelsets]
-        self.y = [ x for i,x in enumerate(self.y) if i not in emptylabelsets]
+        nonemptylabelsets = [i for i, x in enumerate(self.y) if x != []]
+        new_x = [ self.x[i] for i in nonemptylabelsets ]
+        new_y = [ self.y[i] for i in nonemptylabelsets ]
+        self.x = new_x
+        self.y = new_y
 
         new_classes = [x for x in self.classes.keys() if x not in classes]
         self.classes = dict(zip(new_classes, range(len(new_classes))))
@@ -173,7 +175,7 @@ class MultiLabelDataset(Dataset):
             map: Dictionary of map from current label string to new label string
         """
         if any([x not in map.keys() for x in self.classes.keys()]):
-            print("Some classes are not present in the map. The will be returned as is.")
+            print("Some classes are not present in the map. They will be returned as is.")
         self.classes = {map.get(k,k):v for k,v in self.classes.items()}
         self.y = [[map.get(l,l) for l in labelset] for labelset in self.y]
 
@@ -182,17 +184,26 @@ class MultiLabelDataset(Dataset):
         Reduces the dataset to a subset of the classes.
 
         The resulting dataset will only contain instances with at least one label that appears in the subset argument.
-        The subset must also provide a new mapping from the new label names to indices.
+        The subset can also provide a new mapping from the new label names to indices (dict).
         All labels not in subset will be removed. Instances with an empty label set will be removed.
 
         Args:
             subset: A mapping of classes to indices
         """
-        assert all([x in self.classes.keys() for x in subset.keys()]), "Subset contains classes not present in dataset"
-        ind = [i for i, labelset in enumerate(self.y) if any([l in subset.keys() for l in labelset])]
-        self.x = [self.x[i] for i in ind]
-        self.y = [[x for x in self.y[i] if x in subset.keys()] for i in ind]
-        self.classes = subset
+
+        if isinstance(subset, str): subset = [subset]
+
+        if isinstance(subset, dict):
+            subset_dict = subset
+            subset_list= list(subset.keys())
+
+        elif isinstance(subset, list):
+            subset_dict = dict(zip(subset, range(len(subset))))
+            subset_list= subset
+
+        remove_classes = [x for x in self.classes.keys() if x not in subset_list]
+        self.remove(remove_classes)
+        self.classes=subset_dict
 
     def count(self, label):
         """
