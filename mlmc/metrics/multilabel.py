@@ -4,13 +4,14 @@ import torch
 
 class MultiLabelReport():
     """Multilabel iterative F1/Precision/Recall. Ignite API like"""
-    def __init__(self, classes, trf=lambda x : x,  check_zeros=False, **kwargs):
+    def __init__(self, classes, trf=lambda x : x,  check_zeros=False, target="multi",**kwargs):
         self.classes = classes
         self.truth = []
         self.pred = []
         self.check_zeros = check_zeros
         self.trf = trf
         self.kwargs = kwargs
+        self.target = target
 
     def update(self, batch):
         assert isinstance(batch, tuple), "batch needs to be a tuple"
@@ -23,7 +24,11 @@ class MultiLabelReport():
             self.pred.append(batch[0])
     def compute(self):
         pred = self.trf(torch.cat(self.pred),**self.kwargs)
-        return skm.classification_report((torch.cat(self.truth)).numpy(),
+
+        truth = (torch.cat(self.truth)).numpy()
+        if self.target == "single":
+            truth = torch.nn.functional.one_hot(torch.cat(self.truth), len(self.classes)).numpy()
+        return skm.classification_report(truth,
                                          pred.numpy(),
                                          output_dict=True,
                                          target_names=list(self.classes.keys()))
