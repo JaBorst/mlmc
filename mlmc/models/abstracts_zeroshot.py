@@ -102,25 +102,44 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
                                     batch_size=valid_batch_size,
                                     return_report=True,
                                     return_roc=return_roc)
-
-                printable = {
-                    "gzsl": {
-                        "overall": {"micro": GZSL["report"]["micro avg"],
-                                    "macro": GZSL["report"]["macro avg"]},
-                        "labels": {
-                            x: GZSL["report"][x] for x in zeroshot_classes
+                if self.target=="multi":
+                    printable = {
+                        "gzsl": {
+                            "overall": {"micro": GZSL["report"]["micro avg"],
+                                        "macro": GZSL["report"]["macro avg"]},
+                            "labels": {
+                                x: GZSL["report"][x] for x in zeroshot_classes
+                            },
                         },
-                    },
-                    "zsl": {
-                        "overall": {"micro": ZSL["report"]["micro avg"],
-                                    "macro": ZSL["report"]["macro avg"]},
-                        "labels": {x: ZSL["report"][x] for x in zeroshot_classes}
-                    },
-                    "nsl":{
-                        "overall": {"micro": NSL["report"]["micro avg"],
-                                    "macro": NSL["report"]["macro avg"]}
+                        "zsl": {
+                            "overall": {"micro": ZSL["report"]["micro avg"],
+                                        "macro": ZSL["report"]["macro avg"]},
+                            "labels": {x: ZSL["report"][x] for x in zeroshot_classes}
+                        },
+                        "nsl":{
+                            "overall": {"micro": NSL["report"]["micro avg"],
+                                        "macro": NSL["report"]["macro avg"]}
+                        }
                     }
-                }
+                else:
+                    printable = {
+                        "gzsl": {
+                            "overall": {"accuracy": GZSL["accuracy"],
+                                        "macro": GZSL["report"]["macro avg"]},
+                            "labels": {
+                                x: GZSL["report"][x] for x in zeroshot_classes
+                            },
+                        },
+                        "zsl": {
+                            "overall": {"accuracy": ZSL["accuracy"],
+                                        "macro": ZSL["report"]["macro avg"]},
+                            "labels": {x: ZSL["report"][x] for x in zeroshot_classes}
+                        },
+                        "nsl": {
+                            "overall": {"accuracy": NSL["accuracy"],
+                                        "macro": NSL["report"]["macro avg"]}
+                        }
+                    }
 
                 pbar.postfix[0].update({"gzsl_valid_loss": GZSL["valid_loss"],
                                         "zsl_valid_loss":ZSL["valid_loss"],
