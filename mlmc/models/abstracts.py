@@ -133,6 +133,8 @@ class TextClassificationAbstract(torch.nn.Module):
         singlelabel_metrics = {
             "accuracy":  AccuracyTreshold(threshold_max, is_multilabel=False)
         }
+        if return_report:
+            singlelabel_metrics["report"] = MultiLabelReport(self.classes, trf=threshold_max, target="single")
 
         metrics = multilabel_metrics
         if self.target == "single":
