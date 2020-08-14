@@ -148,6 +148,7 @@ def load_rcv1(path=None):
     edges = [(re.split(" +", x)[1], re.split(" +", x)[3]) for x in content]
     edges = [(topicmap.get(x[0],x[0]).capitalize(),topicmap.get(x[1],x[1]).capitalize()) for x in edges]
     graph = nx.OrderedDiGraph(edges[1:])
+    graph.remove_node("Root")
     data["graph"] = graph
 
 
