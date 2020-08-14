@@ -4,3 +4,4 @@ from .label_layers import LabelEmbeddingScoring,AdaptiveCombination,LabelAttenti
 from .metric_layers import Bilinear, Metric
 from .weighted_aggregation import AttentionWeightedAggregation
 from .mogrifier import MogrifierLSTM, MogLSTM
+from .CoRepresentation import ExpertCoRep
