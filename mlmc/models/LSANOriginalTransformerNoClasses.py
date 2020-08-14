@@ -20,7 +20,6 @@ class LSANOriginalTransformerNoClasses(TextClassificationAbstract,TextClassifica
         self.classes = classes
         self.max_len = max_len
         self.use_lstm = use_lstm
-        self.n_layers = 4
         self.representation=representation
         self.method = method
         self.scale = scale
@@ -42,7 +41,7 @@ class LSANOriginalTransformerNoClasses(TextClassificationAbstract,TextClassifica
             self.lstm = torch.nn.Linear(self.embeddings_dim, self.label_embedding_dim * 2)
 
         self.linear_first = torch.nn.Linear(self.label_embedding_dim * 2, d_a)
-        self.linear_second = torch.nn.Linear(self.label_embedding_dim , d_a)
+        self.linear_second = torch.nn.Linear(self.label_embedding_dim, d_a)
 
         self.weight1 = torch.nn.Linear(self.label_embedding_dim * 2, 1)
         self.weight2 = torch.nn.Linear(self.label_embedding_dim * 2, 1)
