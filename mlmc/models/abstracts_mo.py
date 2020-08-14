@@ -322,7 +322,9 @@ class TextClassificationAbstractMultiOutput(torch.nn.Module):
         if not hasattr(self, "classes_rev"):
             self.classes_rev = [{v: k for k, v in classes.items()} for classes in self.classes]
         x = self.transform(x).to(self.device)
+        if len(x.shape)==1: x[None]
         with torch.no_grad(): output = [self.act(o) for o in  self(x)]
+
         predictions = [self.threshold(o, tr=tr, method=method) for o in output]
         self.train()
         if return_scores:
@@ -462,7 +464,7 @@ class TextClassificationAbstractMultiOutput(torch.nn.Module):
                 for _ in range(14):
                     if curr in triple_indices:
                         results.append(curr)
-                        print("changed")
+                        # print("changed")
                         found=True
                         break
                     else:
@@ -483,3 +485,11 @@ class TextClassificationAbstractMultiOutput(torch.nn.Module):
         self.train()
 
         return prediction
+
+    def rebuild(self):
+        """
+        Internal build method.
+        """
+        self.loss = [type(x)().to(self.device) for x in self.loss]
+        self.optimizer = type(self.optimizer)(filter(lambda p: p.requires_grad, self.parameters()), **self.optimizer_params)
+        self.to(self.device)
