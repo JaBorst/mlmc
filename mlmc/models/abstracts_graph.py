@@ -44,6 +44,7 @@ class TextClassificationAbstractGraph(TextClassificationAbstract, TextClassifica
         elif isinstance(graph, nx.Graph):
             self.kb = graph
             self.dynamic_graph=False
+        self.no_nodes =len(self.kb)
 
     def create_labels(self, classes, embed="label", reflexive=True):
 
