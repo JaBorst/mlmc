@@ -198,19 +198,25 @@ def load_wordnet():
     Loading the wordnet graph as a networkx.DiGraph
     :return: A networkx.DiGraph containing wordnet.
     """
-    try:
-        from nltk.corpus import wordnet as wn
-    except:
-        print("To use this function you have to install nltk.")
-    G = nx.OrderedDiGraph()
-    for ss in wn.all_synsets():
-        if ss.hypernyms() != []:
-            for hypernym in ss.hypernyms():
-                for hh in hypernym.lemmas():
-                    for word in ss.lemmas():
-                        G.add_edge(hh.name().replace("_"," "), word.name().replace("_"," "), label="related")
-
-    return G
+    data = _load_from_tmp("wordnet")
+    if data is not None:
+        return data
+    else:
+        try:
+            from nltk.corpus import wordnet as wn
+        except:
+            print("To use this function you have to install nltk.")
+        G = nx.OrderedDiGraph()
+        for ss in wn.all_synsets():
+            if ss.hypernyms() != []:
+                for hypernym in ss.hypernyms():
+                    for hh in hypernym.lemmas():
+                        for word in ss.lemmas():
+                            G.add_node(hh.name().replace("_"," "), label=hh.name().replace("_"," "))
+                            G.add_node(word.name().replace("_"," "), label=word.name().replace("_"," "))
+                            G.add_edge(hh.name().replace("_"," "), word.name().replace("_"," "), label="related")
+        _save_to_tmp("wordnet",G)
+        return G
 
 
 def load_wordnet_sample(num=1000):
@@ -219,6 +225,7 @@ def load_wordnet_sample(num=1000):
     :num: The size of the subsample ( Only the first n synsets will be added )
     :return: A networkx.DiGraph containing wordnet.
     """
+
     try:
         from nltk.corpus import wordnet as wn
     except:
