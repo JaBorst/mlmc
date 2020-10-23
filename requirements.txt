@@ -4,3 +4,16 @@ wheel>=0.31.0
 pytest
 pytest-cov
 setuptools>=38.6.0
+numpy
+transformers
+nltk
+scikit-learn
+pytorch-ignite
+tqdm
+networkx
+bs4
+pytest
+pytest-cov
+rdflib
+h5py
+datasketch

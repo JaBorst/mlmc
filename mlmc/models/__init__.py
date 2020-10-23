@@ -13,7 +13,6 @@ from .LSANOriginalTransformer import LSANOriginalTransformer
 
 # Geometric Models
 try:
-    from mlmc.models.experimental.ZAGCNNLMAttention import ZAGCNNAttention
     from .ZAGCNN import ZAGCNN
     from .MoZAGCNNLM import MoZAGCNNLM
     from .MoTransformer import MoTransformer
@@ -24,8 +23,7 @@ except:
     pass
 
 from .LSANOriginalTransformerNoClasses import LSANOriginalTransformerNoClasses
-from .lm_mogrifier import MogrifierLMCharacter, MogrifierLMWord
-
+from .LSANNC import LSANNC
 
 def finetune_mixed_precision_model(model, finetune=True):
     try:

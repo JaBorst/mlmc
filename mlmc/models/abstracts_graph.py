@@ -20,7 +20,7 @@ class TextClassificationAbstractGraph(TextClassificationAbstract, TextClassifica
         transform(): If self.tokenizer exists the default method wil use this to transform text into the models input
 
     """
-    def __init__(self, graph, topk=20, depth=2, embed="label", **kwargs):
+    def __init__(self, graph, embed="label", **kwargs):
         """
         Abstract initializer of a Text Classification network.
         Args:
@@ -35,8 +35,6 @@ class TextClassificationAbstractGraph(TextClassificationAbstract, TextClassifica
         super(TextClassificationAbstractGraph,self).__init__(**kwargs)
 
         self.embed=embed
-        self.topk = topk
-        self.depth = depth
         if isinstance(graph, str) or isinstance(graph, list):
             self.graph = graph
             self.kb = graph_get(graph)
@@ -46,40 +44,6 @@ class TextClassificationAbstractGraph(TextClassificationAbstract, TextClassifica
             self.dynamic_graph=False
         self.no_nodes =len(self.kb)
 
-    def create_labels(self, classes, embed="label", reflexive=True):
-
-        #Set new class labels
-        self.classes = classes
-        self.n_classes = len(classes)
-
-        # Create a new graph
-        if self.dynamic_graph:
-            self.label_subgraph = subgraphs(self.classes, self.kb, model="glove300", topk=self.topk,
-                                            depth=self.depth, device=self.device)
-
-            self.label_subgraph = self.label_subgraph.to_undirected(reciprocal=False)
-        else:
-            self.label_subgraph=self.kb
-            assert all([x in self.kb for x in
-                        self.classes.keys()]), "If a non dynamic graph is used, all classes have to be present in the graph."
-
-        tmp_adj = torch.from_numpy(nx.adjacency_matrix(self.label_subgraph).toarray()).float()
-        assert all([sorted([list(self.label_subgraph.nodes).index(x[1]) for x in list(self.label_subgraph.edges(list(self.label_subgraph.nodes)[i]))]) == sorted(torch.where(tmp_adj[i]!=0)[0].tolist()) for i in range(len(self.label_subgraph))]), "A conversion error between graph adjacency and embedding has happened"
-
-        if reflexive: tmp_adj = tmp_adj + torch.eye(tmp_adj.shape[0])
-        tmp_adj[tmp_adj != 0] = 1
-        self.adj = torch.stack(torch.where(tmp_adj == 1), dim=0).to(self.device)
-        self.adjacency = tmp_adj
-
-        if embed=="label":
-            self.label_embeddings = self.tokenizer(list(self.label_subgraph.nodes), pad=True, maxlen=10).to(self.device)
-        else:
-            embedsequences = [x[1][embed] if embed in x[1].keys() and x[1][embed] != "" else x[0] for x in self.label_subgraph.nodes(True)]
-            p = max([len(x) for x in embedsequences])
-            self.label_embeddings = self.tokenizer(embedsequences, pad=True, maxlen=min(int(p/3),200)).to(self.device)
-
-        self.label_embeddings_dim = self.embeddings_dim
-        self.no_nodes = len(self.label_subgraph)
 
 
     def complete_score_graph(self,x, n=20, method="hard"):
@@ -118,25 +82,6 @@ class TextClassificationAbstractGraph(TextClassificationAbstract, TextClassifica
                                    type="label")
         return new_graph
 
-    def transform(self, x):
-        """
-        A standard transformation function from text to network input format
-
-        The function looks for the tokenizer attribute. If it doesn't exist the transform function has to
-        be implemented in the child class
-
-        Args:
-            x: A list of text
-
-        Returns:
-            A tensor in the network input format.
-
-        """
-        assert hasattr(self, 'tokenizer'), "If the model does not have a tokenizer attribute, please implement the" \
-                                           "transform(self, x)  method yourself. Tokenizer can be allocated with " \
-                                           "embedder, tokenizer = mlmc.helpers.get_embedding() or " \
-                                           "embedder, tokenizer = mlmc.helpers.get_transformer()"
-        return self.tokenizer(x, maxlen=self.max_len).to(self.device)
 
     def fit_graphsubsample(self, train, valid, epochs=1, negative=1., batch_size=16, valid_batch_size=50, classes_subset=None, patience=-1, tolerance=1e-2,
             return_roc=False):
@@ -251,7 +196,7 @@ class TextClassificationAbstractGraph(TextClassificationAbstract, TextClassifica
 
         return {"train": history, "valid": evaluation}
 
-    def subsample(self, batch, negative=1.0, embed="extract"):
+    def subsample(self, batch, negative=1.0):
         occurring_labels = [list(self.classes.keys())[x] for x in list(set(torch.where(batch == 1)[1].tolist()))]
 
         remaining_classes = list(set(self.classes.keys()) - set(occurring_labels))
@@ -284,10 +229,10 @@ class TextClassificationAbstractGraph(TextClassificationAbstract, TextClassifica
         self.adfdense= tmp_adj
         self.adj = torch.stack(torch.where(tmp_adj == 1), dim=0).to(self.device)
 
-        if embed=="label":
+        if self.embed=="label":
             self.label_embeddings = self.tokenizer(list(self.label_subgraph.nodes), pad=True, maxlen=10).to(self.device)
         else:
-            embedsequences = [x[1][embed] if embed in x[1].keys() and x[1][embed] != "" else x[0] for x in self.label_subgraph.nodes(True)]
+            embedsequences = [x[1][self.embed] if self.embed in x[1].keys() and x[1][self.embed] != "" else x[0] for x in self.label_subgraph.nodes(True)]
             p = max([len(x) for x in embedsequences])
             self.label_embeddings = self.tokenizer(embedsequences, pad=True, maxlen=min(int(p/3),512)).to(self.device)
 

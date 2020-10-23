@@ -10,7 +10,7 @@ class LSANOriginal(TextClassificationAbstract):
     """
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
-    def __init__(self, classes, representation, label_embed=None, label_freeze=True, lstm_hid_dim=300, d_a=200 ,max_len=500,**kwargs):
+    def __init__(self, classes, representation, label_embed=None, label_freeze=False, lstm_hid_dim=300, d_a=200 ,max_len=500,**kwargs):
         super(LSANOriginal, self).__init__(**kwargs)
         #My Stuff
         self.max_len = max_len

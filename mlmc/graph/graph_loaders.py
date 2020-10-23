@@ -204,6 +204,8 @@ def load_wordnet():
     else:
         try:
             from nltk.corpus import wordnet as wn
+            import nltk
+            nltk.download('wordnet')
         except:
             print("To use this function you have to install nltk.")
         G = nx.OrderedDiGraph()
@@ -214,7 +216,17 @@ def load_wordnet():
                         for word in ss.lemmas():
                             G.add_node(hh.name().replace("_"," "), label=hh.name().replace("_"," "))
                             G.add_node(word.name().replace("_"," "), label=word.name().replace("_"," "))
-                            G.add_edge(hh.name().replace("_"," "), word.name().replace("_"," "), label="related")
+                            G.add_edge(hh.name().replace("_"," "), word.name().replace("_"," "), label="hypernym")
+                            for word2 in ss.lemmas():
+                                G.add_edge(word2.name().replace("_"," "), word.name().replace("_"," "), label="synonym")
+            if ss.hyponyms() != []:
+                for hyponym in ss.hyponyms():
+                    for hh in hyponym.lemmas():
+                        for word in ss.lemmas():
+                            G.add_node(hh.name().replace("_"," "), label=hh.name().replace("_"," "))
+                            G.add_node(word.name().replace("_"," "), label=word.name().replace("_"," "))
+                            G.add_edge(hh.name().replace("_"," "), word.name().replace("_"," "), label="hyponym")
+
         _save_to_tmp("wordnet",G)
         return G
 
@@ -279,3 +291,29 @@ def load_NELL():
                         G.add_edge(entityLiterals.replace("_"," "), valueLiterals.replace("_"," "), label=relation, confidence=confidence)
         _save_to_tmp("NELL",G)
         return G
+
+
+
+def load_conceptNet():
+
+    url = "https://s3.amazonaws.com/conceptnet/downloads/2019/edges/conceptnet-assertions-5.7.0.csv.gz"
+    data = _load_from_tmp("conceptnet")
+    if data is not None:
+        return data
+    else:
+        resp = urlopen(url)
+        tf = gzip.open(resp, mode="r")
+        g = nx.DiGraph()
+        relations=[]
+        for line in tqdm(tf):
+            line = line.decode("utf8")#.split("\t")
+            triple = [[y for y in x.split("/") if y != ""] for x in line.split("\t")[0].split("[")[1].split(",/")]
+            relations.append(triple[0][1])
+            if triple[1][1] == "en" and triple[2][1] == "en" and any([x in triple[0] for x in ["IsA", "HasProperty", "Synonym", "UsedFor", "PartOf", "RelatedTo"]]):
+                triple = [x[1] if x[0] == "r" else x[2] for x in triple[:3]]
+                g.add_node(triple[1])
+                g.add_node(triple[2])
+                g.add_edge(triple[1], triple[2], label=triple[0])
+    _save_to_tmp("conceptnet",g)
+    return g
+

@@ -426,3 +426,19 @@ class TextClassificationAbstract(torch.nn.Module):
               "Fixed:\t%i\n"
               "-----------\n"
               "Total:\t%i" % (trainable, total-trainable,total))
+
+    def embed_input(self, x):
+        if self.finetune:
+            if self.n_layers == 1:
+                embeddings = self.embedding(x)[0]
+            else:
+                embeddings = torch.cat(self.embedding(x)[2][-self.n_layers:], -1)
+        else:
+            with torch.no_grad():
+                if self.n_layers == 1:
+                    embeddings = self.embedding(x)[0]
+                else:
+                    embeddings = torch.cat(self.embedding(x)[2][-self.n_layers:], -1)
+        embeddings = self.dropout_layer(embeddings)
+        return embeddings
+

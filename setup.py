@@ -52,7 +52,8 @@ setup(
                       'pytest',
                       'pytest-cov',
                       'rdflib',
-                      'h5py'
+                      'h5py',
+                      'datasketch'
                       ],
     include_package_data=True,
 )
