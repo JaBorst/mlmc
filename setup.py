@@ -37,7 +37,7 @@ setup(
               'mlmc.experimental',
               'mlmc.experimental.data',
               'mlmc.experimental.le',
-              'mlmc.experimental.model'
+              'mlmc.experimental.models'
               ],
     url='',
     license='',
