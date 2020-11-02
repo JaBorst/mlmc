@@ -100,13 +100,18 @@ class KimCNN(TextClassificationAbstract):
             c = [torch.nn.functional.relu(conv(embedded_1).permute(0, 2, 1).max(1)[0]) for conv in self.convs]+\
                 [torch.nn.functional.relu(conv(embedded_2).permute(0, 2, 1).max(1)[0]) for conv in self.convs]
         elif self.mode == "transformer":
-
-            if self.n_layers == 1:
-                with torch.no_grad():
+            if self.finetune:
+                if self.n_layers == 1:
                     embedded = self.embedding(x)[0].permute(0, 2, 1)
-            else:
-                with torch.no_grad():
+                else:
                     embedded = torch.cat(self.embedding(x)[2][(self.n_layers):], -1).permute(0, 2, 1)
+            else:
+                if self.n_layers == 1:
+                    with torch.no_grad():
+                        embedded = self.embedding(x)[0].permute(0, 2, 1)
+                else:
+                    with torch.no_grad():
+                        embedded = torch.cat(self.embedding(x)[2][(self.n_layers):], -1).permute(0, 2, 1)
             # embedded = self.dropout_layer(embedded)
             c = [torch.nn.functional.relu(conv(embedded).permute(0, 2, 1).max(1)[0]) for conv in self.convs]
 
