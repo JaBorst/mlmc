@@ -18,7 +18,7 @@ def sampler(dataset, fraction=None, absolute=None):
     
     # assert fraction is None != absolute is None, "Exactly one of fraction or absolute has to be set."
     if fraction is not None:
-        assert fraction<1 and fraction>0, "The fraction argument has to be between 0 and 1."
+        assert fraction<=1 and fraction>0, "The fraction argument has to be between 0 and 1."
     n_samples = absolute if absolute is not None else  int(fraction*len(dataset))
     if n_samples > len(dataset): n_samples = len(dataset)
     ind = np.random.choice(range(len(dataset)), n_samples, replace=False)
