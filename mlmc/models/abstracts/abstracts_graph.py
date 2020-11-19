@@ -1,11 +1,10 @@
 import torch
 
-from .abstracts import TextClassificationAbstract
-from .abstracts_zeroshot import TextClassificationAbstractZeroShot
-from ..graph import get as graph_get
+from mlmc.models.abstracts.abstracts import TextClassificationAbstract
+from mlmc.models.abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
+from mlmc.graph import get as graph_get
 import networkx as nx
-from ..graph import subgraphs
-from ..data import SingleLabelDataset,MultiLabelDataset,MultiOutputMultiLabelDataset,MultiOutputSingleLabelDataset
+from mlmc.data import MultiLabelDataset
 from tqdm import tqdm
 import random
 

@@ -30,7 +30,6 @@ setup(
               'mlmc.data',
               'mlmc.graph',
               'mlmc.layers',
-              'mlmc.loss',
               'mlmc.metrics',
               'mlmc.models',
               'mlmc.representation',

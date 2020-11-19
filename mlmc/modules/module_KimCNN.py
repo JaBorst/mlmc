@@ -1,18 +1,17 @@
 import torch
 from mlmc.models.abstracts.abstracts import TextClassificationAbstract
-from ..modules.module_KimCNN import KimCNNModule
-from ..representation import get, is_transformer
+from ..representation import get
 ##############################################################################################
 ##############################################################################################
 #  Implementations
 ##############################################################################################
 
 
-class KimCNN(TextClassificationAbstract):
+class KimCNNModule(torch.nn.Module):
     """
     Implementation of Yoon Kim 2014 KimCNN Classification network for Multilabel Application (added support for Language Models).
     """
-    def __init__(self, classes, mode="transformer", kernel_sizes=(3,4,5,6), filters=100, dropout=0.5, n_layers=1,max_len=200, **kwargs):
+    def __init__(self, in_features, kernel_sizes=(3,4,5,6), filters=100, dropout=0.5):
         """Class constructor and intialization of every hyperparameters
 
         :param classes:  A dictionary of the class label and the corresponding index
@@ -28,43 +27,16 @@ class KimCNN(TextClassificationAbstract):
         :param max_len: Maximum length input sequences. Longer sequences will be cut.
         :param kwargs: Optimizer and loss function keyword arguments, see `mlmc.models.TextclassificationAbstract`
          """
-        super(KimCNN, self).__init__(**kwargs)
-        self.classes = classes
-        self.n_classes = len(classes)
-        self.max_len = max_len
+        super(KimCNNModule, self).__init__()
+
         self.kernel_sizes = kernel_sizes
+        self.in_features = in_features
         self.filters = filters
         self.dropout = dropout
-
-        self.modes = ("trainable", "untrainable", "multichannel", "transformer")
-        if is_transformer(self.representation):
-            print("Setting mode to transformer")
-            mode = "transformer"
-        assert mode in self.modes, f"{self.mode} not in ({self.modes})"
-        self.mode = mode
-        self.l = 2 if self.mode ==  "multichannel" else 1
-        if self.mode =="multichannel":
-            self.l = 2
-            self.embedding_channel2, self.tokenizer_channel2 = get(model=self.representation, freeze=not self.finetune)
-
-        # Layers
-        self.kimcnn_module = KimCNNModule(
-            in_features=self.embeddings_dim,
-            kernel_sizes=self.kernel_sizes,
-            filters=self.filters,
-            dropout=self.dropout
-        )
-        self.dropout_layer = torch.nn.Dropout(self.dropout)
-        self.projection = torch.nn.Linear(
-            in_features=self.l*self.kimcnn_module.out_features,
-            out_features=self.n_classes)
-        self.build()
+        self.out_features = len(self.kernel_sizes)*self.filters
+        self.convs = torch.nn.ModuleList([torch.nn.Conv1d(self.in_features, self.filters, k) for k in self.kernel_sizes])
 
     def forward(self, x):
-        e = self.embed_input(x)
-        c = self.kimcnn_module(e.permute(0, 2, 1))
-        if self.mode == "multichannel":
-            e2 = self.embedding_channel2(x)
-            c = torch.cat([c, self.kimcnn_module(e2.permute(0, 2, 1))],-1)
-        output = self.projection(self.dropout_layer(c))
-        return output
+        c = [torch.nn.functional.relu(conv(x).permute(0, 2, 1).max(1)[0]) for conv in self.convs]
+        c = torch.cat(c, 1)
+        return c

@@ -2,9 +2,8 @@
 Few-Shot and Zero-Shot Multi-Label Learning for Structured Label Spaces - Rios & Kavuluru (2018)
 """
 import torch
-from ..models.abstracts_graph import TextClassificationAbstractGraph
-from ..models.abstracts_zeroshot import TextClassificationAbstractZeroShot
-from ..representation import get, is_transformer
+from mlmc.models.abstracts.abstracts_graph import TextClassificationAbstractGraph
+from mlmc.models.abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
 import re
 import networkx as nx
 
@@ -45,19 +44,7 @@ class ZAGCNNLM(TextClassificationAbstractGraph, TextClassificationAbstractZeroSh
         self.build()
 
     def forward(self, x):
-        if self.finetune:
-            if self.n_layers == 1:
-                embeddings = self.embedding(input_ids=x)[0]
-            else:
-                embeddings = torch.cat(self.embedding(input_ids=x)[2][(self.n_layers):], -1)
-        else:
-            with torch.no_grad():
-                if self.n_layers == 1:
-                    embeddings = self.embedding(input_ids=x)[0]
-                else:
-                    embeddings = torch.cat(self.embedding(input_ids=x)[2][(self.n_layers):], -1)
-
-
+        embeddings = self.embed_input(x)
         embedded = self.dropout_layer(embeddings)
         c = torch.cat([self.pool(torch.nn.functional.relu(conv(embedded.permute(0,2,1)))) for conv in self.convs], dim=-1).permute(0,2,1)
         d2 = torch.tanh(self.document_projection(c))
@@ -73,40 +60,13 @@ class ZAGCNNLM(TextClassificationAbstractGraph, TextClassificationAbstractZeroSh
         labelvectors = torch.cat([self.label_embeddings, labelgcn], dim=-1)
         return (torch.relu(self.projection(label_wise_representation)) * labelvectors).sum(-1)
 
-    def create_label_dict(self, method="repeat",scale="mean"):
+    def create_label_dict(self):
         # assert method in ("repeat","generate","embed", "glove", "graph"), 'method has to be one of ("repeat","generate","embed")'
-        if method=="repeat":
-            from ..representation import get_lm_repeated
-            with torch.no_grad():
-                l = get_lm_repeated(self.classes, self.representation)
-        if method == "generate":
-            from ..representation import get_lm_generated
-            with torch.no_grad():
-                l = get_lm_generated(self.classes, self.representation)
-        if method == "embed":
-            with torch.no_grad():
-                l = self.embedding(self.tokenizer(self.classes.keys()).to(list(self.parameters())[0].device))[1]
-        if method == "glove":
-            from ..representation import get_word_embedding_mean
-            with torch.no_grad():
-                l = get_word_embedding_mean(
-                    [" ".join(re.split("[/ _-]", x.lower())) for x in self.classes.keys()],
-                    "glove300")
-        if method == "wiki":
-            from ..graph.graph_operations import augment_wikiabstracts
-            tmp_graph = nx.Graph()
-            tmp_graph.add_nodes_from(self.classes.keys())
-            tmp_graph = augment_wikiabstracts(tmp_graph)
-            ls = [dict(val).get("extract",node)  for node, val in  dict(tmp_graph.nodes(True)).items()]
-            with torch.no_grad():
-                l = self.embedding(self.tokenizer(ls).to(list(self.parameters())[0].device))[1]
-
-        if scale=="mean":
-            print("subtracting mean")
-            l = l - l.mean(0,keepdim=True)
-        if scale == "normalize":
-            print("normalizing")
-            l = l/l.norm(p=2,dim=-1,keepdim=True)
+        from ..representation import get_word_embedding_mean
+        with torch.no_grad():
+            l = get_word_embedding_mean(
+                [" ".join(re.split("[/ _-]", x.lower())) for x in self.classes.keys()],
+                "glove300")
         self.label_embeddings_dim = l.shape[-1]
         return  {w:e for w,e in zip(self.classes, l)}
 

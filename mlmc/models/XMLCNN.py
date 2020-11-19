@@ -1,6 +1,8 @@
 import torch
-from .abstracts import TextClassificationAbstract
+from mlmc.models.abstracts.abstracts import TextClassificationAbstract
 from ..representation import get
+from ..modules.module_KimCNN import KimCNNModule
+from ..representation import is_transformer
 ##############################################################################################
 ##############################################################################################
 #  Implementations
@@ -14,7 +16,7 @@ class XMLCNN(TextClassificationAbstract):
     """
 
     def __init__(self, classes, mode="transformer", representation="roberta", bottle_neck= None, kernel_sizes=[3, 4, 5, 6], filters=100,
-                 dropout=0.5, max_len=200,n_layers=4, **kwargs):
+                 dropout=0.5, max_len=200, **kwargs):
         """
         Class constructor and intialization of every hyperparameters
         :param classes:  A dictionary of the class label and the corresponding index
@@ -32,89 +34,50 @@ class XMLCNN(TextClassificationAbstract):
         """
         super(XMLCNN, self).__init__(**kwargs)
 
+
         self.classes = classes
         self.n_classes = len(classes)
         self.max_len = max_len
-        self.modes = ("trainable", "untrainable", "multichannel", "transformer")
-        self.mode = mode
-        self.l = 1
         self.kernel_sizes = kernel_sizes
         self.filters = filters
-        self.representation = representation
         self.dropout = dropout
-        self.n_layers = n_layers
         self.bottle_neck = bottle_neck if bottle_neck is not None else int(len(classes)**0.5)
 
-        assert self.mode in self.modes, "%s not in (%s, %s, %s, %s)" % (self.mode, *self.modes)
-        self._init_input_representations()
 
-        self.convs = torch.nn.ModuleList(
-            [torch.nn.Conv1d(self.embeddings_dim, self.filters, k) for k in self.kernel_sizes])
-        self.projection = torch.nn.Linear(in_features=self.bottle_neck,
-                                          out_features=self.n_classes)
+        self.modes = ("trainable", "untrainable", "multichannel", "transformer")
+        if is_transformer(representation):
+            print("Setting mode to transformer")
+            mode = "transformer"
+        assert mode in self.modes, "%s not in (%s, %s, %s, %s, %s)" % (self.mode, *self.modes)
+        self.mode = mode
+        self.l = 2 if self.mode ==  "multichannel" else 1
+
+        self.representation = representation
+        self._init_input_representations()
+        if self.mode =="multichannel":
+            self.l = 2
+            self.embedding_channel2, self.tokenizer_channel2 = get(model=self.representation, freeze=not self.finetune)
+
+
+
+        # Layers
+        self.kimcnn_module = KimCNNModule(in_features=self.embeddings_dim, kernel_sizes=self.kernel_sizes, filters=self.filters, dropout=self.dropout)
         self.dropout_layer = torch.nn.Dropout(self.dropout)
-        self.bottle_neck_layer = torch.nn.Linear(in_features=self.l * len(self.kernel_sizes) * self.filters,
-                                                 out_features=self.bottle_neck)
+        self.bottle_neck_layer = torch.nn.Linear(
+            in_features=self.l * self.kimcnn_module.out_features,
+            out_features=self.bottle_neck)
+        self.projection = torch.nn.Linear(
+            in_features=self.bottle_neck,
+            out_features=self.n_classes)
+
         self.build()
 
-    def _init_input_representations(self):
-        if self.mode == "trainable":
-            self.embedding, self.tokenizer = get(model=self.representation, freeze=False)
-            self.embeddings_dim = self.embedding.weight.shape[-1]
-        elif self.mode == "untrainable":
-            self.embedding, self.tokenizer = get(model=self.representation, freeze=True)
-            self.embeddings_dim = self.embedding.weight.shape[-1]
-        elif self.mode == "multichannel":
-            self.l = 2
-            self.embedding, self.tokenizer = get(model=self.representation, freeze=True)
-            self.embeddings_dim = self.embedding.weight.shape[-1]
-
-            self.embedding_untrainable = torch.nn.Embedding(*self.embedding.weight.shape)
-            self.embedding_untrainable = self.embedding.from_pretrained(self.embedding.weight.clone(), freeze=False)
-            self.embedding = torch.nn.ModuleList([self.embedding, self.embedding_untrainable])
-
-        elif self.mode == "transformer":
-            try:
-                if self.n_layers == 1:
-                    self.embedding, self.tokenizer = get(model=self.representation)
-                    self.embeddings_dim = self.embedding(torch.tensor([[0]]))[0].shape[-1]
-                else:
-                    self.embedding, self.tokenizer = get(model=self.representation, output_hidden_states=True)
-                    self.embeddings_dim = torch.cat(self.embedding(self.embedding.dummy_inputs["input_ids"])[2][self.n_layers:], -1).shape[-1]
-            except TypeError:
-                Warning("If your using a model that does not support returning hiddenstates, set n_layers=1")
-                import sys
-                sys.exit()
-
     def forward(self, x):
-
-        if self.mode == "trainable":
-            embedded = self.embedding(x).permute(0, 2, 1)
-            embedded = self.dropout_layer(embedded)
-            c = [torch.nn.functional.relu(conv(embedded).permute(0, 2, 1).max(1)[0]) for conv in self.convs]
-        elif self.mode == "untrainable":
-            with torch.no_grad():
-                embedded = self.embedding(x).permute(0, 2, 1)
-            embedded = self.dropout_layer(embedded)
-            c = [torch.nn.functional.relu(conv(embedded).permute(0, 2, 1).max(1)[0]) for conv in self.convs]
-        elif self.mode == "multichannel":
-            embedded_1 = self.embedding[0](x).permute(0, 2, 1)
-            with torch.no_grad():
-                embedded_2 = self.embedding[1](x).permute(0, 2, 1)
-            embedded_1 = self.dropout_layer(embedded_1)
-            embedded_2 = self.dropout_layer(embedded_2)
-            c = [torch.nn.functional.relu(conv(embedded_1).permute(0, 2, 1).max(1)[0]) for conv in self.convs] + \
-                [torch.nn.functional.relu(conv(embedded_2).permute(0, 2, 1).max(1)[0]) for conv in self.convs]
-        elif self.mode == "transformer":
-            if self.n_layers == 1:
-                with torch.no_grad():
-                    embedded = self.embedding(x)[0].permute(0, 2, 1)
-            else:
-                with torch.no_grad():
-                    embedded = torch.cat(self.embedding(x)[2][self.n_layers:], -1).permute(0, 2, 1)
-            c = [torch.nn.functional.relu(conv(embedded).permute(0, 2, 1).max(1)[0]) for conv in self.convs]
-
-        c = torch.cat(c, 1)
+        e = self.embed_input(x)
+        c = self.kimcnn_module(e.permute(0, 2, 1))
+        if self.mode == "multichannel":
+            e2 = self.embedding_channel2(x)
+            c = torch.cat([c, self.kimcnn_module(e2.permute(0, 2, 1))], -1)
         c = torch.relu(self.bottle_neck_layer(c))
         output = self.projection(self.dropout_layer(c))
         return output

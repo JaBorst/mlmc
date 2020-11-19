@@ -1,5 +1,5 @@
 import torch
-from ..data.transformer import label_smoothing_random
+from mlmc.data.transformer import label_smoothing_random
 
 
 class NoiseSmoothBCEWithLogitsLoss(torch.nn.BCEWithLogitsLoss):

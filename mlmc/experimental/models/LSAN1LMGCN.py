@@ -3,12 +3,9 @@ https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
 """
 import torch
 import torch.nn.functional as F
-from ...models.abstracts import TextClassificationAbstract
-from ...models.abstracts_zeroshot import TextClassificationAbstractZeroShot
-from ...models.abstracts_graph import TextClassificationAbstractGraph
-import re
+from mlmc.models.abstracts.abstracts_graph import TextClassificationAbstractGraph
 import networkx as nx
-from ...layers import ExpertCoRep
+
 
 class LSAN1LMGCN(TextClassificationAbstractGraph):
     """
@@ -140,7 +137,7 @@ class LSAN1LMGCN(TextClassificationAbstractGraph):
 
     def create_label_dict(self):
         if self.explanations is None:
-            from ...graph import augment_wikiabstracts, subgraphs, get
+            from ...graph import augment_wikiabstracts, get
             import networkx as nx
             tmp_graph = nx.Graph()
             import re

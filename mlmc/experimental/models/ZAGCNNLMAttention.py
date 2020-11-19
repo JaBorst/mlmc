@@ -2,8 +2,8 @@
 Few-Shot and Zero-Shot Multi-Label Learning for Structured Label Spaces - Rios & Kavuluru (2018)
 """
 import torch
-from mlmc.models.abstracts_graph import TextClassificationAbstractGraph
-from mlmc.models.abstracts_zeroshot import TextClassificationAbstractZeroShot
+from mlmc.models.abstracts.abstracts_graph import TextClassificationAbstractGraph
+from mlmc.models.abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
 from mlmc.representation import Embedder
 
 class ZAGCNNAttention(TextClassificationAbstractGraph,TextClassificationAbstractZeroShot):

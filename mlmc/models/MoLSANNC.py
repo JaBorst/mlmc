@@ -1,21 +1,21 @@
 """
 https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
 """
-from mlmc.models.abstracts.abstracts import TextClassificationAbstract
+from mlmc.models.abstracts.abstracts_mo import TextClassificationAbstractMultiOutput
 from mlmc.models.abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
 from ..representation import is_transformer
 import re
 from ..layers import *
 
-class LSANNC(TextClassificationAbstract,TextClassificationAbstractZeroShot):
+class MoLSANNC(TextClassificationAbstractMultiOutput,TextClassificationAbstractZeroShot):
     """
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
     def __init__(self, classes, scale="mean", share_weighting=False, weight_norm ="norm", branch_noise = 0., dropout=0.3,
                  hidden_representations= 400, representation="roberta",  d_a=200, max_len=400, n_layers=1, **kwargs):
-        super(LSANNC, self).__init__(**kwargs)
+        super(MoLSANNC, self).__init__(**kwargs)
         #My Stuff
-        self.classes = classes
+        self.n_classes = [len(x) for x in classes]
         self.max_len = max_len
         self.representation=representation
         self.scale = scale
@@ -55,7 +55,7 @@ class LSANNC(TextClassificationAbstract,TextClassificationAbstractZeroShot):
                                                     norm=self.weight_norm)
         self.dropout_layer = torch.nn.Dropout(self.dropout)
 
-        self.output_layer = torch.nn.Linear(self.hidden_representations * 2, 1)
+        self.output_layer = torch.nn.ModuleList([torch.nn.Linear(self.hidden_representations * 2, 1) for _ in range(self.n_outputs)])
         self.build()
 
     def forward(self, x, return_weights=False):
@@ -70,7 +70,7 @@ class LSANNC(TextClassificationAbstract,TextClassificationAbstractZeroShot):
         if self.log_bw:
             self.bw.append(weights.cpu())
         doc = self.dropout_layer(doc)
-        pred = self.output_layer(doc / self.label_embedding_dim).squeeze()
+        pred = [l(doc / self.label_embedding_dim).squeeze() for l in self.output_layer]
         if return_weights:
             return pred, weights
         return pred

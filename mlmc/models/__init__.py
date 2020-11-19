@@ -2,28 +2,27 @@
 Submodule containing implementations of neural network models for Multilabel Architectures.
 """
 
-# Well Tested
+# CNN Variants
 from .XMLCNN import XMLCNN
 from .KimCNN import KimCNN
 from .MoKimCNN import MoKimCNN
 
 #LSAN Variants
-from .LSAN import LSANOriginal
-from .LSANOriginalTransformer import LSANOriginalTransformer
+from .LSAN import LSAN
+from .LSANNC import LSANNC
+from .MoLSANNC import MoLSANNC
+
+# Basic transformers
+from .MoTransformer import MoTransformer
+from .Transformer import Transformer
 
 # Geometric Models
 try:
-    from .ZAGCNN import ZAGCNN
-    from .MoZAGCNNLM import MoZAGCNNLM
-    from .MoTransformer import MoTransformer
     from .ZAGCNNLM import ZAGCNNLM
-    from .SKG_ML import SKG
+    from .SKGLM import SKGLM
 except:
     print("pytorch_geometric not installed.")
     pass
-
-from .LSANOriginalTransformerNoClasses import LSANOriginalTransformerNoClasses
-from .LSANNC import LSANNC
 
 def finetune_mixed_precision_model(model, finetune=True):
     try:

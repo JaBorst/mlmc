@@ -1,15 +1,7 @@
 import torch
-from pkg_resources import _by_version_descending
 from tqdm import tqdm
 
-from ..metrics.multilabel import MultiLabelReport, AUC_ROC
-from ..representation import is_transformer, get
-from ..representation.labels import makemultilabels
-
-from ..representation import threshold_mcut, threshold_hard,threshold_max
-
-from ..data import SingleLabelDataset,MultiLabelDataset,MultiOutputMultiLabelDataset,MultiOutputSingleLabelDataset
-import re
+from ...data import MultiLabelDataset, SingleLabelDataset
 
 import abc
 try:
@@ -29,14 +21,12 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
     """
     def zeroshot_fit(self, train, valid, epochs=1, batch_size=16, valid_batch_size=50, classes_subset=None, patience=-1, tolerance=1e-2,
             return_roc=False):
-        history = []
-        evaluation = []
+
         zeroshot_classes=list(set(valid.classes.keys()) - set(train.classes.keys()))
         print("Found Zero-shot Classes: ", str(zeroshot_classes))
 
         import datetime
         id = str(hash(datetime.datetime.now()))[1:7]
-        from ..data import SingleLabelDataset
         if isinstance(train, SingleLabelDataset) and self.target != "single":
             print("You are using the model in multi mode but input is SingeleLabelDataset.")
             return 0
@@ -62,19 +52,8 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
                 for i, b in enumerate(train_loader):
 
                     self.optimizer.zero_grad()
-                    y = b["labels"].to(self.device)
-
-                    x = self.transform(b["text"])
-                    output = self(x)
-                    if hasattr(self, "regularize"):
-                        l = self.loss(output, y) + self.regularize()
-                    else:
-                        l = self.loss(output, y)
-                    if self.use_amp:
-                        with amp.scale_loss(l, self.optimizer) as scaled_loss:
-                            scaled_loss.backward()
-                    else:
-                        l.backward()
+                    l, output = self._step(x=self.transform(b["text"]).to(self.device), y=b["labels"].to(self.device))
+                    l.backward()
 
                     self.optimizer.step()
                     average.update(l.item())

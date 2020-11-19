@@ -3,12 +3,11 @@ https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
 """
 import torch
 import torch.nn.functional as F
-from ...models.abstracts_graph import TextClassificationAbstractGraph
-from ...models.abstracts_zeroshot import TextClassificationAbstractZeroShot
-from ...representation import get
+from mlmc.models.abstracts.abstracts_graph import TextClassificationAbstractGraph
+from mlmc.models.abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
 import re
 import networkx as nx
-from ...layers.Distances import Distance, DistanceCorrespondence
+
 
 class LSANEK(TextClassificationAbstractGraph, TextClassificationAbstractZeroShot):
     """

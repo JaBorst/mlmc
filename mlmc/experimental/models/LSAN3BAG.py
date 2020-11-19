@@ -1,10 +1,10 @@
 """
 https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
 """
-from ...models.abstracts_graph import TextClassificationAbstractGraph
+from mlmc.models.abstracts.abstracts_graph import TextClassificationAbstractGraph
 import re
 import networkx as nx
-from ...layers.attention_comparison import *
+from ...layers.nc_attention_comparison import *
 import dgl
 
 class LSAN3BAG(TextClassificationAbstractGraph):
@@ -55,8 +55,8 @@ class LSAN3BAG(TextClassificationAbstractGraph):
         self.projection_input = torch.nn.Linear(self.embeddings_dim, self.hidden_representations*2 ).to(self.device)
         self.projection_labels = torch.nn.Linear(self.label_embedding_dim, self.hidden_representations ).to(self.device)
 
-        self.lsatt = LabelSpecificSelfAttention(in_features=self.hidden_representations*2,in_features2=self.hidden_representations, hidden_features=self.d_a)
-        self.latt = SplitWrapper(self.hidden_representations,LabelSelfAttention(hidden_features=self.hidden_representations))
+        self.lsatt = NC_LabelSpecificSelfAttention(in_features=self.hidden_representations * 2, in_features2=self.hidden_representations, hidden_features=self.d_a)
+        self.latt = SplitWrapper(self.hidden_representations, NC_LabelSelfAttention(hidden_features=self.hidden_representations))
         self.dynamic_fusion = DynamicWeightedFusion(in_features=self.hidden_representations*2, n_inputs=3,share_weights=self.share_weighting, norm=self.weight_norm).to(self.device)
         self.gsa =SplitWrapper(self.hidden_representations, GraphSpecificSelfAttention(hidden_features=self.hidden_representations , n_layers=3))
         self.gsa_p = torch.nn.Linear(self.hidden_representations * 2, 2* self.hidden_representations)

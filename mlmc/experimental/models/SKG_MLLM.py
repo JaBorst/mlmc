@@ -3,7 +3,7 @@ Multi-Label Zero-Shot Learning with Structured Knowledge Graphs Lee, Fang, Yeh (
 """
 
 import torch
-from mlmc.models.abstracts import TextClassificationAbstract
+from mlmc.models.abstracts.abstracts import TextClassificationAbstract
 from mlmc.layers import  LabelEmbeddingScoring
 from mlmc.representation.representations import get
 import torch_geometric as torch_g

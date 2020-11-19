@@ -3,32 +3,41 @@ https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
 """
 import torch
 import torch.nn.functional as F
-from .abstracts import TextClassificationAbstract
-from ..representation import get
+from mlmc.models.abstracts.abstracts import TextClassificationAbstract
+from ..representation import is_transformer
 
-class LSANOriginal(TextClassificationAbstract):
+class LSAN(TextClassificationAbstract):
     """
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
     def __init__(self, classes, representation, label_embed=None, label_freeze=False, lstm_hid_dim=300, d_a=200 ,max_len=500,**kwargs):
-        super(LSANOriginal, self).__init__(**kwargs)
+        super(LSAN, self).__init__(**kwargs)
         #My Stuff
         self.max_len = max_len
 
 
         # Original
+        self.classes = classes
         self.n_classes = len(classes)
-        self.embedding, self.tokenizer = get(representation, freeze=True)
-        self.embedding_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
+        self.representation = representation
+        self.lstm_hid_dim = lstm_hid_dim
+        self._init_input_representations()
 
         if label_embed is not None:
             self.label_embed = torch.nn.Embedding(label_embed.shape[0], label_embed.shape[1])
             self.label_embed.from_pretrained(torch.FloatTensor(label_embed), freeze=label_freeze)
         else:
-            self.label_embed = torch.nn.Embedding(self.n_classes, self.embedding_dim)
+            self.label_embed = torch.nn.Embedding(self.n_classes, self.lstm_hid_dim)
 
-        self.lstm = torch.nn.LSTM(self.embedding_dim, hidden_size=lstm_hid_dim, num_layers=1,
-                                  batch_first=True, bidirectional=True)
+        if is_transformer(self.representation):
+            self.projection_input = torch.nn.Linear(self.embeddings_dim,
+                                                    self.lstm_hid_dim * 2)
+        else:
+            self.projection_input = torch.nn.LSTM(self.embeddings_dim,
+                                                  hidden_size=self.lstm_hid_dim,
+                                                  num_layers=1,
+                                                  batch_first=True,
+                                                  bidirectional=True)
 
         self.linear_first = torch.nn.Linear(lstm_hid_dim * 2, d_a)
         self.linear_second = torch.nn.Linear(d_a, self.n_classes)
@@ -46,11 +55,13 @@ class LSANOriginal(TextClassificationAbstract):
                 torch.randn(2, size, self.lstm_hid_dim).to(self.device))
 
     def forward(self, x):
-        embeddings = self.embedding(x)
+        embeddings = self.embed_input(x)
         embeddings = self.embedding_dropout(embeddings)
         # step1 get LSTM outputs
         # hidden_state = self.init_hidden(x.shape[0])
-        outputs, hidden_state = self.lstm(embeddings)#, hidden_state)
+        outputs = self.projection_input(embeddings)
+        if not is_transformer(self.representation):
+            outputs = outputs[0]
         # step2 get self-attention
         selfatt = torch.tanh(self.linear_first(outputs))
         selfatt = self.linear_second(selfatt)

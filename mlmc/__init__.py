@@ -19,6 +19,8 @@ import mlmc.experimental
 import mlmc.experimental.data
 import mlmc.experimental.le
 import mlmc.experimental.models
-import mlmc.loss
 # Save and load models for inference
 from .save_and_load import save, load
+
+import logging
+logging.getLogger("transformers.tokenization_utils_base").setLevel(logging.ERROR)

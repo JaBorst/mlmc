@@ -1,12 +1,18 @@
 import torch
-from mlmc.models.abstracts.abstracts_mo import TextClassificationAbstractMultiOutput
+from mlmc.models.abstracts.abstracts import TextClassificationAbstract
 
 
-class MoTransformer(TextClassificationAbstractMultiOutput):
+##############################################################################################
+##############################################################################################
+#  Implementations
+##############################################################################################
+
+
+class Transformer(TextClassificationAbstract):
     """
-    Implementation of a simple transofmrer model for multioutput
+    Implementation of Yoon Kim 2014 KimCNN Classification network for Multilabel Application (added support for Language Models).
     """
-    def __init__(self, n_outputs, classes, representation="roberta", dropout=0.5, n_layers=1, max_len=200, **kwargs):
+    def __init__(self, classes, representation="roberta", dropout=0.5, n_layers=1, max_len=200, **kwargs):
         """Class constructor and intialization of every hyperparameters
 
         :param classes:  A list of dictionary of the class label and the corresponding index
@@ -15,10 +21,10 @@ class MoTransformer(TextClassificationAbstractMultiOutput):
         :param max_len: Maximum length input sequences. Longer sequences will be cut.
         :param kwargs: Optimizer and loss function keyword arguments, see `mlmc.models.TextclassificationAbstract`
          """
-        super(MoTransformer, self).__init__(n_outputs = n_outputs, **kwargs)
+        super(Transformer, self).__init__(classes=classes,**kwargs)
 
         self.classes = classes
-        self.n_classes = [len(x) for x in classes]
+        self.n_classes = len(classes)
         self.max_len = max_len
         self.l = 1
         self.representation = representation
@@ -27,7 +33,7 @@ class MoTransformer(TextClassificationAbstractMultiOutput):
         self._init_input_representations()
 
 
-        self.projection = torch.nn.ModuleList([torch.nn.Linear(in_features=self.embeddings_dim, out_features=x) for x in self.n_classes])
+        self.projection = torch.nn.Linear(in_features=self.embeddings_dim, out_features=self.n_classes)
         self.dropout_layer = torch.nn.Dropout(self.dropout)
         self.build()
 
@@ -35,6 +41,6 @@ class MoTransformer(TextClassificationAbstractMultiOutput):
     def forward(self, x):
         embedded = self.embed_input(x)
         embedded = self.dropout_layer(embedded)
-        output = [x(self.dropout_layer(embedded.mean(-1))) for x in self.projection]
+        output = self.projection(self.dropout_layer(embedded.mean(-2)))
         return output
 

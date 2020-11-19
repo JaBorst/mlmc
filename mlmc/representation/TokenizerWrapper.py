@@ -1,20 +1,4 @@
 import torch
-import transformers
-import string
-import re
-
-import time
-def timeit(method):
-    def timed(*args, **kw):
-        ts = time.time()
-        result = method(*args, **kw)
-        te = time.time()
-        print ('%r  %2.2f ms' % \
-                  (method.__name__, (te - ts) * 1000))
-        return result
-    return timed
-
-
 
 class TokenizerWrapper():
     def __init__(self, tokenizer_class, path, cased=False):
@@ -79,31 +63,14 @@ class TokenizerWrapper():
 
         split_sentences = [w.upper().split() for w in x]# <- This is not perfect
 
-        # ts = time.time()
-        # tokenized = self.tokenizer.batch_encode_plus(x, pad_to_max_length=False)["input_ids"]
         tokenized = [self.tokenizer.tokenize(sent) for sent in x]
-        # te = time.time()
-        # print('%r  %2.2f ms' % ("_shallow_tokenizer", (te - ts) * 1000))
-
-        # ts = time.time()
         ids = [self._compare(s, t) for s, t in zip(split_sentences,tokenized)]
-        # te = time.time()
-        # print('%r  %2.2f ms' % ("compare", (te - ts) * 1000))
-        #
-        # ts = time.time()
-        # ids = [torch.cumsum(torch.tensor([len(x) for x in s]),0) for s in  tokenized]
-        # te = time.time()
-        # print('%r  %2.2f ms' % ("cumsum", (te - ts) * 1000))
-
         if not(self._bos == [] or not self.add_special_tokens): ids = [x+1 for x in ids]
 
-        # ts = time.time()
         if self.add_special_tokens:
             tokenized = [torch.tensor(self._bos +self.tokenizer.convert_tokens_to_ids(sent) + self._eos) for sent in tokenized]
         else:
             tokenized = [torch.tensor(self.tokenizer.convert_tokens_to_ids(sent)) for sent in tokenized]
-        # te = time.time()
-        # print('%r  %2.2f ms' % ("collector", (te - ts) * 1000))
 
         return tokenized, ids
 
@@ -119,7 +86,6 @@ class TokenizerWrapper():
             mask[i].scatter_(0, sent, 1.)
         return mask == 1.
 
-    # @timeit
     def tokenize(self, x, maxlen=500, return_start=False, pad=True, as_mask=True, add_special_tokens=False):
         assert not(return_start and not pad and as_mask), "Returning start ids as mask only possible for padded tokenized output"
         self.add_special_tokens = add_special_tokens
@@ -135,6 +101,7 @@ class TokenizerWrapper():
             if pad:
                 r = self._pad_to_maxlen(r, maxlen)
         return r
+
     def __call__(self, *args, **kwargs):
         return self.tokenize(*args, **kwargs)
 
