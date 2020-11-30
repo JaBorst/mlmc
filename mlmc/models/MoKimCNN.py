@@ -11,7 +11,7 @@ class MoKimCNN(TextClassificationAbstractMultiOutput):
     (added support for Language Models).
     """
 
-    def __init__(self, n_outputs, classes, mode="transformer", representation="roberta", kernel_sizes=(3, 4, 5, 6),
+    def __init__(self, classes, mode="transformer", representation="roberta", kernel_sizes=(3, 4, 5, 6),
                  filters=100, dropout=0.5, n_layers=1, max_len=200, **kwargs):
         """Class constructor and intialization of every hyperparameters
 
@@ -32,10 +32,11 @@ class MoKimCNN(TextClassificationAbstractMultiOutput):
         :param max_len: Maximum length input sequences. Longer sequences will be cut.
         :param kwargs: Optimizer and loss function keyword arguments, see `mlmc.models.TextclassificationAbstract`
          """
-        super(MoKimCNN, self).__init__(n_outputs=n_outputs, **kwargs)
-
+        super(MoKimCNN, self).__init__( **kwargs)
         self.classes = classes
         self.n_classes = [len(x) for x in classes]
+        self.n_outputs = len(classes)
+
         self.max_len = max_len
         self.mode = mode
         self.kernel_sizes = kernel_sizes
@@ -54,14 +55,14 @@ class MoKimCNN(TextClassificationAbstractMultiOutput):
             self.embedding_channel2, self.tokenizer_channel2 = get(model=self.representation, freeze=not self.finetune)
 
             # Layers
-            self.kimcnn_module = KimCNNModule(in_features=self.embeddings_dim, kernel_sizes=self.kernel_sizes,
-                                              filters=self.filters, dropout=self.dropout)
-            self.dropout_layer = torch.nn.Dropout(self.dropout)
-            self.projection = torch.nn.ModuleList(
-                [torch.nn.Linear(in_features=self.l * self.kimcnn_module.out_features, out_features=x) for x in
-                 self.n_classes])
+        self.kimcnn_module = KimCNNModule(in_features=self.embeddings_dim, kernel_sizes=self.kernel_sizes,
+                                          filters=self.filters, dropout=self.dropout)
+        self.dropout_layer = torch.nn.Dropout(self.dropout)
+        self.projection = torch.nn.ModuleList(
+            [torch.nn.Linear(in_features=self.l * self.kimcnn_module.out_features, out_features=x) for x in
+             self.n_classes])
 
-            self.build()
+        self.build()
 
     def forward(self, x):
         e = self.embed_input(x)

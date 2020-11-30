@@ -1,2 +1,0 @@
-from .attention_comparison import LabelEmbeddingScoring,AdaptiveCombination,LabelAttention, LabelSpecificSelfAttention
-from .nc_attention_comparison import *

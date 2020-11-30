@@ -1,6 +1,6 @@
 import torch
-from mlmc.models.abstracts.abstracts import TextClassificationAbstract
-from ..representation import get
+
+
 ##############################################################################################
 ##############################################################################################
 #  Implementations
@@ -11,7 +11,8 @@ class KimCNNModule(torch.nn.Module):
     """
     Implementation of Yoon Kim 2014 KimCNN Classification network for Multilabel Application (added support for Language Models).
     """
-    def __init__(self, in_features, kernel_sizes=(3,4,5,6), filters=100, dropout=0.5):
+
+    def __init__(self, in_features, kernel_sizes=(3, 4, 5, 6), filters=100, dropout=0.5):
         """Class constructor and intialization of every hyperparameters
 
         :param classes:  A dictionary of the class label and the corresponding index
@@ -33,8 +34,9 @@ class KimCNNModule(torch.nn.Module):
         self.in_features = in_features
         self.filters = filters
         self.dropout = dropout
-        self.out_features = len(self.kernel_sizes)*self.filters
-        self.convs = torch.nn.ModuleList([torch.nn.Conv1d(self.in_features, self.filters, k) for k in self.kernel_sizes])
+        self.out_features = len(self.kernel_sizes) * self.filters
+        self.convs = torch.nn.ModuleList(
+            [torch.nn.Conv1d(self.in_features, self.filters, k) for k in self.kernel_sizes])
 
     def forward(self, x):
         c = [torch.nn.functional.relu(conv(x).permute(0, 2, 1).max(1)[0]) for conv in self.convs]

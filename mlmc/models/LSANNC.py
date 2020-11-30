@@ -5,14 +5,14 @@ from mlmc.models.abstracts.abstracts import TextClassificationAbstract
 from mlmc.models.abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
 from ..representation import is_transformer
 import re
-from ..layers import *
+from ..modules import *
 
 class LSANNC(TextClassificationAbstract,TextClassificationAbstractZeroShot):
     """
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
     def __init__(self, classes, scale="mean", share_weighting=False, weight_norm ="norm", branch_noise = 0., dropout=0.3,
-                 hidden_representations= 400, representation="roberta",  d_a=200, max_len=400, n_layers=1, **kwargs):
+                 hidden_representations= 400, representation="google/bert_uncased_L-2_H-768_A-12" ,  d_a=200, max_len=400, n_layers=1, **kwargs):
         super(LSANNC, self).__init__(**kwargs)
         #My Stuff
         self.classes = classes
@@ -43,34 +43,23 @@ class LSANNC(TextClassificationAbstract,TextClassificationAbstractZeroShot):
                                                   batch_first=True,
                                                   bidirectional=True)
 
-        self.projection_labels = torch.nn.Linear(self.label_embedding_dim, self.hidden_representations)
+        # self.projection_labels = torch.nn.Linear(self.label_embedding_dim, self.hidden_representations)
 
-        self.lsatt = NC_LabelSpecificSelfAttention(in_features=self.hidden_representations * 2,
-                                                   in_features2=self.hidden_representations, hidden_features=self.d_a)
-        self.latt = SplitWrapper(self.hidden_representations,
-                                 NC_LabelSelfAttention(hidden_features=self.hidden_representations))
-
-        self.dynamic_fusion = DynamicWeightedFusion(in_features=self.hidden_representations*2, n_inputs=2,
-                                                    share_weights=self.share_weighting, noise=branch_noise,
-                                                    norm=self.weight_norm)
+        from ..modules import LSANNCModule
+        self.lsannc = LSANNCModule(self.hidden_representations*2, self.label_embedding_dim )
         self.dropout_layer = torch.nn.Dropout(self.dropout)
-
-        self.output_layer = torch.nn.Linear(self.hidden_representations * 2, 1)
+        self.output_layer = torch.nn.Linear(self.label_embedding_dim * 2, 1)
         self.build()
 
     def forward(self, x, return_weights=False):
-        outputs = self.projection_input(self.embed_input(x) / self.label_embedding_dim)
+        outputs = self.projection_input(self.embed_input(x) / self.embeddings_dim)
         if not is_transformer(self.representation):
             outputs = outputs[0]
-        outputs = self.dropout_layer(outputs)
-        label_embed = self.dropout_layer(self.projection_labels(self.label_embedding))
-        self_att = self.lsatt(outputs, label_embed)
-        label_att = self.latt(outputs, label_embed)
-        doc, weights = self.dynamic_fusion([self_att,  label_att])
-        if self.log_bw:
-            self.bw.append(weights.cpu())
-        doc = self.dropout_layer(doc)
-        pred = self.output_layer(doc / self.label_embedding_dim).squeeze()
+        # outputs = self.dropout_layer(outputs)
+        # label_embed = self.dropout_layer(self.label_embedding)
+        doc, weights = self.lsannc(outputs, self.label_embedding, return_weights=True)
+
+        pred = self.output_layer(doc).squeeze(-1)
         if return_weights:
             return pred, weights
         return pred
@@ -81,23 +70,30 @@ class LSANNC(TextClassificationAbstract,TextClassificationAbstractZeroShot):
     def get_branch_weights(self):
         return torch.cat(self.bw).cpu()
 
-    def create_label_dict(self):
+    def label_embed(self, classes):
         from ..representation import get_word_embedding_mean
+        import re
         with torch.no_grad():
             l = get_word_embedding_mean(
                 [" ".join(re.split("[/ _-]", x.lower())) for x in self.classes.keys()],
                 "glove300")
-        self.label_embedding_dim = l.shape[-1]
-        return {w: e for w, e in zip(self.classes, l)}
+        return l
 
-    def create_labels(self, classes):
-        self.classes = classes
-        self.n_classes = len(classes)
-        if not hasattr(self, "label_dict"):
-            try:
-                self.label_embedding = torch.stack([self.label_dict[cls] for cls in classes.keys()])
-            except:
-                self.label_dict = self.create_label_dict()
-                self.label_embedding = torch.stack([self.label_dict[cls] for cls in classes.keys()])
-        self.label_embedding = self.label_embedding.to(self.device)
 
+    # def create_label_dict(self):
+    #     from ..representation import get_word_embedding_mean
+    #     with torch.no_grad():
+    #         l = get_word_embedding_mean(
+    #             [" ".join(re.split("[/ _-]", x.lower())) for x in self.classes.keys()],
+    #             "glove300")
+    #     self.label_embedding_dim = l.shape[-1]
+    #     return {w: e for w, e in zip(self.classes, l)}
+    #
+    # def create_labels(self, classes):
+    #     self.classes = classes
+    #     self.n_classes = len(classes)
+    #     if not hasattr(self, "label_dict"):
+    #         self.label_dict = self.create_label_dict()
+    #     self.label_embedding = torch.stack([self.label_dict[cls] for cls in classes.keys()])
+    #     self.label_embedding = self.label_embedding.to(self.device)
+    #

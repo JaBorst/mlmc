@@ -4,6 +4,7 @@ from .analyser import History
 from .confusion import ConfusionMatrix
 
 from ..thresholds import get as thresholdget
+from .save_scores import SaveScores
 
 metrics_dict= {
     "p@1": lambda: PrecisionK(k=1, is_multilabel=True, average=True),
@@ -14,7 +15,7 @@ metrics_dict= {
     "auc_roc":lambda: AUC_ROC(return_roc=True),
     "multilabel_report": lambda:  MultiLabelReport(),
     "accuracy": lambda: AccuracyTreshold(thresholdget("max"), is_multilabel=False),
-    "singlelabel_report": lambda: MultiLabelReport(trf=thresholdget("max"), is_multilabel=False)
+    "singlelabel_report": lambda: MultiLabelReport(is_multilabel=False)
 }
 
 metrics_config = {
@@ -23,11 +24,21 @@ metrics_config = {
 }
 
 def get(s) -> dict:
-    if isinstance(s, str) and s in metrics_config:
-        return get(metrics_config[s])
-    else:
-        s = [s] if isinstance(s, str) else s
-        return {x: metrics_dict[x]() for x in s}
+    initial_list = [s] if isinstance(s, str) else s
+    remove = []
+    obj = []
+    for e in initial_list:
+        if e in metrics_config.keys():
+            initial_list.extend(metrics_config[e])
+            remove.append(e)
+        if not isinstance(e, str):
+            obj.append(e)
+    if len(remove) != 0:
+        for r in remove:
+            initial_list.remove(r)
+
+    r = {x: metrics_dict[x]() if isinstance(x,str) else x for x in initial_list}
+    return {k if isinstance(k, str) else v.__class__.__name__: v for k, v in r.items()}
 
 
 class MetricsDict:

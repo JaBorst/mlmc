@@ -1,15 +1,20 @@
 import networkx as nx
 import torch
+import re
+
+
+def cos(x,y):
+    return torch.matmul((x/x.norm(p=2,dim=-1,keepdim=True)) , (y/y.norm(p=2,dim=-1,keepdim=True)).t())
+
+
 
 def embed_align(classes, graph, model="glove50", topk=10, batch_size=50, device="cpu"):
     from ..representation import Embedder
-    import re
     e = Embedder(model, device=device, return_device=device)
     classes_tokens = [" ".join(re.split("[/ _-]", x.lower())) for x in classes.keys()]
 
     class_embeddings = torch.stack([x.mean(-2) for x in e.embed(classes_tokens, None)],0)
 
-    from ..representation.similarities import cos
     scores = []
     for batch in e.embed_batch_iterator(list(graph.nodes), batch_size=batch_size):
         scores.append(cos(class_embeddings, torch.stack([x.mean(-2) for x in batch],0)).t())
@@ -62,14 +67,12 @@ import torch
 
 def subgraphs(classes, graph, depth=1, model="glove50", topk=10,  allow_non_alignment=False, batch_size=50, device="cpu"):
     from ..representation import Embedder
-    import re
 
     e = Embedder(model, device=device, return_device=device)
     classes_tokens = [" ".join(re.split("[/ _.-]", x.lower())) for x in classes.keys()]
 
     class_embeddings = torch.stack([x.mean(-2) for x in e.embed(classes_tokens, None)],0)
 
-    from ..representation.similarities import cos
     scores = []
     for batch in e.embed_batch_iterator(list(graph.nodes), batch_size=batch_size):
         scores.append(cos(class_embeddings, torch.stack([x.mean(-2) for x in batch],0)).t())

@@ -30,6 +30,20 @@ def threshold_mcut(x):
     thresholds = (x_sorted[:, 1:] - x_sorted[:, :-1]).max(-1)[0]
     return (x > thresholds[:, None]).float()
 
+def threshold_mean(x):
+    """
+    Transform input tensor into a multiple-hot tensor using a threshold
+
+    The threshold is estimated from the largest decay in probability between two successively ranked labels.
+
+    Args:
+        x: Input Tensor
+
+    Returns:
+        Multiple-Hot Tensor
+    """
+    return (x > x.mean(-1).unsqueeze(-1)).float()
+
 def threshold_scaling_mcut(x, ind):
     """
     Transform input tensor into a multiple-hot tensor using a threshold

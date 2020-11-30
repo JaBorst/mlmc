@@ -1,6 +1,13 @@
 import torch
 
+
 class TokenizerWrapper():
+    """
+    A Wrapper around tokenizer functions to provide a unified interface wether using word embeddings
+    or transformer models. For transformer mordels it is also possible to ereturn a string of indices
+    mapping back to the original words.
+    """
+
     def __init__(self, tokenizer_class, path, cased=False):
         self.tokenizer = tokenizer_class.from_pretrained(path)
 
@@ -12,7 +19,7 @@ class TokenizerWrapper():
             self._bos = []
             self._eos = []
 
-        self._umlautmap = {ord(x):y for x,y in zip("öäüÖÄÜ", "oauOAU")}
+        self._umlautmap = {ord(x): y for x, y in zip("öäüÖÄÜ", "oauOAU")}
         self.cased = cased
 
     def _tokenize_without_index(self, x):
@@ -21,11 +28,12 @@ class TokenizerWrapper():
         return i
 
     # @timeit
-    def _shallow_tokenize(self,x):
+    def _shallow_tokenize(self, x):
         return [torch.tensor(x) for x in self.tokenizer.batch_encode_plus(x, pad_to_max_length=False)["input_ids"]]
 
-    def _deep_tokenize(self,x):
-        return ([[self.tokenizer.encode(w, add_special_tokens=False, pad_to_max_length=False) for w in sent] for sent in x])
+    def _deep_tokenize(self, x):
+        return (
+        [[self.tokenizer.encode(w, add_special_tokens=False, pad_to_max_length=False) for w in sent] for sent in x])
 
     def _remove_special_markup(self, text: str):
         # remove special markup
@@ -35,13 +43,14 @@ class TokenizerWrapper():
         text = re.sub('^▁', '', text)  # XLNet models
         text = re.sub('</w>$', '', text)  # XLM models
         return text
+
     def _compare(self, tokens, wp):
         assert len(tokens) > 0, "Empty string input to Embedder"
         tokens_iter = iter(tokens)
         ids = []
         token = next(tokens_iter)
         try:
-            for i,w in enumerate(wp):
+            for i, w in enumerate(wp):
                 if token.startswith(self._remove_special_markup(w).upper()):
                     ids.append(i)
                     token = next(tokens_iter)
@@ -54,21 +63,30 @@ class TokenizerWrapper():
         return torch.tensor(ids)
 
     def _tokenize_with_index(self, x):
+        """
+        This is somewhat a critical function. Still does not work perfect. (cmp github.com/flair)
+        ToDo: Extensive testing
+        Args:
+            x:
+
+        Returns:
+
+        """
         x = [x] if isinstance(x, str) else x
         if not self.cased:
             x = [sentence.translate(self._umlautmap).lower() for sentence in x]
         else:
             x = [sentence.translate(self._umlautmap) for sentence in x]
 
-
-        split_sentences = [w.upper().split() for w in x]# <- This is not perfect
+        split_sentences = [w.upper().split() for w in x]  # <- This is not perfect
 
         tokenized = [self.tokenizer.tokenize(sent) for sent in x]
-        ids = [self._compare(s, t) for s, t in zip(split_sentences,tokenized)]
-        if not(self._bos == [] or not self.add_special_tokens): ids = [x+1 for x in ids]
+        ids = [self._compare(s, t) for s, t in zip(split_sentences, tokenized)]
+        if not (self._bos == [] or not self.add_special_tokens): ids = [x + 1 for x in ids]
 
         if self.add_special_tokens:
-            tokenized = [torch.tensor(self._bos +self.tokenizer.convert_tokens_to_ids(sent) + self._eos) for sent in tokenized]
+            tokenized = [torch.tensor(self._bos + self.tokenizer.convert_tokens_to_ids(sent) + self._eos) for sent in
+                         tokenized]
         else:
             tokenized = [torch.tensor(self.tokenizer.convert_tokens_to_ids(sent)) for sent in tokenized]
 
@@ -87,7 +105,22 @@ class TokenizerWrapper():
         return mask == 1.
 
     def tokenize(self, x, maxlen=500, return_start=False, pad=True, as_mask=True, add_special_tokens=False):
-        assert not(return_start and not pad and as_mask), "Returning start ids as mask only possible for padded tokenized output"
+        """
+        Main functionality of tokenizeing according to the tokenizing fcuntion of the current model.
+
+        Args:
+            x:  list of strings
+            maxlen:  maximum length of token sequence ( longer sequences will be cut)
+            return_start: If True returns the start of the words in the input sequence for the transformer embeddings)
+            pad: if True the input sequences will be padded to maxlen
+            as_mask: if true the start indices mask will be converted to mask
+            add_special_tokens: is special_tokens should be added (compare transformers library)
+
+        Returns:
+
+        """
+        assert not (
+                    return_start and not pad and as_mask), "Returning start ids as mask only possible for padded tokenized output"
         self.add_special_tokens = add_special_tokens
         if return_start:
             result, ids = self._tokenize_with_index(x)
@@ -95,8 +128,9 @@ class TokenizerWrapper():
                 result = self._pad_to_maxlen(result, maxlen)
             if as_mask:
                 ids = self._ids_to_mask(ids, result.shape)
-            r = (result,ids)
+            r = (result, ids)
         else:
+            # This is the main functionality for models
             r = self._tokenize_without_index(x)
             if pad:
                 r = self._pad_to_maxlen(r, maxlen)
@@ -104,6 +138,3 @@ class TokenizerWrapper():
 
     def __call__(self, *args, **kwargs):
         return self.tokenize(*args, **kwargs)
-
-
-

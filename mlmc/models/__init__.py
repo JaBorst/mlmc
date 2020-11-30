@@ -11,7 +11,6 @@ from .MoKimCNN import MoKimCNN
 from .LSAN import LSAN
 from .LSANNC import LSANNC
 from .MoLSANNC import MoLSANNC
-
 # Basic transformers
 from .MoTransformer import MoTransformer
 from .Transformer import Transformer

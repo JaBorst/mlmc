@@ -2,13 +2,13 @@ import torch
 
 
 class SKGModule(torch.nn.Module):
-    def __init__(self, in_features,in_features2, sequence_length, graph_type="gcn", propagation_layers=3, dropout=0.5):
+    def __init__(self, in_features, in_features2, sequence_length, graph_type="gcn", propagation_layers=3, dropout=0.5):
         super(SKGModule, self).__init__()
         self.sequence_length = sequence_length
         self.graph_type = graph_type
         self.propagation_layers = propagation_layers
         self.in_features = in_features
-        self.in_features2 =in_features2
+        self.in_features2 = in_features2
         import torch_geometric as torchg
         if graph_type == "gcn":
             self.gcn1 = torch.nn.ModuleList(

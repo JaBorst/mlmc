@@ -2,10 +2,11 @@ import torch
 from tqdm import tqdm
 
 from ...data import SingleLabelDataset, MultiLabelDataset
-from ...metrics.multilabel import MultiLabelReport, AUC_ROC
 from ...representation import is_transformer, get
 from ...thresholds import get as thresholdget
 from ...metrics import MetricsDict
+from ignite.metrics import Average
+from copy import deepcopy
 
 
 class TextClassificationAbstract(torch.nn.Module):
@@ -21,7 +22,7 @@ class TextClassificationAbstract(torch.nn.Module):
     """
 
     def __init__(self, target="multi", representation="roberta",
-                 activation=None, loss=None, optimizer=torch.optim.Adam,
+                 activation=None, loss=None, optimizer=torch.optim.Adam, max_len=200,
                  optimizer_params=None, device="cpu", finetune=False, threshold="mcut", n_layer=1, **kwargs):
         """
         Abstract initializer of a Text Classification network.
@@ -37,6 +38,7 @@ class TextClassificationAbstract(torch.nn.Module):
             optimizer_params: A dictionary of optimizer parameters
             device: torch device, destination of training (cpu or cuda:0)
         """
+
         super(TextClassificationAbstract, self).__init__()
         if optimizer_params is None:
             optimizer_params = {"lr": 5e-5}
@@ -74,6 +76,7 @@ class TextClassificationAbstract(torch.nn.Module):
         self.representation = representation
         self._init_input_representations()
         self.n_layer = n_layer
+        self.max_len = max_len
 
     def act(self, x):
         if "softmax" in self.activation.__name__ or "softmin" in self.activation.__name__:
@@ -82,8 +85,15 @@ class TextClassificationAbstract(torch.nn.Module):
             return self.activation(x)
 
     def set_threshold(self, name):
+        if not (name == "max") and name=="single":
+            Warning("You're using a non max threshold in single label mode")
         self.threshold = name
-        self._threshold_fct = thresholdget(name)
+        if isinstance(name, str):
+            self._threshold_fct = thresholdget(name)
+        elif callable(name):
+            self._threshold_fct = name
+        else:
+            Warning("Threshold is neither callable nor a string")
 
     def build(self):
         """
@@ -99,12 +109,9 @@ class TextClassificationAbstract(torch.nn.Module):
     def _init_metrics(self, metrics=None):
         if metrics is None:
             metrics=f"default_{self.target}label"
-        if isinstance(metrics, dict):
-            metrics = MetricsDict(metrics)
-        if isinstance(metrics, list) or isinstance(metrics, str):
-            from ...metrics import get as mget
-            metrics = MetricsDict(metrics)
+        metrics = MetricsDict(metrics)
         metrics.init(self.__dict__)
+        metrics.reset()
         return metrics
 
     def evaluate(self, data, batch_size=50, mask=None, metrics=None):
@@ -123,8 +130,6 @@ class TextClassificationAbstract(torch.nn.Module):
             A dictionary with the evaluation measurements.
         """
         self.eval()  # set mode to evaluation to disable dropout
-        from ignite.metrics import Average
-
 
         assert not (type(data) == SingleLabelDataset and self.target == "multi"), \
             "You inserted a SingleLabelDataset but chose multi as target."
@@ -139,17 +144,27 @@ class TextClassificationAbstract(torch.nn.Module):
                 y = b["labels"]
                 l, output = self._step(x=self.transform(b["text"]).to(self.device), y=y.to(self.device))
                 output = self.act(output).cpu()
-
-                # Subset evaluation if ...
-                if mask is not None:
-                    output = output * mask
-                    y = y * mask
-
+                pred = self._threshold_fct(output)
                 average.update(l.item())
-                initialized_metrics.update_metrics((output,y))
+                initialized_metrics.update_metrics((output, y, pred))
 
         self.train()
         return average.compute().item(), initialized_metrics
+
+    def _epoch(self, train, pbar=None):
+        """Combining into training loop"""
+        average = Average()
+        for i, b in enumerate(train):
+            self.optimizer.zero_grad()
+            l, _ = self._step(x=self.transform(b["text"]).to(self.device), y=b["labels"].to(self.device))
+            l.backward()
+            self.optimizer.step()
+            average.update(l.item())
+
+            if pbar is not None:
+                pbar.postfix[0]["loss"] = round(average.compute().item(), 8)
+                pbar.update()
+        return average.compute().item()
 
     def _step(self, x, y):
         """
@@ -197,9 +212,18 @@ class TextClassificationAbstract(torch.nn.Module):
         else:
             return l
 
+    def _callback_epoch_end(self, callbacks):
+        for cb in callbacks:
+            if hasattr(cb, "on_epoch_end"):
+                cb.on_epoch_end(self)
+    def _callback_epoch_start(self, callbacks):
+        for cb in callbacks:
+            if hasattr(cb, "on_epoch_end"):
+                cb.on_epoch_end(self)
+
     def fit(self, train,
             valid=None, epochs=1, batch_size=16, valid_batch_size=50, patience=-1, tolerance=1e-2,
-            return_roc=False, return_report=False):
+            return_roc=False, return_report=False, callbacks=None, metrics=None):
         """
         Training function
 
@@ -218,6 +242,8 @@ class TextClassificationAbstract(torch.nn.Module):
             A history dictionary with the loss and the validation evaluation measurements.
 
         """
+        if callbacks is None:
+            callbacks = []
         import datetime
         id = str(hash(datetime.datetime.now()))[1:7]
         from ...data import SingleLabelDataset
@@ -235,31 +261,22 @@ class TextClassificationAbstract(torch.nn.Module):
 
         best_loss = 10000000
         last_best_loss_update = 0
-        from ignite.metrics import Average
         for e in range(epochs):
-            losses = {"loss": str(0.)}
-            average = Average()
-            train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size, shuffle=True)
+            self._callback_epoch_start(callbacks)
 
+            # An epoch
+            losses = {"loss": str(0.)}
+            train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size, shuffle=True)
             with tqdm(train_loader,
                       postfix=[losses], desc="Epoch %i/%i" % (e + 1, epochs), ncols=100) as pbar:
-                for i, b in enumerate(train_loader):
-                    self.optimizer.zero_grad()
-                    l, _ = self._step(x=self.transform(b["text"]).to(self.device), y=b["labels"].to(self.device))
+                loss = self._epoch(train_loader, pbar=pbar)
+                train_history["loss"].append(loss)
 
-                    l.backward()
-                    self.optimizer.step()
-
-                    average.update(l.item())
-                    pbar.postfix[0]["loss"] = round(average.compute().item(), 2 * self.PRECISION_DIGITS)
-                    pbar.update()
-                # torch.cuda.empty_cache()
+                # Validation if available
                 if valid is not None:
                     valid_loss, result_metrics = self.evaluate(
                         data=valid,
-                        batch_size=valid_batch_size,
-                        return_report=return_report,
-                        return_roc=return_roc)
+                        batch_size=valid_batch_size, metrics=metrics)
 
                     valid_loss_dict= {"valid_loss": valid_loss}
                     valid_loss_dict.update(result_metrics.compute())
@@ -270,12 +287,17 @@ class TextClassificationAbstract(torch.nn.Module):
                     pbar.postfix[0].update(printables)
                     pbar.update()
 
+            # Callbacks
+            self._callback_epoch_end(callbacks)
+
+
+            # Early Stopping
             if patience > -1:
                 if valid is None:
                     print("check validation loss")
-                    if best_loss - average.compute().item() > tolerance:
+                    if best_loss - loss() > tolerance:
                         print("update validation and checkoint")
-                        best_loss = average.compute().item()
+                        best_loss = loss()
                         torch.save(self.state_dict(), id + "_checkpoint.pt")
                         # save states
                         last_best_loss_update = 0
@@ -300,7 +322,7 @@ class TextClassificationAbstract(torch.nn.Module):
                         print("Early Stopping.")
                         break
 
-            train_history["loss"].append(average.compute().item())
+
         if patience > -1:
             self.load_state_dict(torch.load(id + "_checkpoint.pt"))
         # Load best

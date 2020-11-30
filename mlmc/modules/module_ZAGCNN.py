@@ -1,9 +1,12 @@
 import torch
 import torch_geometric as torchg
-from ..layers.nc_attention_comparison import NC_LabelSpecificSelfAttention
+
+from mlmc.modules.layer_nc_attention_comparison import NC_LabelSpecificSelfAttention
+
 
 class ZAGCNNModule(torch.nn.Module):
-    def __init__(self, in_features, in_features2, hidden_features=512, graph_type="gcn", propagation_layers=3, dropout=0.5):
+    def __init__(self, in_features, in_features2, hidden_features=512, graph_type="gcn", propagation_layers=3,
+                 dropout=0.5):
         super(ZAGCNNModule, self).__init__()
 
         self.graph_type = graph_type
@@ -19,15 +22,15 @@ class ZAGCNNModule(torch.nn.Module):
         else:
             self.ggc = torchg.nn.GatedGraphConv(self.in_features2, num_layers=self.in_features2, node_dim=0)
 
-        self.lssa = NC_LabelSpecificSelfAttention(in_features=in_features, in_features2=in_features2, hidden_features=hidden_features)
+        self.lssa = NC_LabelSpecificSelfAttention(in_features=in_features, in_features2=in_features2,
+                                                  hidden_features=hidden_features)
         self.dropout_layer = torch.nn.Dropout(0.5)
         self.leaky_relu = torch.nn.LeakyReLU()
-        self.projection = torch.nn.Linear(in_features=self.in_features2*2, out_features=self.in_features)
-
+        self.projection = torch.nn.Linear(in_features=self.in_features2 * 2, out_features=self.in_features)
 
     def forward(self, x, nodes, adjacency):
         # nodes wise label attention
-        e = self.lssa(x,nodes)
+        e = self.lssa(x, nodes)
 
         graph_nodes = nodes
         if self.graph_type == "gcn":

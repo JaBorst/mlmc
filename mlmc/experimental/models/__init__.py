@@ -15,3 +15,4 @@ from .LSAN3BAG import LSAN3BAG
 from .LSAN3BAG2 import LSAN3BAG2
 from .LSAN3BAG3 import LSAN3BAG3
 
+from .GR import GR

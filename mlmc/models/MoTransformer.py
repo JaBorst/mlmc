@@ -6,7 +6,7 @@ class MoTransformer(TextClassificationAbstractMultiOutput):
     """
     Implementation of a simple transofmrer model for multioutput
     """
-    def __init__(self, n_outputs, classes, representation="roberta", dropout=0.5, n_layers=1, max_len=200, **kwargs):
+    def __init__(self, classes, representation="roberta", dropout=0.5, n_layers=1, max_len=200, **kwargs):
         """Class constructor and intialization of every hyperparameters
 
         :param classes:  A list of dictionary of the class label and the corresponding index
@@ -15,10 +15,11 @@ class MoTransformer(TextClassificationAbstractMultiOutput):
         :param max_len: Maximum length input sequences. Longer sequences will be cut.
         :param kwargs: Optimizer and loss function keyword arguments, see `mlmc.models.TextclassificationAbstract`
          """
-        super(MoTransformer, self).__init__(n_outputs = n_outputs, **kwargs)
+        super(MoTransformer, self).__init__(**kwargs)
 
         self.classes = classes
         self.n_classes = [len(x) for x in classes]
+        self.n_outputs = len(self.n_classes)
         self.max_len = max_len
         self.l = 1
         self.representation = representation
@@ -35,6 +36,6 @@ class MoTransformer(TextClassificationAbstractMultiOutput):
     def forward(self, x):
         embedded = self.embed_input(x)
         embedded = self.dropout_layer(embedded)
-        output = [x(self.dropout_layer(embedded.mean(-1))) for x in self.projection]
+        output = [x(self.dropout_layer(embedded.mean(-2))) for x in self.projection]
         return output
 

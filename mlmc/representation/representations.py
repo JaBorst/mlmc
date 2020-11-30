@@ -233,7 +233,7 @@ def get_transformer(model="bert", **kwargs):
         return None
     else:
         # Load pretrained model/tokenizer
-        from .TokenizerWrapper import TokenizerWrapper
+        from .tokenizer_wrapper import TokenizerWrapper
         tokenizer = TokenizerWrapper(tokenizer_class, pretrained_weights)
         model = model_class.from_pretrained(pretrained_weights, **kwargs)
         return model, tokenizer
@@ -263,7 +263,10 @@ def get(model, **kwargs):
 
 
     """
-    logging.getLogger("transformers.tokenization_utils").setLevel(logging.ERROR)
+    try:
+        logging.getLogger("transformers.tokenization_utils").setLevel(logging.ERROR)
+    except:
+        logging.get_logger("transformers.tokenization_utils").setLevel(logging.ERROR)
     module = get_transformer(model, **kwargs)
     if module is None:
         module = get_embedding(model, **kwargs)

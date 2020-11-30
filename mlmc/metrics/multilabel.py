@@ -9,11 +9,9 @@ class MultiLabelReport():
         self.is_multilabel = is_multilabel
         self.reset()
 
-    def init(self, classes, _threshold_fct, target, **kwargs):
+    def init(self, classes, target, **kwargs):
         "an extra function for model specific parameters of the metric"
         self.classes = classes
-        self.trf = _threshold_fct
-        self.target = target
 
     def reset(self):
         self.truth = []
@@ -24,16 +22,16 @@ class MultiLabelReport():
         if self.check_zeros:
             non_zero_rows = (((batch[1]==0).sum(-1)==batch[1].shape[-1]).int()) ==0
             self.truth.append(batch[1][non_zero_rows])
-            self.pred.append(batch[0][non_zero_rows])
+            self.pred.append(batch[2][non_zero_rows])
         else:
             self.truth.append(batch[1])
-            self.pred.append(batch[0])
+            self.pred.append(batch[2])
 
     def compute(self):
-        pred = self.trf(torch.cat(self.pred))
-        truth = (torch.cat(self.truth)).numpy()
+        pred = torch.cat(self.pred)
+        truth = torch.cat(self.truth)
         if not self.is_multilabel:
-            truth = torch.nn.functional.one_hot(torch.cat(self.truth), len(self.classes)).numpy()
+            truth = torch.nn.functional.one_hot(truth, len(self.classes))
         return skm.classification_report(truth,
                                          pred.numpy(),
                                          output_dict=True,
@@ -41,6 +39,8 @@ class MultiLabelReport():
     def print(self):
         r = self.compute()
         return {k:v for k,v in r.items() if "micro" in k or "macro" in k}
+
+
 
 class AUC_ROC():
     """Multilabel iterative AUC_ROC. Ignite API like"""
@@ -91,7 +91,7 @@ class AUC_ROC():
 
     def compute(self):
         fpr, tpr = self.rates()
-        return (skm.auc(fpr, tpr), (fpr.tolist(), tpr.tolist()) )if self.return_roc else skm.auc(fpr, tpr)
+        return (skm.auc(fpr, tpr), (fpr.tolist(), tpr.tolist()) ) if self.return_roc else skm.auc(fpr, tpr)
 
 
     def print(self):

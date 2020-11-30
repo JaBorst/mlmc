@@ -11,8 +11,14 @@ def mean_scaling(x, ind):
     Returns:
         Tensor of shape (b,d)
     """
+    if (ind==1).all(): return x
 
-    ones_mean = x[:, torch.where(ind == 1)[0]].mean(-1, keepdim=True)
-    zeros_mean = x[:, torch.where(ind == 0)[0]].mean(-1, keepdim=True)
-    ratio = ones_mean / zeros_mean
+    if (ind==0).all():
+        ones_mean = 0.5
+        zeros_mean = x[:, torch.where(ind == 0)[0]].mean(-1, keepdim=True)
+        ratio = ones_mean / zeros_mean
+    else:
+        ones_mean = x[:, torch.where(ind == 1)[0]].mean(-1, keepdim=True)
+        zeros_mean = x[:, torch.where(ind == 0)[0]].mean(-1, keepdim=True)
+        ratio = ones_mean / zeros_mean
     return x * ((-ratio * (ind - 1)[None] + ind[None]))

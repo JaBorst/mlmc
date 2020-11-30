@@ -4,7 +4,7 @@ https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
 from mlmc.models.abstracts.abstracts_graph import TextClassificationAbstractGraph
 import re
 import networkx as nx
-from ...layers.nc_attention_comparison import *
+from mlmc.modules.layer_nc_attention_comparison import *
 
 
 class LSAN3BFG(TextClassificationAbstractGraph):
