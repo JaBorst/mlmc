@@ -34,7 +34,11 @@ def save(model, path, only_inference=False):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             args = type(model).__init__.__code__.co_varnames[1:-1] + tuple(set(super(type(model), model).__init__.__code__.co_varnames[1:-1])-set(["optimizer", "loss"]))
-            values = {v: model.__dict__[v] for v in args if v != "kwargs"}
+            if type(model).__name__ != "LSAN":
+                values = {v: model.__dict__[v] for v in args if v != "kwargs"}
+            else:
+                values = {v: model.__dict__[v] for v in args if v not in ["kwargs", "label_embed"]}
+                values["label_embed"] = model.__dict__["label_embed_tmp"]
             torch.save({
                 "type": type(model),
                 "args": values,

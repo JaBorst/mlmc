@@ -14,7 +14,9 @@ class LSAN(TextClassificationAbstract):
         super(LSAN, self).__init__(**kwargs)
         #My Stuff
         self.max_len = max_len
-
+        self.label_embed_tmp = label_embed
+        self.label_freeze = label_freeze
+        self.d_a = d_a
 
         # Original
         self.classes = classes
