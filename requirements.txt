@@ -12,12 +12,10 @@ pytorch-ignite
 tqdm~=4.43.0
 networkx~=2.1
 bs4~=0.0.1
-pytest
-pytest-cov
 rdflib~=4.2.2
 h5py
 datasketch
-torch~=1.5.0
+torch>=1.5.0
 beautifulsoup4~=4.8.2
 requests~=2.23.0
 dgl~=0.5.2
