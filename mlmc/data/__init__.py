@@ -180,7 +180,7 @@ class MultiLabelDataset(Dataset):
         self.classes = {map.get(k, k): v for k, v in self.classes.items()}
         self.y = [[map.get(l, l) for l in labelset] for labelset in self.y]
 
-    def reduce(self, subset: dict):
+    def reduce(self, subset):
         """
         Reduces the dataset to a subset of the classes.
 
