@@ -38,7 +38,7 @@ def _save_to_tmp(dataset, data):
     if not Path.is_file(CACHE / dataset):
         with open(CACHE / dataset, "wb") as f:
             pickle.dump(data, f)
-        return True
+        return CACHE / dataset
     else:
         return False
 
