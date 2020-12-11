@@ -1,5 +1,5 @@
 import mlmc.data as md
-
+import torch
 
 def test_MultiLabelDataset_remove():
     d = md.MultiLabelDataset(x=["1","2","3","4"],
@@ -82,4 +82,83 @@ def test_MultiLabelDataset_add():
     assert set(d.classes.keys()) == {"a", "b", "c", "d", "e"}
     assert set(d.x) == {"1", "2", "3", "4"}
     assert set([ tuple(sorted(x)) for x in d.y]) == set([tuple(sorted(x)) for x in [["b","a"], ["e", "b"], ["c"], ["d"]]])
+
+import torch
+def test_SingleLabelDataset():
+    import mlmc.data as md
+    try:
+        d1 = md.SingleLabelDataset(x=["1", "2", "4"],
+                                 y=[["a", "b"], ["b"], ["d"]],
+                                 classes={"a": 0, "b": 1, "d":2})
+        assert False, "SingleLabelDataset  should not accept multiple labels per instance!"
+    except AssertionError:
+        pass
+
+    d1 = md.SingleLabelDataset(x=["1", "2", "4"],
+                               y=[["a"], ["b"], ["d"]],
+                               classes={"a": 0, "b": 1, "d": 2})
+
+    assert d1[0]["text"] == "1", "order of examples changed."
+    assert d1[0]["labels"] ==  torch.tensor(0)
+    assert d1[0]["labels"].shape == torch.Size([])
+
+    for b in torch.utils.data.DataLoader(d1,10): break
+    assert (b["labels"] == torch.tensor([0,1,2])).all()
+
+
+def test_MultiOutputSingleLabelDataset():
+    try:
+        md.MultiOutputSingleLabelDataset(x=["1", "2", "4"],
+                                 y=[[["a"]], [["b"], ["c"]], [["d"],["e"]]],
+                                 classes={"a": 0, "b": 1, "d":2})
+        assert False, "SingleLabelDataset  should not accept multiple labels per instance!"
+    except AssertionError:
+        pass
+
+    d1 = md.MultiOutputSingleLabelDataset(
+        x=["1", "2", "4"],
+        y=[[["a"], ["b"]], [["b"], ["c"]], [["d"], ["e"]]],
+        classes={"a": 0, "b": 1, "c":3, "d": 2, "e":4})
+
+
+    assert d1[0]["text"] == "1", "order of examples changed."
+    assert (d1[0]["labels"] == torch.tensor([0, 1])).all()
+    assert d1[0]["labels"].shape == torch.Size([len(d1.classes)])
+
+    for b in torch.utils.data.DataLoader(d1, 10): break
+    assert (b["labels"] == torch.tensor([[0, 1],
+                                         [1, 3],
+                                         [2, 4]])).all()
+
+    d2 = md.MultiOutputSingleLabelDataset(
+        x=["5", "6", "2"],
+        y=[[["a"], ["b"]], [["b"], ["c"]], [["d"], ["e"]]],
+        classes={"a": 0, "b": 1, "c":3, "d": 2, "e":4})
+
+    assert len(d1+d2) == 5
+
+
+def test_MultiOutputMultiLabelDataset():
+    try:
+        md.MultiOutputMultiLabelDataset(x=["1", "2", "4"],
+                                 y=[[["a"]], [["b"], ["c"]], [["d"],["e"]]],
+                                 classes={"a": 0, "b": 1, "d":2})
+        assert False, "SingleLabelDataset  should not accept multiple labels per instance!"
+    except AssertionError:
+        pass
+
+    d1 = md.MultiOutputMultiLabelDataset(
+        x=["1", "2", "4"],
+        y=[[["a", "b"], ["b"]], [["b", "d"], ["c"]], [["d", "e"], ["e"]]],
+        classes={"a": 0, "b": 1, "c": 3, "d": 2, "e":4})
+    assert d1[0]["text"] == "1", "order of examples changed."
+    assert (d1[0]["labels_0"] ==  torch.tensor([1, 1, 0, 0, 0])).all()
+    assert (d1[0]["labels_1"] ==  torch.tensor([0, 1, 0, 0, 0])).all()
+    assert d1[0]["labels_0"].shape == torch.Size([len(d1.classes[0])])
+    assert d1[0]["labels_1"].shape == torch.Size([len(d1.classes[1])])
+
+    for b in torch.utils.data.DataLoader(d1,10): break
+    assert (b["labels_0"] == torch.tensor([[1, 1, 0, 0, 0],
+                                           [0, 1, 1, 0, 0],
+                                           [0, 0, 1, 0, 1]])).all()
 
