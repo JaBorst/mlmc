@@ -244,9 +244,9 @@ class SingleLabelDataset(MultiLabelDataset):
         return {'text': self.x[idx], 'labels': torch.tensor(self.classes[self.y[idx][0]])}
 
 
-class MultiOutputMultiLabelDataset(MultiLabelDataset):
+class MultiOutputMultiLabelDataset(Dataset):
     def __init__(self, classes, x, y, target_dtype=torch._cast_Float, **kwargs):
-        super(MultiLabelDataset, self).__init__(**kwargs)
+        super(MultiOutputMultiLabelDataset, self).__init__(**kwargs)
         if isinstance(classes, dict):
             self.classes = [classes.copy() for _ in range(len(y[0]))]
         else:
@@ -267,13 +267,13 @@ class MultiOutputMultiLabelDataset(MultiLabelDataset):
         label_one_hot = [
             torch.stack([torch.nn.functional.one_hot(torch.tensor(x[label]), len(x)) for label in labelset], 0) for
             x, labelset in zip(self.classes, self.y[item])]
-        result.update({f"labels_{i}": v for i, v in enumerate(label_one_hot)})
+        result.update({f"labels_{i}": v.sum(0) for i, v in enumerate(label_one_hot)})
         return result
 
 
-class MultiOutputSingleLabelDataset(MultiLabelDataset):
-    def __init__(self, classes, x, y=None, target_dtype=torch._cast_Float, **kwargs):
-        super(MultiLabelDataset, self).__init__(**kwargs)
+class MultiOutputSingleLabelDataset(Dataset):
+    def __init__(self, classes, x, y=None,  **kwargs):
+        super(MultiOutputSingleLabelDataset, self).__init__(**kwargs)
         if y is not None:
             if isinstance(classes, dict):
                 self.classes = [classes.copy() for _ in range(len(y[0]))]
@@ -281,6 +281,9 @@ class MultiOutputSingleLabelDataset(MultiLabelDataset):
                 self.classes = classes
 
             assert len(y[0]) == len(self.classes), "Number of labels and number of class dicts do not agree"
+
+            assert all([len(labelset)==1 for outputset in y for labelset in outputset]) == 1, \
+                "All output sets must be of length 1."
 
             assert len(set([len(labelset) for labelset in y])) == 1, \
                 "Not all instances have the same number of labels."
@@ -292,7 +295,10 @@ class MultiOutputSingleLabelDataset(MultiLabelDataset):
         if self.y is None:
             return {'text': self.x[item]}
         else:
-            return {'text': self.x[item], 'labels': torch.tensor([d[y] for d, y in zip(self.classes, self.y[item])])}
+            return {'text': self.x[item], 'labels': torch.tensor([d[y[0]] for d, y in zip(self.classes, self.y[item])])}
+
+    def __len__(self):
+        return len(self.x)
 
     def reduce(self, subset):
         assert len(subset) == len(self.classes), "Subset and existing classes have varying outputsizes"
@@ -321,63 +327,6 @@ class MultiOutputSingleLabelDataset(MultiLabelDataset):
                     new_labels]), "Some data points have mor label than allowed outputs exist"
 
         return MultiOutputSingleLabelDataset(x=new_data, y=new_labels, classes=new_classes)
-
-
-from copy import deepcopy
-
-
-class ZeroshotDataset:
-    def __init__(self, dataset, zeroshot_classes=None):
-        if isinstance(dataset,str):
-            try:
-                dataset = get_singlelabel_dataset("rcv1")
-            except AssertionError:
-                dataset = get_multilabel_dataset("rcv1")
-
-        train = dataset.get("train", None)
-        valid = dataset.get("valid", None)
-        test = dataset.get("test", None)
-
-        self.zeroshot_classes = zeroshot_classes
-
-        self.zeroshot_data = {}
-
-        if train is not None:
-            data = deepcopy(train)
-            data.remove(zeroshot_classes)
-            self.zeroshot_data["train"] = data
-
-        if valid is not None:
-            gzsl_data = deepcopy(valid)
-            gzsl_data.classes = valid.classes
-            self.zeroshot_data["valid_gzsl"] = gzsl_data
-
-            zsl_data = deepcopy(valid)
-            zsl_data.reduce(dict(zip(self.zeroshot_classes, range(len(zeroshot_classes)))))
-            self.zeroshot_data["valid_zsl"] = zsl_data
-
-            nsl_data = deepcopy(valid)
-            nsl_data.reduce(self.zeroshot_data["train"].classes)
-            self.zeroshot_data["valid_nsl"] = nsl_data
-
-        if test is not None:
-            gzsl_data = deepcopy(test)
-            gzsl_data.classes = test.classes
-            self.zeroshot_data["test_gzsl"] = gzsl_data
-
-            zsl_data = deepcopy(test)
-            zsl_data.reduce(dict(zip(self.zeroshot_classes, range(len(zeroshot_classes)))))
-            self.zeroshot_data["test_zsl"] = zsl_data
-
-            nsl_data = deepcopy(test)
-            nsl_data.reduce(self.zeroshot_data["train"].classes)
-            self.zeroshot_data["test_nsl"] = nsl_data
-
-    def get(self, n):
-        return self.zeroshot_data[n]
-
-    def __getitem__(self, item):
-        return self.zeroshot_data[item]
 
 
 # -------------------------------------------------------------------------------------
