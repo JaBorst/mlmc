@@ -25,9 +25,10 @@ class ZAGCNNLM(TextClassificationAbstractGraph, TextClassificationAbstractZeroSh
         self.n_layers=n_layers
         self.norm = norm
         self.representation = representation
+        self.graph = kwargs["graph"]
 
         self._init_input_representations()
-        self.label_dict = self.create_label_dict(method=self.method, scale=self.scale)
+        self.label_dict = self.create_label_dict()
         self.create_labels(classes)
 
         self.convs = torch.nn.ModuleList(
@@ -90,6 +91,3 @@ class ZAGCNNLM(TextClassificationAbstractGraph, TextClassificationAbstractZeroSh
                 self.create_label_dict(method=self.method, scale=self.scale)
                 self.label_embeddings = torch.stack([self.label_dict[cls] for cls in classes.keys()])
         self.label_embeddings = self.label_embeddings.to(self.device)
-
-
-
