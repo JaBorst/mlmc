@@ -19,6 +19,7 @@ import mlmc.experimental
 import mlmc.experimental.data
 import mlmc.experimental.le
 import mlmc.experimental.models
+import mlmc.thresholds
 # Save and load models for inference
 from .save_and_load import save, load
 
