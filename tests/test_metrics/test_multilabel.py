@@ -1,6 +1,26 @@
 from mlmc.metrics import multilabel
 import torch
 
+def test_AUC():
+    d = multilabel.AUC_ROC()
+    d.__init__(return_roc = False)
+
+    y_score = torch.tensor([[0.1], [0.4], [0.35], [0.8]])
+    y_truth = torch.tensor([[0], [0], [1], [1]])
+    y_pred = torch.tensor([[0], [0], [1], [1]])
+    example1 = (y_score, y_truth, y_pred)
+    y_score = torch.tensor([[0.1, 0.3, 0.8, 0.8], [0.2, 0.1, 0.2, 0.9]])
+    y_truth = torch.tensor([[0, 0, 1, 1], [1, 1, 0, 0]])
+    y_pred = torch.tensor([[0, 0, 1, 1], [1, 1, 0, 0]])
+    example2 = (y_score, y_truth, y_pred)
+
+    d.update(example1)
+    assert d.compute() == 0.75
+
+    d.reset()
+    d.update(example2)
+    assert d.compute() == 0.5
+
 def test_MultiLabelReport():
     classes1 = {"label_%i" % (i,): i for i in range(2)}
     classes2 = {"label_%i" % (i,): i for i in range(3)}
