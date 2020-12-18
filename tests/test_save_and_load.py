@@ -59,32 +59,32 @@ def assertion_function(model_type, **kwargs):
     #test saving and loading after training
     save_and_load(model)
 
-def test_KimCNN():
-    assertion_function(model_type=mlmc.models.KimCNN, representation="google/bert_uncased_L-2_H-128_A-2")
-
-def test_LSAN():
-    assertion_function(model_type=mlmc.models.LSAN, representation="google/bert_uncased_L-2_H-128_A-2")
-
-def test_LSANNC():
-    assertion_function(model_type=mlmc.models.LSANNC, representation="google/bert_uncased_L-2_H-128_A-2")
-
-def test_MoKimCNN():
-    assertion_function(model_type=mlmc.models.MoKimCNN, representation="google/bert_uncased_L-2_H-128_A-2", target="single")
-
-def test_MoLSANNC():
-    assertion_function(model_type=mlmc.models.MoLSANNC, representation="google/bert_uncased_L-2_H-128_A-2", target="single", hidden_representations=50)
-
-def test_MoTransformer():
-    assertion_function(model_type=mlmc.models.MoTransformer, representation="google/bert_uncased_L-2_H-128_A-2", target="single")
+# def test_KimCNN():
+#     assertion_function(model_type=mlmc.models.KimCNN, representation="google/bert_uncased_L-2_H-128_A-2")
+#
+# def test_LSAN():
+#     assertion_function(model_type=mlmc.models.LSAN, representation="google/bert_uncased_L-2_H-128_A-2")
+#
+# def test_LSANNC():
+#     assertion_function(model_type=mlmc.models.LSANNC, representation="google/bert_uncased_L-2_H-128_A-2")
+#
+# def test_MoKimCNN():
+#     assertion_function(model_type=mlmc.models.MoKimCNN, representation="google/bert_uncased_L-2_H-128_A-2", target="single")
+#
+# def test_MoLSANNC():
+#     assertion_function(model_type=mlmc.models.MoLSANNC, representation="google/bert_uncased_L-2_H-128_A-2", target="single", hidden_representations=50)
+#
+# def test_MoTransformer():
+#     assertion_function(model_type=mlmc.models.MoTransformer, representation="google/bert_uncased_L-2_H-128_A-2", target="single")
 
 def test_SKGLM():
     assertion_function(model_type=mlmc.models.SKGLM, representation="google/bert_uncased_L-2_H-128_A-2")
 
-def test_Transformer():
-    assertion_function(model_type=mlmc.models.Transformer, representation="google/bert_uncased_L-2_H-128_A-2")
-
-def test_XMLCNN():
-    assertion_function(model_type=mlmc.models.XMLCNN, representation="google/bert_uncased_L-2_H-128_A-2")
+# def test_Transformer():
+#     assertion_function(model_type=mlmc.models.Transformer, representation="google/bert_uncased_L-2_H-128_A-2")
+#
+# def test_XMLCNN():
+#     assertion_function(model_type=mlmc.models.XMLCNN, representation="google/bert_uncased_L-2_H-128_A-2")
 
 def test_ZAGCNNLM():
-    assertion_function(model_type=mlmc.models.ZAGCNNLM, representation="google/bert_uncased_L-2_H-128_A-2", method="generate", scale="mean", n_layers=1)
+    assertion_function(model_type=mlmc.models.ZAGCNNLM, representation="google/bert_uncased_L-2_H-128_A-2", n_layers=1)
