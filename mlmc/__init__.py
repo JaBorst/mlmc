@@ -15,10 +15,6 @@ import mlmc.models
 import mlmc.graph
 import mlmc.metrics
 import mlmc.representation
-import mlmc.experimental
-import mlmc.experimental.data
-import mlmc.experimental.le
-import mlmc.experimental.models
 # Save and load models for inference
 from .save_and_load import save, load
 

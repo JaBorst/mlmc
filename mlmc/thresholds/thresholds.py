@@ -30,6 +30,7 @@ def threshold_mcut(x):
     thresholds = (x_sorted[:, 1:] - x_sorted[:, :-1]).max(-1)[0]
     return (x > thresholds[:, None]).float()
 
+
 def threshold_mean(x):
     """
     Transform input tensor into a multiple-hot tensor using a threshold

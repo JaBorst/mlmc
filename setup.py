@@ -34,12 +34,7 @@ setup(
               'mlmc.modules',
               'mlmc.models.abstracts',
               'mlmc.thresholds',
-              'mlmc.representation',
-              'mlmc.experimental',
-              'mlmc.experimental.data',
-              'mlmc.experimental.layers',
-              'mlmc.experimental.le',
-              'mlmc.experimental.models'
+              'mlmc.representation'
               ],
     url='',
     license='',
