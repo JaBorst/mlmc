@@ -114,7 +114,7 @@ class TextClassificationAbstract(torch.nn.Module):
         metrics.reset()
         return metrics
 
-    def evaluate(self, data, batch_size=50, mask=None, metrics=None):
+    def evaluate(self, data, batch_size=50, mask=None, metrics=None, _fit=False):
         """
         Evaluation, return accuracy and loss and some multilabel measure
 
@@ -149,7 +149,10 @@ class TextClassificationAbstract(torch.nn.Module):
                 initialized_metrics.update_metrics((output, y, pred))
 
         self.train()
-        return average.compute().item(), initialized_metrics
+        if _fit:
+            return average.compute().item(), initialized_metrics
+        else:
+            return average.compute().item(), initialized_metrics.compute()
 
     def _epoch(self, train, pbar=None):
         """Combining into training loop"""
@@ -276,7 +279,9 @@ class TextClassificationAbstract(torch.nn.Module):
                 if valid is not None:
                     valid_loss, result_metrics = self.evaluate(
                         data=valid,
-                        batch_size=valid_batch_size, metrics=metrics)
+                        batch_size=valid_batch_size,
+                        metrics=metrics,
+                        _fit=True)
 
                     valid_loss_dict= {"valid_loss": valid_loss}
                     valid_loss_dict.update(result_metrics.compute())
