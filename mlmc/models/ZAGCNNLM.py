@@ -9,7 +9,7 @@ import networkx as nx
 
 
 class ZAGCNNLM(TextClassificationAbstractGraph, TextClassificationAbstractZeroShot):
-    def __init__(self, classes, method, scale, representation="roberta", max_len=200, dropout = 0.5, norm=False, n_layers=4, **kwargs):
+    def __init__(self, classes, representation="roberta", max_len=200, dropout = 0.5, norm=False, n_layers=1, **kwargs):
         super(ZAGCNNLM, self).__init__(**kwargs)
 
         self.classes = classes
@@ -18,10 +18,8 @@ class ZAGCNNLM(TextClassificationAbstractGraph, TextClassificationAbstractZeroSh
         self.use_dropout = dropout
         self.filters = 300
         self.hidden_dim=512
-        self.scale = scale
         self.kernel_sizes = [3,4,5,6]
         self.dropout = dropout
-        self.method = method
         self.n_layers=n_layers
         self.norm = norm
         self.representation = representation
@@ -84,10 +82,9 @@ class ZAGCNNLM(TextClassificationAbstractGraph, TextClassificationAbstractZeroSh
         self.adj = torch.stack(torch.where(tmp_adj.t() == 1), dim=0).to(self.device)
 
 
-        if hasattr(self, "label_dict"):
-            try:
-                self.label_embeddings = torch.stack([self.label_dict[cls] for cls in classes.keys()])
-            except:
-                self.create_label_dict(method=self.method, scale=self.scale)
-                self.label_embeddings = torch.stack([self.label_dict[cls] for cls in classes.keys()])
+        try:
+            self.label_embeddings = torch.stack([self.label_dict[cls] for cls in classes.keys()])
+        except:
+            self.label_dict = self.create_label_dict()
+            self.label_embeddings = torch.stack([self.label_dict[cls] for cls in classes.keys()])
         self.label_embeddings = self.label_embeddings.to(self.device)

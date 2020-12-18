@@ -51,7 +51,7 @@ class MoLSANNC(TextClassificationAbstractMultiOutput, TextClassificationAbstract
         self.lsannc = LSANNCModule(self.hidden_representations*2, self.label_embedding_dim,)
 
         self.output_layer = torch.nn.ModuleList(
-            [torch.nn.Linear(self.hidden_representations * 2, 1) for _ in range(self.n_outputs)])
+            [torch.nn.Linear(self.label_embedding_dim * 2, 1) for _ in range(self.n_outputs)])
         self.dropout_layer = torch.nn.Dropout(0.3)
         self.build()
 
@@ -62,7 +62,7 @@ class MoLSANNC(TextClassificationAbstractMultiOutput, TextClassificationAbstract
         if not is_transformer(self.representation):
             outputs = outputs[0]
         outputs = self.dropout_layer(outputs)
-        doc = self.lsannc(outputs,label_embed)
+        doc, weights = self.lsannc(outputs,label_embed,return_weights=True)
         # if self.log_bw:
         #     self.bw.append(weights.cpu())
         doc = self.dropout_layer(doc)
