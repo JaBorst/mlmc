@@ -22,7 +22,7 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
 
     """
 
-    def __init__(self, aggregation="mean", weights=None,  **kwargs):
+    def __init__(self, aggregation="mean", class_weights=None, **kwargs):
         """
         Abstract initializer of a Text Classification network.
         Args:
@@ -38,7 +38,7 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
             device: torch device, destination of training (cpu or cuda:0)
         """
         super(TextClassificationAbstractMultiOutput, self).__init__(**kwargs)
-        self.class_weights = weights
+        self.class_weights = class_weights
 
 
         self.aggregation = aggregation

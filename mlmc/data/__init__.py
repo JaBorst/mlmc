@@ -280,7 +280,7 @@ class MultiOutputSingleLabelDataset(Dataset):
             else:
                 self.classes = classes
 
-            assert len(y[0]) == len(self.classes), "Number of labels and number of class dicts do not agree"
+        assert len(y[0]) == len(self.classes), "Number of labels and number of class dicts do not agree"
 
             assert all([len(labelset)==1 for outputset in y for labelset in outputset]) == 1, \
                 "All output sets must be of length 1."

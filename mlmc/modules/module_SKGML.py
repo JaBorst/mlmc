@@ -24,7 +24,7 @@ class SKGModule(torch.nn.Module):
         self.dropout_layer = torch.nn.Dropout(dropout)
 
     def forward(self, x, nodes, adjacency):
-        score_matrix = torch.einsum("ijk,lk->ijl", self.dropout_layer(x), self.projection(nodes))
+        score_matrix = torch.einsum("ijk,lmk->ijl", self.dropout_layer(x), self.projection(nodes))
         beliefs = score_matrix.transpose(1, 2)
         if self.graph_type == "gcn":
             for m in self.gcn1:

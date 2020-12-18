@@ -10,11 +10,13 @@ class LSAN(TextClassificationAbstract):
     """
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
-    def __init__(self, classes, representation, label_embed=None, label_freeze=False, lstm_hid_dim=300, d_a=200 ,max_len=500,**kwargs):
+    def __init__(self, classes, representation, label_embedding=None, label_freeze=False, lstm_hid_dim=300, d_a=200, max_len=500, **kwargs):
         super(LSAN, self).__init__(**kwargs)
         #My Stuff
         self.max_len = max_len
-
+        self.label_embedding = label_embedding
+        self.label_freeze = label_freeze
+        self.d_a = d_a
 
         # Original
         self.classes = classes
@@ -23,9 +25,9 @@ class LSAN(TextClassificationAbstract):
         self.lstm_hid_dim = lstm_hid_dim
         self._init_input_representations()
 
-        if label_embed is not None:
-            self.label_embed = torch.nn.Embedding(label_embed.shape[0], label_embed.shape[1])
-            self.label_embed.from_pretrained(torch.FloatTensor(label_embed), freeze=label_freeze)
+        if label_embedding is not None:
+            self.label_embed = torch.nn.Embedding(label_embedding.shape[0], label_embedding.shape[1])
+            self.label_embed.from_pretrained(torch.FloatTensor(label_embedding), freeze=label_freeze)
         else:
             self.label_embed = torch.nn.Embedding(self.n_classes, self.lstm_hid_dim)
 

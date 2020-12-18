@@ -17,6 +17,7 @@ class SKGLM(TextClassificationAbstractGraph):
         self.representation = representation
         self.propagation_layers = propagation_layers
         self.graph_type = graph_type
+        self.graph = kwargs["graph"]
         # assert channels > max_len, "Channels cannot be smaller than the maximum sequence length"
 
         # Initializations
@@ -31,7 +32,7 @@ class SKGLM(TextClassificationAbstractGraph):
         self.embedding_to_embedding3 = torch.nn.Linear(in_features=self.embeddings_dim,
                                                        out_features=self.embeddings_dim)
 
-        self.skg_module = SKGModule(self.embeddings_dim, sequence_length=max_len, graph_type=graph_type,
+        self.skg_module = SKGModule(self.embeddings_dim, self.embeddings_dim, sequence_length=max_len, graph_type=graph_type,
                                     propagation_layers=propagation_layers)
 
         self.build()
