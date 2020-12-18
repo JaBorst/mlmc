@@ -58,7 +58,7 @@ setup(
                       'pytest-cov',
                       'rdflib',
                       'h5py',
-                      'datasketch'
+                      'datasketch',
                       'torch>=1.5.1'
                       ],
     include_package_data=True,
