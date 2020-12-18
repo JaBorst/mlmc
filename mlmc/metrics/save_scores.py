@@ -35,7 +35,9 @@ class SaveScores:
                 "_zeroshot_ind": self._zeroshot_ind
             }
         )
-        return self.filename
+        return str(self.filename)
 
     def print(self):
-        return self.filename
+        return str(self.filename)
+
+
