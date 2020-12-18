@@ -272,7 +272,7 @@ class MultiOutputMultiLabelDataset(MultiLabelDataset):
 
 
 class MultiOutputSingleLabelDataset(MultiLabelDataset):
-    def __init__(self, classes, x, y=None, target_dtype=torch._cast_Float, **kwargs):
+    def __init__(self, classes, x, y=None, **kwargs):
         super(MultiLabelDataset, self).__init__(**kwargs)
         if y is not None:
             if isinstance(classes, dict):
@@ -280,11 +280,10 @@ class MultiOutputSingleLabelDataset(MultiLabelDataset):
             else:
                 self.classes = classes
 
-            assert len(y[0]) == len(self.classes), "Number of labels and number of class dicts do not agree"
+        assert len(y[0]) == len(self.classes), "Number of labels and number of class dicts do not agree"
 
-            assert len(set([len(labelset) for labelset in y])) == 1, \
-                "Not all instances have the same number of labels."
-        self.target_dtype = torch._cast_Float
+        assert len(set([len(labelset) for labelset in y])) == 1, \
+            "Not all instances have the same number of labels."
         self.x = x
         self.y = y
 
@@ -292,7 +291,7 @@ class MultiOutputSingleLabelDataset(MultiLabelDataset):
         if self.y is None:
             return {'text': self.x[item]}
         else:
-            return {'text': self.x[item], 'labels': torch.tensor([d[y] for d, y in zip(self.classes, self.y[item])])}
+            return {'text': self.x[item], 'labels': torch.tensor([d[y[0]] for d, y in zip(self.classes, self.y[item])])}
 
     def reduce(self, subset):
         assert len(subset) == len(self.classes), "Subset and existing classes have varying outputsizes"
