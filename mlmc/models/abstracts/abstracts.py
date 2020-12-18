@@ -295,9 +295,9 @@ class TextClassificationAbstract(torch.nn.Module):
             if patience > -1:
                 if valid is None:
                     print("check validation loss")
-                    if best_loss - loss() > tolerance:
+                    if best_loss - loss > tolerance:
                         print("update validation and checkoint")
-                        best_loss = loss()
+                        best_loss = loss
                         torch.save(self.state_dict(), id + "_checkpoint.pt")
                         # save states
                         last_best_loss_update = 0
