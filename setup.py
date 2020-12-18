@@ -24,7 +24,7 @@ with open("mlmc/_version.py", "w") as f:
 
 setup(
     name='melmac',
-    python_requires='>=3.6',
+    python_requires='>=3.7',
     version=version,
     packages=['mlmc',
               'mlmc.data',
@@ -59,6 +59,7 @@ setup(
                       'rdflib',
                       'h5py',
                       'datasketch'
+                      'torch>=1.5.1'
                       ],
     include_package_data=True,
 )
