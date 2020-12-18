@@ -21,7 +21,7 @@ def assertion_function(model_type, **kwargs):
     assert len(history) < 15, "The probabilistic test of early stopping failed. Try to re-run. If the error persists, it's bad."
 
     loss, eval = model.evaluate(data)
-    assert isinstance(eval, mlmc.metrics.MetricsDict), "Return value of evaluate function failed."
+    assert isinstance(eval, dict), "Return value of evaluate function failed."
 
     model = model_type(classes, **kwargs, optimizer_params={"lr": 0.001})
     history = model.fit(train=data, epochs=5, batch_size=3)

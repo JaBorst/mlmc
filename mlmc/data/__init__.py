@@ -262,6 +262,9 @@ class MultiOutputMultiLabelDataset(Dataset):
         self.x = x
         self.y = y
 
+    def __len__(self):
+        return len(self.x)
+
     def __getitem__(self, item):
         result = {"text": self.x[item]}
         label_one_hot = [
