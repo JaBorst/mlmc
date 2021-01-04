@@ -39,9 +39,13 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
         """
         super(TextClassificationAbstractMultiOutput, self).__init__(**kwargs)
         self.class_weights = class_weights
-
-
         self.aggregation = aggregation
+
+        self.n_classes = [len(x) for x in self.classes]
+        self.n_outputs = len(self.classes)
+
+        self._config["class_weights"] = class_weights
+        self._config["aggregation"] = aggregation
 
     def build(self):
         """

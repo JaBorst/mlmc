@@ -21,9 +21,9 @@ class TextClassificationAbstract(torch.nn.Module):
 
     """
 
-    def __init__(self, target="multi", representation="roberta",
+    def __init__(self, classes, target="multi", representation="roberta",
                  activation=None, loss=None, optimizer=torch.optim.Adam, max_len=200,
-                 optimizer_params=None, device="cpu", finetune=False, threshold="mcut", n_layer=1, **kwargs):
+                 optimizer_params=None, device="cpu", finetune=False, threshold="mcut", n_layers=1, **kwargs):
         """
         Abstract initializer of a Text Classification network.
         Args:
@@ -40,6 +40,8 @@ class TextClassificationAbstract(torch.nn.Module):
         """
 
         super(TextClassificationAbstract, self).__init__()
+        self.classes = classes
+        self.n_classes = len(classes)
         if optimizer_params is None:
             optimizer_params = {"lr": 5e-5}
         assert target in ("multi", "single"), 'target must be one of "multi" or "single"'
@@ -75,8 +77,20 @@ class TextClassificationAbstract(torch.nn.Module):
         self.PRECISION_DIGITS = 4
         self.representation = representation
         self._init_input_representations()
-        self.n_layer = n_layer
+        self.n_layers = n_layers
         self.max_len = max_len
+
+        self._config = {
+            "classes": self.classes,
+            "target": self.target, "representation": self.representation,
+            "activation":self.activation, "loss": self.loss,
+            "optimizer": self.optimizer, "max_len": self.max_len,
+            "optimizer_params": self.optimizer_params, "device": self.device,
+            "finetune": finetune, "threshold": threshold, "n_layers": self.n_layers
+        }
+        self._config.update(kwargs)
+
+
 
     def act(self, x):
         if "softmax" in self.activation.__name__ or "softmin" in self.activation.__name__:
