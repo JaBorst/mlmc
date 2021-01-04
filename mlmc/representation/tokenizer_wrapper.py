@@ -122,6 +122,8 @@ class TokenizerWrapper():
         assert not (
                     return_start and not pad and as_mask), "Returning start ids as mask only possible for padded tokenized output"
         self.add_special_tokens = add_special_tokens
+        x = list(x)
+        assert isinstance(x[0], str), "Input to tokenizer must be a list of strings!"
         if return_start:
             result, ids = self._tokenize_with_index(x)
             if pad:
