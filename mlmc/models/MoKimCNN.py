@@ -14,7 +14,6 @@ class MoKimCNN(TextClassificationAbstractMultiOutput):
     def __init__(self, mode="transformer", kernel_sizes=(3, 4, 5, 6), filters=100, dropout=0.5, **kwargs):
         """Class constructor and intialization of every hyperparameters
 
-        :param classes:  A dictionary of the class label and the corresponding index
         :param mode:  One of (trainable, untrainable, multichannel, transformer).
                     Transformer has to be used in combination with representation being a transformer model name
                      (see: https://huggingface.co/transformers/pretrained_models.html).
@@ -23,12 +22,9 @@ class MoKimCNN(TextClassificationAbstractMultiOutput):
                     'trainable' will finetune the wordembedding used, whereas "untrainable" will freeze the
                     embedding layer.
                     'multichannel' will combine two embedding layers, one for finetuning on the task, one frozen.
-        :param representation: The name of the representation to use. glove* or one of the hugginface transformers
-        models.
         :param kernel_sizes: Sizes of the kernel used for the convolution
         :param filters: Number of filters used in the convolution
         :param dropout: Droupout rate
-        :param max_len: Maximum length input sequences. Longer sequences will be cut.
         :param kwargs: Optimizer and loss function keyword arguments, see `mlmc.models.TextclassificationAbstract`
          """
         super(MoKimCNN, self).__init__( **kwargs)

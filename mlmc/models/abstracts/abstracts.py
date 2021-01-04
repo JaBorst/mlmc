@@ -1,12 +1,11 @@
 import torch
+from ignite.metrics import Average
 from tqdm import tqdm
 
 from ...data import SingleLabelDataset, MultiLabelDataset
+from ...metrics import MetricsDict
 from ...representation import is_transformer, get
 from ...thresholds import get as thresholdget
-from ...metrics import MetricsDict
-from ignite.metrics import Average
-from copy import deepcopy
 
 
 class TextClassificationAbstract(torch.nn.Module):
@@ -19,6 +18,7 @@ class TextClassificationAbstract(torch.nn.Module):
         load a embedding and corresponding tokenizer
         transform(): If self.tokenizer exists the default method wil use this to transform text into the models input
 
+
     """
 
     def __init__(self, classes, target="multi", representation="roberta",
@@ -27,6 +27,9 @@ class TextClassificationAbstract(torch.nn.Module):
         """
         Abstract initializer of a Text Classification network.
         Args:
+            classes: A dictionary of classes and ther corresponding index. This argument is mandatory.
+            representation: The string of the input representation. (Supporting the full transformers list, and glove50, glove100, glove200, glove300)
+            max_len: The maximum number of tokens for the input.
             target: single label oder multilabel mode. defined by keystrings: ("single", "multi").
             Sets some basic options, like loss function, activation and
                     metrics to sensible defaults.

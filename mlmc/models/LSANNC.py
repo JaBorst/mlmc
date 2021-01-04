@@ -14,14 +14,6 @@ class LSANNC(TextClassificationAbstract,TextClassificationAbstractZeroShot):
     def __init__(self, scale="mean", share_weighting=False, weight_norm ="norm", branch_noise = 0., dropout=0.3,
                  hidden_representations= 400,  d_a=200, **kwargs):
         super(LSANNC, self).__init__(**kwargs)
-        #My Stuff
-        # self.scale = scale
-        # self.d_a=d_a
-        # self.hidden_representations = hidden_representations
-        # self.share_weighting = share_weighting
-        # self.weight_norm = weight_norm
-        # self.branch_noise = branch_noise
-        # self.dropout = dropout
         self.log_bw=False
 
         self._config["scale"] = scale
