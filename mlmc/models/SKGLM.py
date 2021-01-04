@@ -5,26 +5,18 @@ from ..modules import SKGModule
 
 
 class SKGLM(TextClassificationAbstractGraph):
-    def __init__(self, classes, representation="roberta", max_len=200, propagation_layers=3, graph_type="gcn",
-                 dropout=0.5, n_layers=1, **kwargs):
+    def __init__(self, propagation_layers=3, graph_type="gcn", dropout=0.5, **kwargs):
         super(SKGLM, self).__init__(**kwargs)
         # Attributes
-        self.classes = classes
-        self.n_classes = len(classes)
-        self.max_len = max_len
-        self.dropout = dropout
-        self.n_layers = n_layers
-        self.representation = representation
-        self.propagation_layers = propagation_layers
-        self.graph_type = graph_type
-        self.graph = kwargs["graph"]
+        self._config["dropout"] = dropout
+        self._config["propagation_layers"] = propagation_layers
+        self._config["graph_type"] = graph_type
         # assert channels > max_len, "Channels cannot be smaller than the maximum sequence length"
 
         # Initializations
-        self._init_input_representations()
-        self.create_labels(classes)
+        self.create_labels(self.classes)
 
-        self.dropout_layer = torch.nn.Dropout(self.dropout)
+        self.dropout_layer = torch.nn.Dropout(self._config["dropout"])
         self.embedding_to_embedding1 = torch.nn.Linear(in_features=self.embeddings_dim,
                                                        out_features=self.embeddings_dim)
         self.embedding_to_embedding2 = torch.nn.Linear(in_features=self.embeddings_dim,
@@ -32,7 +24,7 @@ class SKGLM(TextClassificationAbstractGraph):
         self.embedding_to_embedding3 = torch.nn.Linear(in_features=self.embeddings_dim,
                                                        out_features=self.embeddings_dim)
 
-        self.skg_module = SKGModule(self.embeddings_dim, self.embeddings_dim, sequence_length=max_len, graph_type=graph_type,
+        self.skg_module = SKGModule(self.embeddings_dim, self.embeddings_dim, sequence_length=self._config["max_len"], graph_type=graph_type,
                                     propagation_layers=propagation_layers)
 
         self.build()
@@ -60,6 +52,7 @@ class SKGLM(TextClassificationAbstractGraph):
 
     def create_labels(self, classes):
         self.classes = classes
+        self._config["classes"] = classes
         self.n_classes = len(classes)
 
         ind = [list(self.kb.nodes).index(k) for k in classes.keys()]

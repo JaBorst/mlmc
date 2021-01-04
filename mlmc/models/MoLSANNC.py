@@ -11,44 +11,37 @@ from ..modules import *
 
 class MoLSANNC(TextClassificationAbstractMultiOutput, TextClassificationAbstractZeroShot):
 
-    def __init__(self, classes, scale="mean", share_weighting=False, weight_norm="norm", branch_noise=0., dropout=0.3,
-                 hidden_representations=400, representation="roberta", d_a=200, max_len=400, n_layers=1, **kwargs):
+    def __init__(self, scale="mean", share_weighting=False, weight_norm="norm", branch_noise=0., dropout=0.3,
+                 hidden_representations=400,  d_a=200, **kwargs):
         super(MoLSANNC, self).__init__(**kwargs)
         # My Stuff
-        self.classes = classes
-        self.n_classes = [len(x) for x in classes]
-        self.n_outputs = len(classes)
+        self._config["scale"] = scale
+        self._config["share_weighting"] = share_weighting
+        self._config["weight_norm"] = weight_norm
+        self._config["branch_noise"] = branch_noise
+        self._config["dropout"] = dropout
+        self._config["hidden_representations"] = hidden_representations
+        self._config["d_a"] = d_a
 
-        self.max_len = max_len
-        self.representation = representation
-        self.scale = scale
-        self.n_layers = n_layers
-        self.d_a = d_a
-        self.hidden_representations = hidden_representations
-        self.share_weighting = share_weighting
-        self.weight_norm = weight_norm
-        self.branch_noise = branch_noise
-        self.dropout = dropout
         self.log_bw = False
         # Original
-        self.n_classes = len(classes)
-        self.representation = representation
-        self._init_input_representations()
-        self.create_labels(classes)
+        self.create_labels(self.classes)
 
         if is_transformer(self.representation):
             self.projection_input = torch.nn.Linear(self.embeddings_dim,
-                                                    self.hidden_representations * 2)
+                                                    self._config["hidden_representations"] * 2)
         else:
             self.projection_input = torch.nn.LSTM(self.embeddings_dim,
-                                                  hidden_size=self.hidden_representations,
+                                                  hidden_size= self._config["hidden_representations"],
                                                   num_layers=1,
                                                   batch_first=True,
                                                   bidirectional=True)
 
         # self.projection_labels = torch.nn.Linear(self.label_embedding_dim, self.hidden_representations)
         from ..modules import LSANNCModule
-        self.lsannc = LSANNCModule(self.hidden_representations*2, self.label_embedding_dim,)
+        self.lsannc = LSANNCModule(self._config["hidden_representations"]*2,
+                                   self.label_embedding_dim,
+                                   hidden_features=self._config["d_a"])
 
         self.output_layer = torch.nn.ModuleList(
             [torch.nn.Linear(self.label_embedding_dim * 2, 1) for _ in range(self.n_outputs)])
@@ -99,6 +92,7 @@ class MoLSANNC(TextClassificationAbstractMultiOutput, TextClassificationAbstract
 
     def create_labels(self, classes):
         self.classes = classes
+        self._config["classes"]=classes
         self.n_classes = [len(x) for x in classes]
 
         if not hasattr(self, "label_dict"):

@@ -14,7 +14,7 @@ def assertion_function(model_type, **kwargs):
     )
 
 
-    model = model_type(classes, **kwargs,
+    model = model_type(classes=classes, **kwargs,
                                optimizer_params={"lr": 5})
     history = model.fit(train=data,  epochs=15, batch_size=32, patience=2, tolerance=0.1)
 
@@ -23,7 +23,7 @@ def assertion_function(model_type, **kwargs):
     loss, eval = model.evaluate(data)
     assert isinstance(eval, dict), "Return value of evaluate function failed."
 
-    model = model_type(classes, **kwargs, optimizer_params={"lr": 0.001})
+    model = model_type(classes=classes, **kwargs, optimizer_params={"lr": 0.001})
     history = model.fit(train=data, epochs=5, batch_size=3)
     assert len(history["train"]["loss"]) == 5, "Number of Epochs not reached"
 
