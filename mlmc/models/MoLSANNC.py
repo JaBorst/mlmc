@@ -56,7 +56,7 @@ class MoLSANNC(TextClassificationAbstractMultiOutput, TextClassificationAbstract
         self.build()
 
     def forward(self, x, return_weights=False):
-        outputs = self.projection_input(self.embed_input(x) / self.label_embedding_dim)
+        outputs = self.projection_input(self.embed_input(x) / self.embeddings_dim)
         label_embed = torch.cat([x for x in self.label_embedding],0)
 
         if not is_transformer(self.representation):
@@ -72,7 +72,7 @@ class MoLSANNC(TextClassificationAbstractMultiOutput, TextClassificationAbstract
             labels.append(doc[:,n:(n+i)])
             n = n+i
 
-        pred = [l(o / self.label_embedding_dim).squeeze() for o,l in zip(labels, self.output_layer)]
+        pred = [l(o / self.label_embedding_dim).squeeze(-1) for o,l in zip(labels, self.output_layer)]
         if return_weights:
             return pred, weights
         return pred
