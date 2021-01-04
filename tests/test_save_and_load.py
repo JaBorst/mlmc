@@ -41,11 +41,11 @@ def assertion_function(model_type, **kwargs):
 
     if model_type.__name__ in ["ZAGCNNLM", "SKGLM"]:
         G = nx.DiGraph([("label_0", "label_1"), ("label_0", "label_4"), ("label_1", "label_2"), ("label_1", "label_3"), ("label_2", "label_4")])
-        model = model_type(data.classes, graph=G, **kwargs)
+        model = model_type(classes=data.classes, graph=G, **kwargs)
     elif model_type.__name__ in ["MoLSANNC", "MoTransformer", "MoKimCNN"]:
-        model = model_type(mo_data.classes, **kwargs)
+        model = model_type(classes=mo_data.classes, **kwargs)
     else:
-        model = model_type(data.classes, **kwargs)
+        model = model_type(classes=data.classes, **kwargs)
 
     #test saving and loading before training
     loaded_model = save_and_load(model)

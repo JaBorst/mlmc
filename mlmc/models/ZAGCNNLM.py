@@ -9,37 +9,29 @@ import networkx as nx
 
 
 class ZAGCNNLM(TextClassificationAbstractGraph, TextClassificationAbstractZeroShot):
-    def __init__(self, classes, representation="roberta", max_len=200, dropout = 0.5, norm=False, n_layers=1, **kwargs):
+    def __init__(self,dropout = 0.5, norm=False, filters=300, hidden_dim=512, kernel_sizes = [3,4,5,6] , **kwargs):
         super(ZAGCNNLM, self).__init__(**kwargs)
 
-        self.classes = classes
-        self.n_classes = len(classes)
-        self.max_len = max_len
         self.use_dropout = dropout
-        self.filters = 300
-        self.hidden_dim=512
-        self.kernel_sizes = [3,4,5,6]
-        self.dropout = dropout
-        self.n_layers=n_layers
-        self.norm = norm
-        self.representation = representation
-        self.graph = kwargs["graph"]
+        self._config["filters"] = filters
+        self._config["hidden_dim"]=hidden_dim
+        self._config["kernel_sizes"] = kernel_sizes
+        self._config["dropout"] = dropout
+        self._config["norm"] = norm
 
-        self._init_input_representations()
-        self.label_dict = self.create_label_dict()
-        self.create_labels(classes)
+        self.create_labels(self.classes)
 
         self.convs = torch.nn.ModuleList(
-            [torch.nn.Conv1d(self.embeddings_dim, self.filters, k) for k in self.kernel_sizes])
+            [torch.nn.Conv1d(self.embeddings_dim, self._config["filters"], k) for k in self._config["kernel_sizes"]])
         self.pool = torch.nn.MaxPool1d(3, stride=2)
-        self.document_projection = torch.nn.Linear(self.filters, self.label_embeddings_dim)
+        self.document_projection = torch.nn.Linear(self._config["filters"], self.label_embeddings_dim)
 
 
-        self.dropout_layer= torch.nn.Dropout(self.dropout)
+        self.dropout_layer= torch.nn.Dropout(self._config["dropout"])
         import torch_geometric as torchg
-        self.gcn1 = torchg.nn.GCNConv(in_channels=self.label_embeddings.shape[-1], out_channels=self.hidden_dim)
-        self.gcn2 = torchg.nn.GCNConv(in_channels=self.hidden_dim, out_channels=self.hidden_dim)
-        self.projection = torch.nn.Linear(in_features=self.filters, out_features=self.hidden_dim+self.label_embeddings.shape[-1])
+        self.gcn1 = torchg.nn.GCNConv(in_channels=self.label_embeddings.shape[-1], out_channels=self._config["hidden_dim"])
+        self.gcn2 = torchg.nn.GCNConv(in_channels=self._config["hidden_dim"], out_channels=self._config["hidden_dim"])
+        self.projection = torch.nn.Linear(in_features=self._config["filters"], out_features=self._config["hidden_dim"]+self.label_embeddings.shape[-1])
         self.build()
 
     def forward(self, x):
@@ -47,7 +39,7 @@ class ZAGCNNLM(TextClassificationAbstractGraph, TextClassificationAbstractZeroSh
         embedded = self.dropout_layer(embeddings)
         c = torch.cat([self.pool(torch.nn.functional.relu(conv(embedded.permute(0,2,1)))) for conv in self.convs], dim=-1).permute(0,2,1)
         d2 = torch.tanh(self.document_projection(c))
-        if self.norm: d2 = d2/d2.norm(p=2,dim=-1,keepdim=True)
+        if self._config["norm"]: d2 = d2/d2.norm(p=2,dim=-1,keepdim=True)
         a = torch.softmax(torch.matmul(d2, self.label_embeddings.t()), -1)
         label_wise_representation = torch.matmul(a.permute(0, 2, 1), c)
 
@@ -70,6 +62,7 @@ class ZAGCNNLM(TextClassificationAbstractGraph, TextClassificationAbstractZeroSh
         return  {w:e for w,e in zip(self.classes, l)}
 
     def create_labels(self, classes):
+        self._config["classes"] = classes
         self.classes = classes
         self.n_classes = len(classes)
 
