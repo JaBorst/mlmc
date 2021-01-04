@@ -67,8 +67,8 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
 
     def zeroshot_fit_sacred(self, data, epochs=10, batch_size=16, _run=None, metrics=None, callbacks=None):
         histories = {"train": [], "gzsl": [], "zsl": [], "nsl": []}
-        self._trained_classes.extend(list(data["train"].classes.keys()))
-        self._trained_classes = list(set(self._trained_classes))
+        self._config["trained_classes"].extend(list(data["train"].classes.keys()))
+        self._config["trained_classes"] = list(set(self._config["trained_classes"]))
         for i in range(epochs):
             history = self.fit(data["train"],
                 batch_size=batch_size, epochs=1, metrics=metrics, callbacks=callbacks)
