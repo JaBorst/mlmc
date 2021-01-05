@@ -22,6 +22,8 @@ else:
 with open("mlmc/_version.py", "w") as f:
     f.write(f"__version__='{version}'")
 
+CUDA = "cu102"
+
 setup(
     name='melmac',
     python_requires='>=3.7',
@@ -54,7 +56,12 @@ setup(
                       'rdflib',
                       'h5py',
                       'datasketch',
-                      'torch>=1.5.1'
-                      ],
+                      'torch>=1.5.1',
+                      f"torch-scatter -f https://pytorch-geometric.com/whl/torch-1.6.0+${CUDA}.html",
+                      f"torch-sparse -f https://pytorch-geometric.com/whl/torch-1.6.0+${CUDA}.html",
+                      f"torch-cluster -f https://pytorch-geometric.com/whl/torch-1.6.0+${CUDA}.html",
+                      f"torch-spline-conv -f https://pytorch-geometric.com/whl/torch-1.6.0+${CUDA}.html",
+                      f"torch-geometric"
+    ],
     include_package_data=True,
 )
