@@ -57,6 +57,6 @@ setup(
                       'h5py',
                       'datasketch',
                       'torch>=1.5.1'
-    ]
+    ],
     include_package_data=True,
 )
