@@ -57,11 +57,14 @@ setup(
                       'h5py',
                       'datasketch',
                       'torch>=1.5.1',
-                      f"torch-scatter -f https://pytorch-geometric.com/whl/torch-1.6.0+${CUDA}.html",
-                      f"torch-sparse -f https://pytorch-geometric.com/whl/torch-1.6.0+${CUDA}.html",
-                      f"torch-cluster -f https://pytorch-geometric.com/whl/torch-1.6.0+${CUDA}.html",
-                      f"torch-spline-conv -f https://pytorch-geometric.com/whl/torch-1.6.0+${CUDA}.html",
+                      f"torch-scatter",
+                      f"torch-sparse",
+                      f"torch-cluster",
+                      f"torch-spline-conv",
                       f"torch-geometric"
+    ],
+    dependency_links=[
+        "https://pytorch-geometric.com/whl/torch-1.6.0+${CUDA}.html",
     ],
     include_package_data=True,
 )
