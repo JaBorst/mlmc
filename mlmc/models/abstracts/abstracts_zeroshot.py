@@ -103,15 +103,15 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
             print("========================================================================================\n")
 
         self.create_labels(data["test_gzsl"].classes)
-        gzsl_loss, GZSL = self.evaluate(data["test_gzsl"], batch_size=batch_size)
+        gzsl_loss, GZSL = self.evaluate(data["test_gzsl"], batch_size=batch_size,_fit=True)
         if _run is not None: GZSL.log_sacred(_run, epochs, "gzsl")
 
         self.create_labels(data["test_zsl"].classes)
-        zsl_loss, ZSL = self.evaluate(data["test_zsl"], batch_size=batch_size)
+        zsl_loss, ZSL = self.evaluate(data["test_zsl"], batch_size=batch_size,_fit=True)
         if _run is not None: ZSL.log_sacred(_run, epochs, "zsl")
 
         self.create_labels(data["test_nsl"].classes)
-        nsl_loss, NSL = self.evaluate(data["test_nsl"], batch_size=batch_size)
+        nsl_loss, NSL = self.evaluate(data["test_nsl"], batch_size=batch_size,_fit=True)
         if _run is not None: NSL.log_sacred(_run, epochs, "nsl")
 
         histories["test"] = {
