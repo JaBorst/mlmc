@@ -20,9 +20,11 @@ def save(model, path, only_inference=False):
     # Remove  loss and optimizer from model, needs to be saved separately
     optimizer_tmp = model.optimizer
     loss_tmp = model.loss
+    device_tmp = model.device
 
     model.optimizer = None
     model.loss = None
+    model.device = "cpu"
 
     if only_inference:
         # Use torch.save to save the inference state. if save_all: Save the input representation (embedding or lm)
@@ -44,6 +46,7 @@ def save(model, path, only_inference=False):
     # Reattach loss and optimizer and variables
     model.loss = loss_tmp
     model.optimizer = optimizer_tmp
+    model.device = device_tmp
     return path
 
 
