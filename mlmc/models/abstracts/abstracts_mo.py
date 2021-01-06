@@ -260,6 +260,7 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
             A list of the labels
 
         """
+
         self.eval()
         if self.target == "single":
             method = "max"
@@ -269,9 +270,9 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
         x = self.transform(x).to(self.device)
         if len(x.shape) == 1: x[None]
         with torch.no_grad():
-            output = [self.act(o) for o in self(x)]
+            output = self.act(self(x))
 
-        predictions = [self.threshold(o) for o in output]
+        predictions = [self._threshold_fct(o) for o in output]
         self.train()
         if return_scores:
             labels = [[[(d[i.item()], s[i].item())
