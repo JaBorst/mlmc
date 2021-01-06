@@ -27,16 +27,18 @@ import torch
 
 
 def install_torch_geometric():
-    cuda = f"cu{torch.version.cuda}"
+    cuda = torch.version.cuda
     if cuda is None:
         cuda = "cpu"
     else:
-        cuda = cuda.replace('.','')
+        cuda = f"cu{cuda.replace('.','')}"
+
+    version = torch.__version__.replace("+cpu", "")
     pckgs = [
-        ["torch-scatter", "-f", f"https://pytorch-geometric.com/whl/torch-{torch.__version__}+${cuda}.html"],
-        ["torch-sparse", "-f", f"https://pytorch-geometric.com/whl/torch-{torch.__version__}+${cuda}.html"],
-        ["torch-cluster", "-f", f"https://pytorch-geometric.com/whl/torch-{torch.__version__}+${cuda}.html"],
-        ["torch-spline-conv", "-f", f"https://pytorch-geometric.com/whl/torch-{torch.__version__}+${cuda}.html"],
+        ["torch-scatter", "-f", f"https://pytorch-geometric.com/whl/torch-{version}+{cuda}.html"],
+        ["torch-sparse", "-f", f"https://pytorch-geometric.com/whl/torch-{version}+{cuda}.html"],
+        ["torch-cluster", "-f", f"https://pytorch-geometric.com/whl/torch-{version}+{cuda}.html"],
+        ["torch-spline-conv", "-f", f"https://pytorch-geometric.com/whl/torch-{version}+{cuda}.html"],
         [f"torch-geometric"]
     ]
 
