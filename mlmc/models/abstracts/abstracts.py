@@ -54,6 +54,8 @@ class TextClassificationAbstract(torch.nn.Module):
         if target == "single":
             self.activation = torch.softmax
             self.loss = torch.nn.CrossEntropyLoss
+            if threshold != "max":
+                print(f"Using non-max prediction for single label target. ({threshold})")
         elif self.target == "multi":
             self.activation = torch.sigmoid
             self.loss = torch.nn.BCEWithLogitsLoss
