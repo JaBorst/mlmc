@@ -27,7 +27,11 @@ import torch
 
 
 def install_torch_geometric():
-    cuda = f"cu{torch.version.cuda.replace('.','')}"
+    cuda = f"cu{torch.version.cuda}"
+    if cuda is None:
+        cuda = "cpu"
+    else:
+        cuda = cuda.replace('.','')
     pckgs = [
         ["torch-scatter", "-f", f"https://pytorch-geometric.com/whl/torch-{torch.__version__}+${cuda}.html"],
         ["torch-sparse", "-f", f"https://pytorch-geometric.com/whl/torch-{torch.__version__}+${cuda}.html"],
