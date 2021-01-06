@@ -23,7 +23,7 @@ class TextClassificationAbstract(torch.nn.Module):
 
     def __init__(self, classes, target="multi", representation="google/bert_uncased_L-2_H-128_A-2",
                  activation=None, loss=None, optimizer=torch.optim.Adam, max_len=200,
-                 optimizer_params=None, device="cpu", finetune=False, threshold="mcut", n_layers=1, **kwargs):
+                 optimizer_params=None, device="cpu", finetune=False, threshold="hard", n_layers=1, **kwargs):
         """
         Abstract initializer of a Text Classification network.
         Args:
