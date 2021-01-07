@@ -27,8 +27,9 @@ def threshold_mcut(x):
         Multiple-Hot Tensor
     """
     x_sorted = torch.sort(x, -1)[0]
-    thresholds = (x_sorted[:, 1:] - x_sorted[:, :-1]).max(-1)[0]
-    return (x > thresholds[:, None]).float()
+    thresholds = (x_sorted[:, 1:] - x_sorted[:, :-1]).max(-1)
+    thresholds = x_sorted[:, thresholds[1]] + 0.5*thresholds[0][None]
+    return (x > thresholds).float()
 
 
 def threshold_mean(x):
