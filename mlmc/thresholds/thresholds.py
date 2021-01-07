@@ -28,7 +28,8 @@ def threshold_mcut(x):
     """
     x_sorted = torch.sort(x, -1)[0]
     thresholds = (x_sorted[:, 1:] - x_sorted[:, :-1]).max(-1)
-    thresholds = x_sorted[:, thresholds[1]] + 0.5*thresholds[0][None]
+    values = torch.gather(x_sorted, 1,thresholds[1][:,None])
+    thresholds = values + 0.5 * thresholds[0][:,None]
     return (x > thresholds).float()
 
 
