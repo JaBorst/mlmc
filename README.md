@@ -14,6 +14,26 @@ Install with
 ```
 pip install git+https://git.informatik.uni-leipzig.de/asv-ml/mlmc@v0.1.4
 ```
+## Workflow
+
+The basic usage of the package is as follows:
+
+```
+import mlmc
+
+#Load data
+data = mlmc.data.get_multilabel_dataset("20newsgroup")
+
+#Create model
+model = mlmc.models.KimCNN(classes = data["classes"])
+
+#Train model
+history = model.fit(train = data["train"], epochs = 10, batch_size = 50)
+
+#Evaluate model
+results = model.evaluate(data["test"])
+```
+
 
 ## Documentation
 For more detailed explanations, see the [Documentation](https://mlmc-docs.readthedocs.io/en/latest/contents.html) on readthedocs.org.
