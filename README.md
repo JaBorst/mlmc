@@ -1,4 +1,3 @@
-
 # mlmc
 
 **M**ulti**l**abel **M**ulti**c**lass
@@ -22,7 +21,7 @@ The basic usage of the package is as follows:
 import mlmc
 
 #Load data
-data = mlmc.data.get_multilabel_dataset("20newsgroup")
+data = mlmc.data.get_multilabel_dataset("rcv1")
 
 #Create model
 model = mlmc.models.KimCNN(classes = data["classes"])
