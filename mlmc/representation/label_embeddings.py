@@ -6,11 +6,11 @@ def get_word_embedding_mean(words, model):
     """
     The word embeddings mean of all tokens in a list
     Args:
-        words: 
-        model: 
+        words: List of words
+        model: Model name (one of [glove50, glove100, glove200, glove300] or any of the models on https://huggingface.co/models
 
     Returns:
-
+        Tensor of shape (1, embedding_dim)
     """
     emb, tok = get(model)
     transformed = tok(words)
@@ -23,11 +23,11 @@ def get_word_embeddings(words, model):
     Get the sequence of word embeddings for a list of words. (This is basically a functional wrapper around
     the Embedding class. Use only if the model to create word embeddings is used once and you need the memory freed)
     Args:
-        words:
-        model:
+        words: List of words
+        model: Model name (one of [glove50, glove100, glove200, glove300] or any of the models on https://huggingface.co/models
 
     Returns:
-
+        Tensor of shape (1, sequence_length, embedding_dim)
     """
     emb, tok = get(model)
     transformed = tok(words)

@@ -24,6 +24,11 @@ metrics_config = {
 }
 
 def get(s) -> dict:
+    """
+    Function for instantiating metrics.
+    :param s: Metric name(s), see metrics_dict.keys() and metrics_config.keys() for available names
+    :return: Dictionary of form {"metric_name": initialized_metric}
+    """
     initial_list = [s] if isinstance(s, str) else s
     remove = []
     obj = []

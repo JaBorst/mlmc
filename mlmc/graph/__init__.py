@@ -1,3 +1,6 @@
+"""
+Provides functions for loading predefined graphs
+"""
 from .helpers import cooc_matrix
 from .embeddings import get_nmf, get_node2vec, get_random_projection
 from .graph_loaders import load_wordnet, load_wordnet_sample, load_NELL,load_elsevier,load_conceptNet, load_stw, load_nasa, \
@@ -18,6 +21,12 @@ register = {
 
 
 def get_graph(name: str):
+    """
+    Loads a graph.
+
+    :param name: Name of the graph (see register.keys())
+    :return: Function call of the chosen graph
+    """
     fct = register.get(name)
     if fct is None:
         raise FileNotFoundError
@@ -26,8 +35,12 @@ def get_graph(name: str):
 
 import networkx as nx
 def get(name: [list, str]):
+    """
+    Loads a graph. If multiple names are provided the union of the graphs is returned.
+
+    :param name: Name(s) of the graph(s) to compose (see register.keys())
+    :return: Merged graph
+    """
     if isinstance(name, str):
         name = [name]
     return nx.compose_all([get_graph(x) for x in name])
-
-

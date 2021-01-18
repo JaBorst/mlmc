@@ -12,21 +12,22 @@ class MoKimCNN(TextClassificationAbstractMultiOutput):
     """
 
     def __init__(self, mode="transformer", kernel_sizes=(3, 4, 5, 6), filters=100, dropout=0.5, **kwargs):
-        """Class constructor and intialization of every hyperparameters
+        """
+        Class constructor and initialization of every hyperparameter
 
         :param mode:  One of (trainable, untrainable, multichannel, transformer).
                     Transformer has to be used in combination with representation being a transformer model name
                      (see: https://huggingface.co/transformers/pretrained_models.html).
                     In combination with the other three one of the glove embeddings can be used
                     (glove50, glove100, glove200, glove300)
-                    'trainable' will finetune the wordembedding used, whereas "untrainable" will freeze the
+                    'trainable' will finetune the word embedding used, whereas "untrainable" will freeze the
                     embedding layer.
                     'multichannel' will combine two embedding layers, one for finetuning on the task, one frozen.
         :param kernel_sizes: Sizes of the kernel used for the convolution
         :param filters: Number of filters used in the convolution
-        :param dropout: Droupout rate
-        :param kwargs: Optimizer and loss function keyword arguments, see `mlmc.models.TextclassificationAbstract`
-         """
+        :param dropout: Dropout rate
+        :param kwargs: Optimizer and loss function keyword arguments, see `mlmc.models.abstracts.abstracts.TextClassificationAbstractMultiOutput`
+        """
         super(MoKimCNN, self).__init__( **kwargs)
 
         self._config["kernel_sizes"] = kernel_sizes
@@ -53,6 +54,12 @@ class MoKimCNN(TextClassificationAbstractMultiOutput):
         self.build()
 
     def forward(self, x):
+        """
+        Forward pass function for transforming input tensor into output tensor.
+
+        :param x: Input tensor
+        :return: Output tensor
+        """
         e = self.embed_input(x)
         c = self.kimcnn_module(e.permute(0, 2, 1))
         if self._config["mode"] == "multichannel":

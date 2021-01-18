@@ -22,6 +22,9 @@ if not EMBEDDINGCACHE.exists():
     EMBEDDINGCACHE.mkdir(parents=True)
 
 def reload_transformers():
+    """
+    Pulls all models and checkpoints from huggingface and writes them to `EMBEDDINGCACHEMODELS`
+    """
     import requests
     import re
     s = requests.get("https://huggingface.co/models")

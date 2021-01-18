@@ -6,6 +6,14 @@ from ..modules import SKGModule
 
 class SKGLM(TextClassificationAbstractGraph):
     def __init__(self, propagation_layers=3, graph_type="gcn", dropout=0.5, **kwargs):
+        """
+        Class constructor and initialization of every hyperparameter.
+
+        :param propagation_layers: Number of GCNConv layers. Only used when graph_type="gcn"
+        :param graph_type: Determines the convolutional layer used. GCNConv if graph_type="gcn", else GatedGraphConv
+        :param dropout: Dropout rate
+        :param kwargs: Optimizer and loss function keyword arguments, see `mlmc.models.abstracts.abstracts.TextClassificationAbstractGraph`
+        """
         super(SKGLM, self).__init__(**kwargs)
         # Attributes
         self._config["dropout"] = dropout
@@ -30,6 +38,12 @@ class SKGLM(TextClassificationAbstractGraph):
         self.build()
 
     def forward(self, x, return_graph_scores=False):
+        """
+        Forward pass function for transforming input tensor into output tensor.
+
+        :param x: Input tensor
+        :return: Output tensor
+        """
         embeddings = self.embed_input(x)
         label_embeddings = self.embed_input(self.label_embeddings)
         if not self.finetune:

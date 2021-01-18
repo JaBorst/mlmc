@@ -48,6 +48,12 @@ def _save_to_tmp(dataset, data):
 
 
 def load_aapd():
+    """
+    Loads AAPD (Arxiv Academic Paper Dataset) from cache. If it doesn't exist in cache the dataset will be downloaded.
+    Task: Multilabel Classification
+
+    :return: Data and class dictionaries
+    """
     data = _load_from_tmp("aapd")
     if data is not None:
         return data
@@ -76,6 +82,14 @@ def load_aapd():
 
 
 def load_rcv1(path=None):
+    """
+    Loads rcv1 (Reuters Corpus Volume I) from cache. This dataset can't be downloaded automatically so a path to the
+    archive has to be provided when first called.
+    Task: Multilabel Classification
+
+    :param path: Path to unprocessed corpus
+    :return: Data and class dictionaries
+    """
     data = _load_from_tmp("rcv1")
     if data is not None:
         return data
@@ -163,6 +177,14 @@ def load_rcv1(path=None):
 
 
 def load_wiki30k(path="/disk1/users/jborst/Data/Test/MultiLabel/wiki30k"):
+    """
+    Loads wiki30k from cache. This dataset can't be downloaded automatically so a path to the archive has to be provided
+    when first called.
+    Task: Multilabel Classification
+
+    :param path: Path to pickled dataset
+    :return: Data and class dictionaries
+    """
     import pickle
     with open(Path(path) / "wiki30k_raw_text.p", "rb") as f:
         content = pickle.load(f)
@@ -175,6 +197,12 @@ def load_wiki30k(path="/disk1/users/jborst/Data/Test/MultiLabel/wiki30k"):
 
 
 def load_eurlex():
+    """
+    Loads EUR-Lex from cache. If it doesn't exist in cache the dataset will be downloaded.
+    Task: Multilabel Classification
+
+    :return: Data and class dictionaries
+    """
     data = _load_from_tmp("eurlex")
     if data is not None:
         return data
@@ -206,6 +234,13 @@ def load_eurlex():
 
 
 def load_huffpost(test_split=0.25):
+    """
+    Loads Huffington Post dataset from cache. If it doesn't exist in cache the dataset will be downloaded.
+    Task: Multilabel Classification
+
+    :param test_split: Size of test split as fraction of 1
+    :return: Data and class dictionaries
+    """
     data = _load_from_tmp("huffpost")
     if data is not None:
         return data
@@ -237,6 +272,13 @@ def load_huffpost(test_split=0.25):
 
 
 def load_moviesummaries(test_split=0.25):
+    """
+    Loads Movie Summaries dataset from cache. If it doesn't exist in cache the dataset will be downloaded.
+    Task: Multilabel Classification
+
+    :param test_split: Size of test split as fraction of 1
+    :return: Data and class dictionaries
+    """
     data = _load_from_tmp("moviesummaries")
     if data is not None:
         return data
@@ -285,6 +327,12 @@ def load_moviesummaries(test_split=0.25):
 # ----------------------------------------------
 
 def load_blurbgenrecollection():
+    """
+    Loads Blurb Genre Collection dataset from cache. If it doesn't exist in cache the dataset will be downloaded.
+    Task: Multilabel Classification
+
+    :return: Data and class dictionaries
+    """
     url = "https://fiona.uni-hamburg.de/ca89b3cf/blurbgenrecollectionen.zip"
     data = _load_from_tmp("blurbgenrecollection")
     if data is not None:
@@ -319,6 +367,13 @@ def load_blurbgenrecollection():
 
 
 def load_blurbgenrecollection_de():
+    """
+    Loads German version of Blurb Genre Collection dataset from cache. If it doesn't exist in cache the dataset will be
+    downloaded.
+    Task: Multilabel Classification
+
+    :return: Data and class dictionaries
+    """
     url = "https://www.inf.uni-hamburg.de/en/inst/ab/lt/resources/data/germeval-2019-hmc/germeval2019t1-public-data-final.zip"
     data = _load_from_tmp("blurbgenrecollection_de")
     if data is not None:
@@ -369,6 +424,12 @@ def load_webofscience():
     #     zipfile = ZipFile(BytesIO(resp.read()))
 
 def load_20newsgroup():
+    """
+    Loads 20newsgroup dataset from cache. If it doesn't exist in cache the dataset will be downloaded.
+    Task: Singlelabel Classification
+
+    :return: Data and class dictionaries
+    """
     url = "http://qwone.com/~jason/20Newsgroups/20news-bydate.tar.gz"
     data = _load_from_tmp("20newsgroup")
     if data is not None:
@@ -419,6 +480,12 @@ def load_20newsgroup():
         return data, classes
 
 def load_agnews():
+    """
+    Loads AG News dataset from cache. If it doesn't exist in cache the dataset will be downloaded.
+    Task: Singlelabel Classification
+
+    :return: Data and class dictionaries
+    """
     url = "https://s3.amazonaws.com/fast-ai-nlp/ag_news_csv.tgz"
     data = _load_from_tmp("agnews")
     if data is not None:
@@ -460,6 +527,12 @@ def load_agnews():
         return data, classes
 
 def load_dbpedia():
+    """
+    Loads DBpedia dataset from cache. If it doesn't exist in cache the dataset will be downloaded.
+    Task: Singlelabel Classification
+
+    :return: Data and class dictionaries
+    """
     url = "https://github.com/le-scientifique/torchDatasets/raw/master/dbpedia_csv.tar.gz"
     data = _load_from_tmp("dbpedia")
     if data is not None:
@@ -501,6 +574,12 @@ def load_dbpedia():
         return data, classes
 
 def load_ohsumed():
+    """
+    Loads Ohsumed dataset from cache. If it doesn't exist in cache the dataset will be downloaded.
+    Task: Multilabel Classification
+
+    :return: Data and class dictionaries
+    """
     url = "http://disi.unitn.eu/moschitti/corpora/ohsumed-first-20000-docs.tar.gz"
     url_classes = "http://disi.unitn.eu/moschitti/corpora/First-Level-Categories-of-Cardiovascular-Disease.txt"
     data = _load_from_tmp("ohsumed")
@@ -589,6 +668,13 @@ def load_ohsumed():
         return data, classes
 
 def export(data, classes, path=Path("./export")):
+    """
+    Exports the data and class dictionaries of a dataset to text files.
+
+    :param data: Data dictionary containing training, validation and test splits
+    :param classes: Class dictionary mapping labels to indices
+    :param path: Path to write the text files to
+    """
     path = Path(path)
     if not path.exists():
         path.mkdir()
@@ -607,6 +693,12 @@ def export(data, classes, path=Path("./export")):
         o.writelines([x + "\n" for x in classes.keys()])
 
 def load_yahoo_answers():
+    """
+    Loads Yahoo Answers dataset from cache. If it doesn't exist in cache the dataset will be downloaded.
+    Task: Singlelabel Classification
+
+    :return: Data and class dictionaries
+    """
     url = (URL+"/yahoo_answers_csv.tar.gz").replace("https","http")
     data = _load_from_tmp("yahoo_answers")
     if data is not None:

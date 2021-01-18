@@ -48,6 +48,11 @@ class Embedder:
         self.maxlen=500
 
     def set_method(self, m=None):
+        """
+        Sets method used for embedding tokens
+        :param m: Method name (first_token, all, sentence, pool)
+        :return: True if the method was set successfully, else False
+        """
         if m is None:
             print(f"m should be one of the following: {self.methods}")
             return False

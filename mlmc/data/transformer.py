@@ -5,8 +5,8 @@ import torch
 def clean(x):
     """
     Remove every character in a string that is not ascii, punctuation or whitespace
-    :param x:
-    :return:
+    :param x: String
+    :return: Cleaned string
     """
     import string
     return "".join([c for c in x if c in string.ascii_letters + string.punctuation + " "])

@@ -37,7 +37,7 @@ def threshold_mean(x):
     """
     Transform input tensor into a multiple-hot tensor using a threshold
 
-    The threshold is estimated from the largest decay in probability between two successively ranked labels.
+    The threshold is calculated by taking the mean of the input tensor.
 
     Args:
         x: Input Tensor
@@ -52,9 +52,11 @@ def threshold_scaling_mcut(x, ind):
     Transform input tensor into a multiple-hot tensor using a threshold
 
     The threshold is estimated from the largest decay in probability between two successively ranked labels.
+    Before applying the threshold the mean of the values indicated by 0 and 1 is scaled to be the same.
 
     Args:
         x: Input Tensor
+        ind: Index Tensor
 
     Returns:
         Multiple-Hot Tensor
@@ -65,12 +67,15 @@ def threshold_scaling_mcut(x, ind):
 
 def threshold_max(x):
     """
-    Returns the index of the maximum in the vector
+    Transform input tensor into a one-hot tensor using a threshold
+
+    The threshold chooses the maximum value in the input tensor.
+
     Args:
-        x:
+        x: Input Tensor
 
     Returns:
-
+        One-Hot Tensor
     """
     return torch.zeros_like(x).scatter(1, torch.topk(x, k=1)[1], 1)
 
