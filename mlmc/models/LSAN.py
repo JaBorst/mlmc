@@ -62,6 +62,7 @@ class LSAN(TextClassificationAbstract):
         self.build()
 
     def init_hidden(self, size):
+        """Deprecated"""
         return (torch.randn(2, size, self._config["lstm_hid_dim"]).to(self.device),
                 torch.randn(2, size, self._config["lstm_hid_dim"]).to(self.device))
 

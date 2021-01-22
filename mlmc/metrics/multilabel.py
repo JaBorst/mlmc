@@ -14,15 +14,13 @@ class MultiLabelReport():
         self.classes = classes
 
     def reset(self):
-        """
-        Clears previously added truth and pred instance attributes.
-        """
+        """Clears previously added truth and pred instance attributes."""
         self.truth = []
         self.pred = []
 
     def update(self, batch):
         """
-        Adds classification output to class for computation of metric
+        Adds classification output to class for computation of metric.
 
         :param batch: Output of classification task in form (scores, truth, pred)
         """

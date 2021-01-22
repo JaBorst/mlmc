@@ -24,6 +24,12 @@ except:
     pass
 
 def finetune_mixed_precision_model(model, finetune=True):
+    """
+    Sets a model to use FP16 where appropriate to save memory and speed up training.
+
+    :param model: A model instance
+    :return: A model with initialized Automatic Mixed Precision
+    """
     try:
         from apex import amp
         model.use_amp=True

@@ -112,6 +112,7 @@ def empty_cache():
         file.unlink()
 
 def add_test_example():
+    """Helper function for model tests."""
     if not EMBEDDINGCACHE.exists():
         EMBEDDINGCACHE.mkdir(parents=True)
     with tempfile.TemporaryDirectory() as tempdir:
@@ -181,7 +182,20 @@ def map_vocab(query, vocab, maxlen):
     return result
 
 def get_white_space_tokenizer(v):
+    """
+    Creates a tokenizer which splits input using whitespaces.
+
+    :param v: A mapping from tokens to indices
+    :return: A callable tokenizer function
+    """
     def tokenizer(x, maxlen=500, pad=True):
+        """
+        Splits the input using whitespaces and maps the tokens to their indices.
+
+        :param x: A string or a list containing strings
+        :param maxlen: Maximum length of the second dimension of the output tensor
+        :return: A torch.Tensor with shape (len(x), maxlen)
+        """
         x = [x] if isinstance(x, str) else x
         x = [s.lower().split() for s in x]
         return map_vocab(x, v, maxlen).long()

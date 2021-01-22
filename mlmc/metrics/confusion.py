@@ -11,9 +11,7 @@ class ConfusionMatrix():
         self.reset()
 
     def reset(self):
-        """
-        Clears previously added truth and pred instance attributes.
-        """
+        """Clears previously added truth and pred instance attributes."""
         self.truth = []
         self.pred = []
 

@@ -14,6 +14,14 @@ from ..data.data_loaders import _save_to_tmp, _load_from_tmp
 
 
 def transform(x, rg, lang="en"):
+    """
+    Transforms rdflib terms into plain text.
+
+    :param x: A term (see rdflib.term)
+    :param rg: An RDF Graph
+    :param lang: Language of the wikidata article
+    :return: String representation of term
+    """
     if isinstance(x, rdflib.term.URIRef):
         from rdflib.namespace import SKOS
         if str(SKOS) in str(x): return [x.split("#")[-1]]
@@ -30,12 +38,25 @@ def transform(x, rg, lang="en"):
 
 
 def transform_triples(rg,lang="en"):
+    """
+    Transforms rdflib triples into plain text.
+
+    :param rg: An RDF Graph
+    :param lang: Language of the wikidata article
+    :return: List containing transformed triples
+    """
     new_list =  [[transform(x, rg, lang) for x in t] for t in tqdm(rg)]
     new_list = [x for x in new_list
                 if (not (any([r==[] for r in x]) or any([r is None for r in x]))) and ( "prefLabel" not in x[1])]
     return new_list
 
 def get_wikidata_desc(x):
+    """
+    Queries wikidata using ID's to retrieve descriptions.
+
+    :param x: List of ID's
+    :return: Dictionary of input ID's corresponding to its wikidata descriptions
+    """
     import requests
     output = []
 
@@ -61,6 +82,11 @@ def get_wikidata_desc(x):
     return descriptions
 
 def load_mesh():
+    """
+    Loading the MeSH thesaurus graph as a networkx.DiGraph.
+
+    :return: A networkx.DiGraph containing MeSH.
+    """
 
     url = "ftp://ftp.nlm.nih.gov/online/mesh/rdf/2020/"
     resp = urlopen(url+"mesh2020.nt.gz")
@@ -77,11 +103,16 @@ def load_mesh():
     return G
 
 def load_nasa():
+    """
+    Loading the NASA thesaurus graph as a networkx.DiGraph.
+
+    :return: A networkx.DiGraph containing the NASA Thesaurus.
+    """
     data = _load_from_tmp("nasa")
     if data is not None:
         return data
     else:
-        url = "https://www.sti.nasa.gov/download/NASA_Thesaurus_Alpha_SKOS.xml"
+        url = "https://www.sti.nasa.gov/download/NASA_Thesaurus_Alpha_SKOS.xml" #TODO: Fix broken link
         response = urlopen(url)
         content = response.read().decode("utf-16")
         rg = RDFGraph()
@@ -99,6 +130,11 @@ def load_nasa():
 
 
 def load_gesis():
+    """
+    Loading the gesis TheSoz graph as a networkx.DiGraph.
+
+    :return: A networkx.DiGraph containing TheSoz.
+    """
     data = _load_from_tmp("gesis")
     if data is not None:
         return data
@@ -120,6 +156,11 @@ def load_gesis():
         return g
 
 def load_stw():
+    """
+    Loading the STW Thesaurus for Economics graph as a networkx.DiGraph.
+
+    :return: A networkx.DiGraph containing the STW Thesaurus for Economics.
+    """
     data = _load_from_tmp("stw")
     if data is not None:
         return data
@@ -185,6 +226,11 @@ def load_stw():
         return g
 
 def load_elsevier():
+    """
+    Loading the Elsevier graph used for Elsevier Fingerprint Engine as a networkx.DiGraph
+
+    :return: A networkx.DiGraph containing Elsevier.
+    """
     """https://www.elsevier.com/__data/assets/pdf_file/0010/175249/ACAD_FP_FS_FPEFactSheet2019_WEB.pdf"""
     print("Be Careful. This is not yet the full elsevier thesaurus. ONly gesis, nasa and stw")
     gesis = load_gesis()
@@ -295,7 +341,11 @@ def load_NELL():
 
 
 def load_conceptNet():
+    """
+    Loading the conceptNet graph as a networkx.DiGraph.
 
+    :return: A networkx.DiGraph containing conceptNet.
+    """
     url = "https://s3.amazonaws.com/conceptnet/downloads/2019/edges/conceptnet-assertions-5.7.0.csv.gz"
     data = _load_from_tmp("conceptnet")
     if data is not None:

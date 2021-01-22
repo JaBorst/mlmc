@@ -63,6 +63,7 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         return printable
 
     def _zeroshot_fit(self,*args, **kwargs):
+        # TODO: Documentation
         return self.zeroshot_fit_sacred(_run=None, *args,**kwargs)
 
     def zeroshot_fit_sacred(self, data, epochs=10, batch_size=16, _run=None, metrics=None, callbacks=None):
@@ -154,4 +155,3 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         self._zeroshot_ind = torch.LongTensor([1 if x[0] in self._trained_classes else 0 for x in l])
         self._mixed_shot = not (self._zeroshot_ind.sum() == 0 or self._zeroshot_ind.sum() == self._zeroshot_ind.shape[
             0]).item()  # maybe obsolete?
-

@@ -69,6 +69,11 @@ class ZAGCNNLM(TextClassificationAbstractGraph, TextClassificationAbstractZeroSh
         return (torch.relu(self.projection(label_wise_representation)) * labelvectors).sum(-1)
 
     def create_label_dict(self):
+        """
+        Embeds the labels of each class.
+
+        :return: Dictionary containing the original label with its corresponding embedding.
+        """
         # assert method in ("repeat","generate","embed", "glove", "graph"), 'method has to be one of ("repeat","generate","embed")'
         from ..representation import get_word_embedding_mean
         with torch.no_grad():
@@ -79,6 +84,11 @@ class ZAGCNNLM(TextClassificationAbstractGraph, TextClassificationAbstractZeroSh
         return  {w:e for w,e in zip(self.classes, l)}
 
     def create_labels(self, classes):
+        """
+        Creates label embeddings and adds them to the model.
+
+        :param classes: The classes mapping
+        """
         self._config["classes"] = classes
         self.classes = classes
         self.n_classes = len(classes)

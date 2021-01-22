@@ -7,6 +7,14 @@ from sklearn.decomposition import NMF
 
 
 def subgraph_extract(X, graph, subnodelist):
+    """
+    Extracts a subset of node embeddings from a graph.
+
+    :param X: Node embeddings of graph
+    :param graph: A networkx graph
+    :param subnodelist: Dictionary of nodes for which the embedding will be returned
+    :return: Embeddings of all nodes in subnodelist
+    """
     new = np.zeros_like(X)
     for i, nm in enumerate(graph.nodes):
         if nm in subnodelist.keys():

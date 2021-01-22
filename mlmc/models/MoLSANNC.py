@@ -13,6 +13,14 @@ class MoLSANNC(TextClassificationAbstractMultiOutput, TextClassificationAbstract
 
     def __init__(self, scale="mean", share_weighting=False, weight_norm="norm", branch_noise=0., dropout=0.3,
                  hidden_representations=400,  d_a=200, **kwargs):
+        """
+        Class constructor and initialization of every hyperparameter.
+
+        :param dropout: Dropout rate
+        :param hidden_representations: Hidden state dimension of the LSTM used to create the word embeddings
+        :param d_a: Arbitrarily set hyperparameter
+        :param kwargs: Optimizer and loss function keyword arguments, see `mlmc.models.abstracts.abstracts.TextClassificationAbstract`
+        """
         super(MoLSANNC, self).__init__(**kwargs)
         # My Stuff
         self._config["scale"] = scale
@@ -49,6 +57,13 @@ class MoLSANNC(TextClassificationAbstractMultiOutput, TextClassificationAbstract
         self.build()
 
     def forward(self, x, return_weights=False):
+        """
+        Forward pass function for transforming input tensor into output tensor.
+
+        :param x: Input tensor
+        :param return_weights: If true, returns the learnable weights of the module as well
+        :return: Output tensor
+        """
         outputs = self.projection_input(self.embed_input(x) / self.embeddings_dim)
         label_embed = torch.cat([x for x in self.label_embedding],0)
 
@@ -71,15 +86,23 @@ class MoLSANNC(TextClassificationAbstractMultiOutput, TextClassificationAbstract
         return pred
 
     def log_branch_weights(self, s=True):
+        """Deprecated"""
         self.log_bw = s
 
     def reset_branch_weights(self):
+        """Deprecated"""
         self.bw = []
 
     def get_branch_weights(self):
+        """Deprecated"""
         return torch.cat(self.bw).cpu()
 
     def create_label_dict(self):
+        """
+        Embeds the labels of each class.
+
+        :return: Dictionary containing the original label with its corresponding embedding.
+        """
         # assert method in ("repeat","generate","embed", "glove", "graph"), 'method has to be one of ("repeat","generate","embed")'
         from ..representation import get_word_embedding_mean
         with torch.no_grad():
@@ -91,6 +114,11 @@ class MoLSANNC(TextClassificationAbstractMultiOutput, TextClassificationAbstract
         return [{w: e for w, e in zip(classes.keys(), emb)} for classes, emb in zip(self.classes, l)]
 
     def create_labels(self, classes):
+        """
+        Creates label embeddings and adds them to the model in form of a ParameterList.
+
+        :param classes: The classes mapping
+        """
         self.classes = classes
         self._config["classes"]=classes
         self.n_classes = [len(x) for x in classes]
