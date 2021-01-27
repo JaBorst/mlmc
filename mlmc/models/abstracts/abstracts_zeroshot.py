@@ -9,6 +9,8 @@ try:
     from apex import amp
 except:
     pass
+from ...data import is_multilabel
+
 
 class TextClassificationAbstractZeroShot(torch.nn.Module):
     """
@@ -62,20 +64,32 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
             }
         return printable
 
+
     def _zeroshot_fit(self,*args, **kwargs):
         # TODO: Documentation
         return self.zeroshot_fit_sacred(_run=None, *args,**kwargs)
 
-    def zeroshot_fit_sacred(self, data, epochs=10, batch_size=16, _run=None, metrics=None, callbacks=None):
+    def zeroshot_fit_sacred(self, data, epochs=10, batch_size=16, _run=None, metrics=None, callbacks=None, log=False):
         histories = {"train": [], "gzsl": [], "zsl": [], "nsl": []}
+        if "trained_classes" not in self._config:
+            self._config["trained_classes"] = []
         self._config["trained_classes"].extend(list(data["train"].classes.keys()))
         self._config["trained_classes"] = list(set(self._config["trained_classes"]))
         for i in range(epochs):
+            self.create_labels(data["train"].classes)
+            if is_multilabel(data["train"]):
+                self.multi()
+            else:
+                self.single()
             history = self.fit(data["train"],
                 batch_size=batch_size, epochs=1, metrics=metrics, callbacks=callbacks)
             if _run is not None: _run.log_scalar("train_loss", history["train"]["loss"][0], i)
 
             self.create_labels(data["valid_gzsl"].classes)
+            if is_multilabel(data["valid_gzsl"]):
+                self.multi()
+            else:
+                self.single()
             gzsl_loss, GZSL = self.evaluate(data["valid_gzsl"], batch_size=batch_size, metrics=metrics,_fit=True)
             if _run is not None: GZSL.log_sacred(_run, i, "gzsl")
             GZSL_comp = GZSL.compute()
@@ -83,6 +97,10 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
             histories["gzsl"][-1].update(GZSL_comp)
 
             self.create_labels(data["valid_zsl"].classes)
+            if is_multilabel(data["valid_zsl"]):
+                self.multi()
+            else:
+                self.single()
             zsl_loss, ZSL = self.evaluate(data["valid_zsl"], batch_size=batch_size, metrics=metrics,_fit=True)
             if _run is not None: ZSL.log_sacred(_run, i, "zsl")
             ZSL_comp = ZSL.compute()
@@ -90,6 +108,10 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
             histories["zsl"][-1].update(ZSL_comp)
 
             self.create_labels(data["valid_nsl"].classes)
+            if is_multilabel(data["valid_nsl"]):
+                self.multi()
+            else:
+                self.single()
             nsl_loss, NSL = self.evaluate(data["valid_nsl"], batch_size=batch_size, metrics=metrics,_fit=True)
             if _run is not None: NSL.log_sacred(_run, i, "nsl")
             NSL_comp = NSL.compute()
@@ -104,14 +126,26 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
             print("========================================================================================\n")
 
         self.create_labels(data["test_gzsl"].classes)
+        if is_multilabel(data["test_gzsl"]):
+            self.multi()
+        else:
+            self.single()
         gzsl_loss, GZSL = self.evaluate(data["test_gzsl"], batch_size=batch_size,_fit=True)
         if _run is not None: GZSL.log_sacred(_run, epochs, "gzsl")
 
         self.create_labels(data["test_zsl"].classes)
+        if is_multilabel(data["test_zsl"]):
+            self.multi()
+        else:
+            self.single()
         zsl_loss, ZSL = self.evaluate(data["test_zsl"], batch_size=batch_size,_fit=True)
         if _run is not None: ZSL.log_sacred(_run, epochs, "zsl")
 
         self.create_labels(data["test_nsl"].classes)
+        if is_multilabel(data["test_nsl"]):
+            self.multi()
+        else:
+            self.single()
         nsl_loss, NSL = self.evaluate(data["test_nsl"], batch_size=batch_size,_fit=True)
         if _run is not None: NSL.log_sacred(_run, epochs, "nsl")
 
@@ -152,6 +186,21 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         l.sort(key=lambda x: x[1])
 
         #Auxiliary values
-        self._zeroshot_ind = torch.LongTensor([1 if x[0] in self._trained_classes else 0 for x in l])
-        self._mixed_shot = not (self._zeroshot_ind.sum() == 0 or self._zeroshot_ind.sum() == self._zeroshot_ind.shape[
+        self._config["zeroshot_ind"] = torch.LongTensor([1 if x[0] in self._trained_classes else 0 for x in l])
+        self._config["mixed_shot"] = not (self._config["zeroshot_ind"].sum() == 0 or  self._config["zeroshot_ind"].sum() == self._config["zeroshot_ind"].shape[
             0]).item()  # maybe obsolete?
+
+    def single(self):
+        self._config["target"] = "single"
+        self.target = "single"
+        self.set_threshold("max")
+        self.activation = torch.softmax
+        self.loss = torch.nn.CrossEntropyLoss()
+        self.build()
+    def multi(self):
+        self._config["target"] = "multi"
+        self.target = "multi"
+        self.set_threshold("mcut")
+        self.activation = torch.sigmoid
+        self.loss = torch.nn.BCEWithLogitsLoss()
+        self.build()

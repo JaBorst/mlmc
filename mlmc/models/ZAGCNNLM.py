@@ -108,3 +108,13 @@ class ZAGCNNLM(TextClassificationAbstractGraph, TextClassificationAbstractZeroSh
             self.label_dict = self.create_label_dict()
             self.label_embeddings = torch.stack([self.label_dict[cls] for cls in classes.keys()])
         self.label_embeddings = self.label_embeddings.to(self.device)
+
+        if not hasattr(self, "_trained_classes"):
+            self._trained_classes = []
+        #Auxiliary values
+        l = list(classes.items())
+        l.sort(key=lambda x: x[1])
+        self._config["zeroshot_ind"] = torch.LongTensor([1 if x[0] in self._trained_classes else 0 for x in l])
+        self._config["mixed_shot"] = not (self._config["zeroshot_ind"].sum() == 0 or  self._config["zeroshot_ind"].sum() == self._config["zeroshot_ind"].shape[
+            0]).item()  # maybe obsolete?
+

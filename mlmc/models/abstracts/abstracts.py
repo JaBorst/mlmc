@@ -257,6 +257,10 @@ class TextClassificationAbstract(torch.nn.Module):
         for cb in callbacks:
             if hasattr(cb, "on_epoch_end"):
                 cb.on_epoch_end(self)
+    def _callback_train_end(self, callbacks):
+        for cb in callbacks:
+            if hasattr(cb, "on_train_end"):
+                cb.on_epoch_end(self)
     def _callback_epoch_start(self, callbacks):
         # TODO: Documentation
         for cb in callbacks:
