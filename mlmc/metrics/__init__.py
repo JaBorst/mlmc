@@ -24,6 +24,12 @@ metrics_config = {
 }
 
 def get(s) -> dict:
+    """
+    Function for instantiating metrics.
+
+    :param s: Metric name(s), see metrics_dict.keys() and metrics_config.keys() for available names
+    :return: Dictionary of form {"metric_name": initialized_metric}
+    """
     initial_list = [s] if isinstance(s, str) else s
     remove = []
     obj = []
@@ -43,6 +49,11 @@ def get(s) -> dict:
 
 class MetricsDict:
     def __init__(self, map=None):
+        """
+        Initializes class with metrics.
+
+        :param map: Metric name(s), see metrics_dict.keys() and metrics_config.keys() for available names
+        """
         if isinstance(map, dict):
             self.map = map
         else:
@@ -61,38 +72,64 @@ class MetricsDict:
             v.reset()
 
     def __getitem__(self, item):
+        """
+        Retrieves a dictionary entry.
+
+        :param item: Key
+        :return: Value
+        """
         return self.map[item]
 
     def __iter__(self):
+        """Returns iterator object over metric keys"""
         return self.map.keys()
 
     def values(self):
+        """Returns all metric values"""
         return self.map.values()
 
     def keys(self):
+        """Returns all metric keys"""
         return self.map.keys()
 
     def items(self):
+        """Returns all key/value pairs"""
         return self.map.items()
 
     def update(self, d):
+        """
+        Adds a key/value pair to the dictionary.
+
+        :param d: A key/value pair to be added
+        """
         self.map.update(d)
 
     def reset(self):
+        """Clears all instance attributes of the metrics"""
         for v in self.values():
             v.reset()
 
     def update_metrics(self, batch):
+        """Adds output of classification task in form (scores, truth, pred) to metrics"""
         for v in self.values():
             v.update(batch)
 
     def compute(self):
+        """Computes and returns metric in a dictionary with the metric name as key and metric results as value"""
         r = {k: v.compute() if not isinstance(v, float) else v for k, v in self.map.items()}
         r = {k: round(v, self.PRECISION_DIGITS) if isinstance(v, float) else v for k,v in r.items()}
         return r
 
     def print(self):
+        """Computes and returns metric in a dictionary with the metric name as key and metric results as value by usage
+        of print() if it's implemented for the given metric"""
         def _choose(v):
+            """
+            Chooses a computation function.
+
+            :param v: An instantiated metric
+            :return: Function call of print() if it exists else compute()
+            """
             if hasattr(v, "print"):
                 return v.print()
             if hasattr(v, "compute"):
@@ -103,6 +140,13 @@ class MetricsDict:
         return r
 
     def _recurse_dictionary(self, d, prefix=""):
+        """
+        Recurses through dictionary of metric results and adds them to a list.
+
+        :param d: Dictionary containing the results of the chosen metrics
+        :param prefix: Prefix added to metric
+        :return: List of metric results
+        """
         l = []
         for k, v in d.items():
             if isinstance(v, float):
@@ -120,12 +164,28 @@ class MetricsDict:
         return l
 
     def log_sacred(self, _run, step, prefix=""):
+        """
+        Logs a metric to Sacred.
+
+        :param _run: Run object of Experiment
+        :param step: Iteration step in which the metric was taken
+        :param prefix: Prefix added to metric
+        :return: Run object of Experiment with added metric
+        """
         results = self.print()
         for k, v in self._recurse_dictionary(results, prefix=prefix):
             _run.log_scalar(k,v,step)
         return _run
 
     def log_mlflow(self, _run, step, prefix=""):
+        """
+        Logs a metric to MLflow.
+
+        :param _run: Run object of Experiment
+        :param step: Iteration step in which the metric was taken
+        :param prefix: Prefix added to metric
+        :return: Run object of Experiment with added metric
+        """
         import mlflow
         results = self.print()
         for k, v in self._recurse_dictionary(results, prefix=prefix):

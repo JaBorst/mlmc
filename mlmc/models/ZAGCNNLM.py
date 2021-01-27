@@ -10,6 +10,17 @@ import networkx as nx
 
 class ZAGCNNLM(TextClassificationAbstractGraph, TextClassificationAbstractZeroShot):
     def __init__(self,dropout = 0.5, norm=False, filters=300, hidden_dim=512, kernel_sizes = [3,4,5,6] , **kwargs):
+        """
+        Class constructor and initialization of every hyperparameter.
+
+        :param dropout: Dropout rate
+        :param norm: If true the output of the tanh activation will be divided by its norm
+        :param filters: Number of filters used in the convolution
+        :param hidden_dim: Hidden state dimension
+        :param kernel_sizes: Sizes of the kernel used for the convolution
+        :param kwargs: Optimizer and loss function keyword arguments, see `mlmc.models.abstracts.abstracts.TextClassificationAbstractGraph`
+                    and `mlmc.models.abstracts.abstracts.TextClassificationAbstractZeroShot`
+        """
         super(ZAGCNNLM, self).__init__(**kwargs)
 
         self.use_dropout = dropout
@@ -35,6 +46,12 @@ class ZAGCNNLM(TextClassificationAbstractGraph, TextClassificationAbstractZeroSh
         self.build()
 
     def forward(self, x):
+        """
+        Forward pass function for transforming input tensor into output tensor.
+
+        :param x: Input tensor
+        :return: Output tensor
+        """
         embeddings = self.embed_input(x)
         embedded = self.dropout_layer(embeddings)
         c = torch.cat([self.pool(torch.nn.functional.relu(conv(embedded.permute(0,2,1)))) for conv in self.convs], dim=-1).permute(0,2,1)
@@ -52,6 +69,11 @@ class ZAGCNNLM(TextClassificationAbstractGraph, TextClassificationAbstractZeroSh
         return (torch.relu(self.projection(label_wise_representation)) * labelvectors).sum(-1)
 
     def create_label_dict(self):
+        """
+        Embeds the labels of each class.
+
+        :return: Dictionary containing the original label with its corresponding embedding.
+        """
         # assert method in ("repeat","generate","embed", "glove", "graph"), 'method has to be one of ("repeat","generate","embed")'
         from ..representation import get_word_embedding_mean
         with torch.no_grad():
@@ -62,6 +84,11 @@ class ZAGCNNLM(TextClassificationAbstractGraph, TextClassificationAbstractZeroSh
         return  {w:e for w,e in zip(self.classes, l)}
 
     def create_labels(self, classes):
+        """
+        Creates label embeddings and adds them to the model.
+
+        :param classes: The classes mapping
+        """
         self._config["classes"] = classes
         self.classes = classes
         self.n_classes = len(classes)

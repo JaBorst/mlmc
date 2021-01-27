@@ -11,6 +11,15 @@ class LSAN(TextClassificationAbstract):
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
     def __init__(self, label_embedding=None, label_freeze=False, lstm_hid_dim=300, d_a=200,  **kwargs):
+        """
+        Class constructor and initialization of every hyperparameter.
+
+        :param label_embedding: If not None, loads the specified label embeddings instead of creating them from scratch.
+        :param label_freeze: If True, the embedding tensor does not get updated in the learning process.
+        :param lstm_hid_dim: Hidden state dimension of the LSTM used to create the word embeddings
+        :param d_a: Arbitrarily set hyperparameter
+        :param kwargs: Optimizer and loss function keyword arguments, see `mlmc.models.abstracts.abstracts.TextClassificationAbstract`
+        """
         super(LSAN, self).__init__(**kwargs)
         #My Stuff
         # self.label_embedding = label_embedding
@@ -53,10 +62,17 @@ class LSAN(TextClassificationAbstract):
         self.build()
 
     def init_hidden(self, size):
+        """Deprecated"""
         return (torch.randn(2, size, self._config["lstm_hid_dim"]).to(self.device),
                 torch.randn(2, size, self._config["lstm_hid_dim"]).to(self.device))
 
     def forward(self, x):
+        """
+        Forward pass function for transforming input tensor into output tensor.
+
+        :param x: Input tensor
+        :return: Output tensor
+        """
         embeddings = self.embed_input(x) / self.embeddings_dim
         embeddings = self.embedding_dropout(embeddings)
         # step1 get LSTM outputs

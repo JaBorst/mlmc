@@ -48,6 +48,12 @@ class Embedder:
         self.maxlen=500
 
     def set_method(self, m=None):
+        """
+        Sets method used for embedding tokens.
+
+        :param m: Method name (first_token, all, sentence, pool)
+        :return: True if the method was set successfully, else False
+        """
         if m is None:
             print(f"m should be one of the following: {self.methods}")
             return False
@@ -57,6 +63,13 @@ class Embedder:
         return True
 
     def _get_all(self, sentences, pad):
+        """
+        TODO: Documentation
+
+        :param sentences: List of sentences.
+        :param pad: If pad is set all sentences will be padded (or cut respectively) to the desired length
+        :return:
+        """
         t = self.tok(x=sentences, return_start=False, maxlen=self.maxlen, pad=True, as_mask=False, add_special_tokens=False)
         with torch.no_grad():
             embeddings = self.emb(t.to(self.device))[0].to(self.return_device)
@@ -64,6 +77,13 @@ class Embedder:
         return self._pad_it(embeddings,pad)
 
     def _get_first_token(self, sentences, pad):
+        """
+        TODO: Documentation
+
+        :param sentences: List of sentences.
+        :param pad: If pad is set all sentences will be padded (or cut respectively) to the desired length
+        :return:
+        """
         t, ind = self.tok(x=sentences, return_start=True,maxlen=self.maxlen, pad=True, as_mask=False, add_special_tokens=False)
         with torch.no_grad():
             embeddings = self.emb(t.to(self.device))[0].to(self.return_device)
@@ -71,12 +91,26 @@ class Embedder:
         return self._pad_it(embeddings,pad)
 
     def _get_sentence(self, sentences, pad):
+        """
+        TODO: Documentation
+
+        :param sentences: List of sentences.
+        :param pad: If pad is set all sentences will be padded (or cut respectively) to the desired length
+        :return:
+        """
         t = self.tok(x=sentences, return_start=False, maxlen=self.maxlen, pad=True, as_mask=False, add_special_tokens=False)
         with torch.no_grad():
             embeddings = self.emb(t.to(self.device))[1].to(self.return_device)
         return embeddings
 
     def _get_pool(self, sentences, pad):
+        """
+        TODO: Documentation
+
+        :param sentences: List of sentences
+        :param pad: If pad is set all sentences will be padded (or cut respectively) to the desired length
+        :return:
+        """
         t, ind = self.tok(x=sentences, return_start=True, maxlen=self.maxlen, pad=True, as_mask=False, add_special_tokens=False)
         with torch.no_grad():
             embeddings = self.emb(t.to(self.device))[0].to(self.return_device)
@@ -84,6 +118,13 @@ class Embedder:
         return self._pad_it(embeddings,pad)
 
     def _pad_it(self, emb: List, pad):
+        """
+        Pads a tensor.
+
+        :param emb: A three-dimensional tensor
+        :param pad: Pads (or cuts) the second dimension of the input tensor to the desired length
+        :return: A padded tensor of shape (emb.shape[0], pad, emb.shape[2])
+        """
         if pad is not None:
             padded = torch.zeros(len(emb) if isinstance(emb,list) else emb.shape[0], pad, emb[0][0].shape[-1])
             for i, e in enumerate(emb):

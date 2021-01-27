@@ -10,12 +10,15 @@ from mlmc.models.abstracts.abstracts import TextClassificationAbstract
 
 class Transformer(TextClassificationAbstract):
     """
-    Implementation of Yoon Kim 2014 KimCNN Classification network for Multilabel Application (added support for Language Models).
+    Implementation of a simple transformer model.
     """
     def __init__(self, dropout=0.5, **kwargs):
-        """Class constructor and intialization of every hyperparameters
-        :param dropout: Droupout rate
-         """
+        """
+        Class constructor and initialization of every hyperparameter.
+
+        :param dropout: Dropout rate
+        :param kwargs: Optimizer and loss function keyword arguments, see `mlmc.models.abstracts.abstracts.TextClassificationAbstract`
+        """
         super(Transformer, self).__init__(**kwargs)
 
         self._config["dropout"] = dropout
@@ -26,6 +29,12 @@ class Transformer(TextClassificationAbstract):
 
 
     def forward(self, x):
+        """
+        Forward pass function for transforming input tensor into output tensor.
+
+        :param x: Input tensor
+        :return: Output tensor
+        """
         embedded = self.embed_input(x)
         embedded = self.dropout_layer(embedded)
         output = self.projection(self.dropout_layer(embedded.mean(-2)))

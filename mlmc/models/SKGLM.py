@@ -6,6 +6,14 @@ from ..modules import SKGModule
 
 class SKGLM(TextClassificationAbstractGraph):
     def __init__(self, propagation_layers=3, graph_type="gcn", dropout=0.5, **kwargs):
+        """
+        Class constructor and initialization of every hyperparameter.
+
+        :param propagation_layers: Number of GCNConv layers. Only used when graph_type="gcn"
+        :param graph_type: Determines the convolutional layer used. GCNConv if graph_type="gcn", else GatedGraphConv
+        :param dropout: Dropout rate
+        :param kwargs: Optimizer and loss function keyword arguments, see `mlmc.models.abstracts.abstracts.TextClassificationAbstractGraph`
+        """
         super(SKGLM, self).__init__(**kwargs)
         # Attributes
         self._config["dropout"] = dropout
@@ -30,6 +38,12 @@ class SKGLM(TextClassificationAbstractGraph):
         self.build()
 
     def forward(self, x, return_graph_scores=False):
+        """
+        Forward pass function for transforming input tensor into output tensor.
+
+        :param x: Input tensor
+        :return: Output tensor
+        """
         embeddings = self.embed_input(x)
         label_embeddings = self.embed_input(self.label_embeddings)
         if not self.finetune:
@@ -40,7 +54,19 @@ class SKGLM(TextClassificationAbstractGraph):
         return beliefs
 
     def transform(self, x):
+        """
+        Transforms textual input into model input.
+
+        :param x: A string or a list of strings
+        :return: Tokenized input according to the models tokenizer
+        """
         def clean(x):
+            """
+            Removes whitespace characters and punctuation from a string.
+
+            :param x: A string
+            :return: Cleaned string
+            """
             import string
             import re
             x = re.sub("[" + string.punctuation + "]+", " ", x)
@@ -51,6 +77,11 @@ class SKGLM(TextClassificationAbstractGraph):
         return self.tokenizer([clean(sent) for sent in x], self.max_len).to(self.device)
 
     def create_labels(self, classes):
+        """
+        Creates label embeddings and adds them to the model.
+
+        :param classes: The classes mapping
+        """
         self.classes = classes
         self._config["classes"] = classes
         self.n_classes = len(classes)

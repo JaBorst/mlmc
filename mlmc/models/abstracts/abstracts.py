@@ -98,12 +98,23 @@ class TextClassificationAbstract(torch.nn.Module):
 
 
     def act(self, x):
+        """
+        Applies activation function to output tensor.
+
+        :param x: An input tensor
+        :return: A tensor
+        """
         if "softmax" in self.activation.__name__ or "softmin" in self.activation.__name__:
             return self.activation(x, -1)
         else:
             return self.activation(x)
 
     def set_threshold(self, name):
+        """
+        Sets the threshold function which will be used to as a decision threshold.
+
+        :param name: Name of the threshold (see mlmc.thresholds.threshold_dict.keys())
+        """
         if not (name == "max") and name=="single":
             Warning("You're using a non max threshold in single label mode")
         self.threshold = name
@@ -126,6 +137,13 @@ class TextClassificationAbstract(torch.nn.Module):
         self.to(self.device)
 
     def _init_metrics(self, metrics=None):
+        """
+        Initializes metrics to be used. If no metrics are specified then depending on the target the default metrics
+        for this target will be used. (see mlmc.metrics.metrics_config.items())
+
+        :param metrics: Name of the metrics (see mlmc.metrics.metrics_dict.keys() and mlmc.metrics.metrics_config.keys())
+        :return: A dictionary containing the initialized metrics
+        """
         if metrics is None:
             metrics=f"default_{self.target}label"
         metrics = MetricsDict(metrics)
@@ -235,10 +253,12 @@ class TextClassificationAbstract(torch.nn.Module):
             return l
 
     def _callback_epoch_end(self, callbacks):
+        # TODO: Documentation
         for cb in callbacks:
             if hasattr(cb, "on_epoch_end"):
                 cb.on_epoch_end(self)
     def _callback_epoch_start(self, callbacks):
+        # TODO: Documentation
         for cb in callbacks:
             if hasattr(cb, "on_epoch_end"):
                 cb.on_epoch_end(self)
@@ -403,6 +423,12 @@ class TextClassificationAbstract(torch.nn.Module):
         return predictions
 
     def run(self, x):
+        """
+        Transforms textual input into network format and applies activation function.
+
+        :param x: A string or a list of strings
+        :return: A tensor
+        """
         x = [x] if isinstance(x, str) else x
         x = self.transform(x)
         with torch.no_grad(): output = self.act(self(x)).cpu()
@@ -459,6 +485,7 @@ class TextClassificationAbstract(torch.nn.Module):
         return self.tokenizer(x, maxlen=self.max_len).to(self.device)
 
     def _init_input_representations(self):
+        # TODO: Documentation
         if is_transformer(self.representation):
             if not hasattr(self, "n_layers"): self.n_layers = 1
             try:
@@ -498,6 +525,12 @@ class TextClassificationAbstract(torch.nn.Module):
               "Total:\t%i" % (trainable, total - trainable, total))
 
     def embed_input(self, x):
+        """
+        Using a specified representation (language model or glove vectors) embeds an input tensor.
+
+        :param x: Input tensor
+        :return: Embedded tensor
+        """
         if is_transformer(self.representation):
             if self.finetune:
                 if self.n_layers == 1:

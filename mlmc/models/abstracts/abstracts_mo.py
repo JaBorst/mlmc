@@ -62,12 +62,25 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
         self.to(self.device)
 
     def act(self, x):
+        """
+        Applies activation function to output tensor.
+
+        :param x: An input tensor
+        :return: A tensor
+        """
         if "softmax" in self.activation.__name__ or "softmin" in self.activation.__name__:
             return [self.activation(o, -1) for o in x]
         else:
             return [self.activation(o) for o in x]
 
     def _init_metrics(self, metrics=None):
+        """
+        Initializes metrics to be used. If no metrics are specified then depending on the target the default metrics
+        for this target will be used. (see mlmc.metrics.metrics_config.items())
+
+        :param metrics: Name of the metrics (see mlmc.metrics.metrics_dict.keys() and mlmc.metrics.metrics_config.keys())
+        :return: A dictionary containing the initialized metrics
+        """
         from copy import deepcopy
         if metrics is None:
             metrics=f"default_{self.target}label"
