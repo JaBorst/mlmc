@@ -109,6 +109,38 @@ The same workflow can be used with single label classification datasets, when us
     labels = tc.predict("Predict the labels for this sentence", return_scores=True)
 
 
+Finetuning
+----------------------------
+
+The default training mode is set to feature extraction. You can also finetune your model by setting the finetune keyword argument to True while instantiating the model. ::
+
+    model = mlmc.models.KimCNN(classes, finetune=True)
+
+
+Metrics
+----------------------------
+
+All available metrics now have their own subpackage :py:mod:`mlmc.metrics`. You can instantiate any metric by calling :py:meth:`mlmc.metrics.get`. ::
+
+    mlmc.metrics.get("P@1")
+
+Metrics can be instantiated either before or at fit/evaluation time. If you choose to specify your metrics at fit/evaluation time you can use a mix of strings and already instantiated metrics. ::
+
+    model = ...
+    history = model.fit(data, metrics = ["P@1", mlmc.metrics.Accuracy()])
+
+If no metric is specified a predefined list of metrics is chosen from :py:data:`mlmc.metrics.metric_config`:
+
+* default_multilabel: P@1, P@3, P@5, tr\@0.5, mCut, AUC_ROC, MultiLabelReport
+* default_singlelabel: Accuracy, SingleLabelReport
+
+You can also combine these predefinitions with other metrics: ::
+
+    loss, metrics_dict = model.evaluate(data, [mlmc.metrics.ConfusionMatrix(classes), "default_singlelabel"])
+
+As seen above the evaluate function :py:func:`evaluate()` now returns the loss and metrics.
+
+
 Other Functionality
 ---------------------
 Embed sentences
@@ -133,5 +165,3 @@ I also provides a iterator interface to the batchwise embedding method, so you c
 embeddings while iterating, like writing to disk.::
 
     e.embed_batch_iterator([...large_list_of_strings...])
-
-
