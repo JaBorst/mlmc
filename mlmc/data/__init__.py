@@ -570,5 +570,18 @@ def is_multilabel(x):
     """
     return type(x) in  (MultiLabelDataset, MultiOutputMultiLabelDataset)
 
+class EntailmentDataset(Dataset):
+    def __init__(self, x1, x2, labels, classes):
+        self.x1 = x1
+        self.x2 = x2
+        self.labels = labels
+        self.classes = classes
+
+    def __len__(self):
+        return len(self.x1)
+
+    def __getitem__(self, item):
+        return {"x1": self.x1[item], "x2": self.x2[item], "labels": self.classes[self.labels[item]]}
+
 ## Sampler import
 from .sampler import sampler, successive_sampler, class_sampler, validation_split

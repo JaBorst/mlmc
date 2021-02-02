@@ -1,16 +1,16 @@
 import torch
 from tqdm import tqdm
 from abc import abstractmethod
-from ...data import MultiLabelDataset, SingleLabelDataset
+from ...data import MultiLabelDataset, SingleLabelDataset, EntailmentDataset
 
 from copy import deepcopy
+from tqdm import tqdm
 
 try:
     from apex import amp
 except:
     pass
 from ...data import is_multilabel
-
 
 class TextClassificationAbstractZeroShot(torch.nn.Module):
     """
@@ -204,3 +204,55 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         self.activation = torch.sigmoid
         self.loss = torch.nn.BCEWithLogitsLoss()
         self.build()
+
+    def _entail_forward(self, x1, x2):
+        self.create_labels(x2)
+        return self.forward(x1)
+
+    def entailment_pretrain(self, data, valid = None, epochs=10, batch_size=16):
+        train_history = {"loss": []}
+
+        for e in range(epochs):
+            # An epoch
+            losses = {"loss": str(0.)}
+            dl = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=True)
+            with tqdm(dl,
+                      postfix=[losses], desc="Epoch %i/%i" % (e + 1, epochs), ncols=100) as pbar:
+
+
+                from ignite.metrics import Average
+                average = Average()
+                for b in dl:
+                    self.zero_grad()
+                    scores = self._entail_forward(self.transform(b["x1"]).to(self.device),
+                                                  self.transform(b["x2"]).to(self.device))
+                    l = self.loss(scores, b["labels"].to(self.device).float())
+                    l.backward()
+                    self.optimizer.step()
+                    average.update(l.detach().item())
+                    pbar.postfix[0]["loss"] = round(average.compute().item(), 8)
+                    pbar.update()
+                if valid is not None:
+                    validation_result = self.entailment_eval(valid,batch_size=batch_size*2)
+                    pbar.postfix[0]["valid_loss"] = round(validation_result["loss"], 8)
+                    pbar.postfix[0]["valid_accuracy"] = round(validation_result["accuracy"], 8)
+                    pbar.update()
+
+                train_history["loss"].append(average.compute().item())
+        return {"train": train_history, "valid": validation_result}
+
+    def entailment_eval(self, data, batch_size=16):
+        self.eval()
+        dl = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=True)
+        from ignite.metrics import Average
+        average = Average()
+        accuracy = Average()
+        for b in dl:
+            with torch.no_grad():
+                scores = self._entail_forward(self.transform(b["x1"]).to(self.device),
+                                              self.transform(b["x2"]).to(self.device))
+                l = self.loss(scores, b["labels"].to(self.device).float())
+
+                for i in (b["labels"].to(self.device)==(scores>0.5)): accuracy.update(i.item())
+                average.update(l.detach().item())
+        return { "loss": average.compute().item(), "accuracy": accuracy.compute().item()}
