@@ -143,20 +143,32 @@ class MultiLabelDataset(Dataset):
         :param o: Another dataset
         :return: MultiLabelDataset containing x, y and classes of both datasets
         """
+        from collections import Counter
+
+        new_data = list(self.x + o.x)
+        new_labels = list(self.y + o.y)
         new_classes = list(set(list(self.classes.keys()) + list(o.classes.keys())))
-        new_classes.sort()
-        new_classes = dict(zip(new_classes, range(len(new_classes))))
 
-        new_data = list(set(self.x + o.x))
-        new_labels = [[] for _ in range(len(new_data))]
+        duplicate_counter = Counter(new_data)
+        duplicates, duplicates_ids, duplicates_samples = [], [], []
 
-        for i, x in enumerate(self.x):
-            new_labels[new_data.index(x)].extend(self.y[i])
+        for sample, amount in duplicate_counter.items():
+            if amount > 1:
+                duplicates.append(sample)
 
-        for i, x in enumerate(o.x):
-            new_labels[new_data.index(x)].extend(o.y[i])
+        for i, sample in enumerate(new_data):
+            if sample in duplicates:
+                if sample not in duplicates_samples:
+                    duplicates_samples.append(sample)
+                else:
+                    duplicates_ids.append(i)
 
-        new_labels = [list(set(x)) for x in new_labels]
+        for i in duplicates_ids:
+            new_data[i] = None
+            new_labels[i] = None
+
+        new_data = [x for x in new_data if x is not None]
+        new_labels = [x for x in new_labels if x is not None]
 
         return MultiLabelDataset(x=new_data, y=new_labels, classes=new_classes)
 
