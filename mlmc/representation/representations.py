@@ -12,6 +12,7 @@ import tempfile
 import torch
 from io import BytesIO
 from transformers import *
+import pathlib
 
 
 EMBEDDINGCACHE = Path.home() / ".mlmc" / "embedding"
@@ -228,7 +229,6 @@ def get_embedding(name, **kwargs):
     tokenizer = get_white_space_tokenizer(vocabulary)
     return e, tokenizer
 
-import pathlib
 
 def get_transformer(model="bert", **kwargs):
     """
