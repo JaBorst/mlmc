@@ -158,7 +158,10 @@ class MultiLabelDataset(Dataset):
 
         new_labels = [list(set(x)) for x in new_labels]
 
-        return MultiLabelDataset(x=new_data, y=new_labels, classes=new_classes)
+        try:
+            return SingleLabelDataset(x=new_data, y=new_labels, classes=new_classes)
+        except AssertionError:
+            return MultiLabelDataset(x=new_data, y=new_labels, classes=new_classes)
 
     def remove(self, classes):
         """
