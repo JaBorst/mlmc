@@ -151,6 +151,7 @@ class TextClassificationAbstract(torch.nn.Module):
         metrics = MetricsDict(metrics)
         metrics.init(self.__dict__)
         metrics.reset()
+        metrics.rename({"multilabel_report": "report", "singlelabel_report": "report"})
         return metrics
 
     def evaluate(self, data, batch_size=50, mask=None, metrics=None, _fit=False):

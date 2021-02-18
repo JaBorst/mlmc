@@ -194,3 +194,6 @@ class MetricsDict:
 
     def __repr__(self):
         return ", ".join(self.map.keys())
+
+    def rename(self, map: dict):
+        self.map = {map.get(k,k):v for k,v in self.map.items()}

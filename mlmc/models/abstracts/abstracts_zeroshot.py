@@ -24,44 +24,27 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
     """
 
     def _zeroshot_printable(self, GZSL, ZSL, NSL, zeroshot_classes):
-        if self.target == "multi":
-            printable = {
-                "gzsl": {
-                    "overall": {"micro": GZSL["multilabel_report"]["micro avg"],
-                                "macro": GZSL["multilabel_report"]["macro avg"]},
-                    "labels": {
-                        x: GZSL["multilabel_report"][x] for x in zeroshot_classes
-                    },
+        printable = {
+            "gzsl": {
+                "overall": {"micro": GZSL["report"]["micro avg"],
+                            "macro": GZSL["report"]["macro avg"]},
+                "accuracy": GZSL["accuracy"] if "accuracy" in GZSL else None,
+                "labels": {
+                    x: GZSL["report"][x] for x in zeroshot_classes
                 },
-                "zsl": {
-                    "overall": {"micro": ZSL["multilabel_report"]["micro avg"],
-                                "macro": ZSL["multilabel_report"]["macro avg"]},
-                    "labels": {x: ZSL["multilabel_report"][x] for x in zeroshot_classes}
-                },
-                "nsl": {
-                    "overall": {"micro": NSL["multilabel_report"]["micro avg"],
-                                "macro": NSL["multilabel_report"]["macro avg"]}
-                }
+            },
+            "zsl": {
+                "overall": {"micro": ZSL["report"]["micro avg"],
+                            "macro": ZSL["report"]["macro avg"]},
+                "accuracy": GZSL["accuracy"] if "accuracy" in GZSL else None,
+                "labels": {x: ZSL["report"][x] for x in zeroshot_classes}
+            },
+            "nsl": {
+                "overall": {"micro": NSL["report"]["micro avg"],
+                            "macro": NSL["report"]["macro avg"]},
+                "accuracy": GZSL["accuracy"] if "accuracy" in GZSL else None,
             }
-        else:
-            printable = {
-                "gzsl": {
-                    "overall": {"accuracy": GZSL["accuracy"],
-                                "macro": GZSL["report"]["macro avg"]},
-                    "labels": {
-                        x: GZSL["report"][x] for x in zeroshot_classes
-                    },
-                },
-                "zsl": {
-                    "overall": {"accuracy": ZSL["accuracy"],
-                                "macro": ZSL["singlelabel_report"]["macro avg"]},
-                    "labels": {x: ZSL["report"][x] for x in zeroshot_classes}
-                },
-                "nsl": {
-                    "overall": {"accuracy": NSL["accuracy"],
-                                "macro": NSL["singlelabel_report"]["macro avg"]}
-                }
-            }
+        }
         return printable
 
 
@@ -92,6 +75,7 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
                 self.single()
             gzsl_loss, GZSL = self.evaluate(data["valid_gzsl"], batch_size=batch_size, metrics=metrics,_fit=True)
             if _run is not None: GZSL.log_sacred(_run, i, "gzsl")
+            GZSL.rename({"multilabel_report":"report", "singlelabel_report":"report"})
             GZSL_comp = GZSL.compute()
             histories["gzsl"].append({"gzsl_loss": gzsl_loss})
             histories["gzsl"][-1].update(GZSL_comp)
@@ -102,6 +86,7 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
             else:
                 self.single()
             zsl_loss, ZSL = self.evaluate(data["valid_zsl"], batch_size=batch_size, metrics=metrics,_fit=True)
+            ZSL.rename({"multilabel_report":"report", "singlelabel_report":"report"})
             if _run is not None: ZSL.log_sacred(_run, i, "zsl")
             ZSL_comp = ZSL.compute()
             histories["zsl"].append({"zsl_loss": zsl_loss})
@@ -113,6 +98,7 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
             else:
                 self.single()
             nsl_loss, NSL = self.evaluate(data["valid_nsl"], batch_size=batch_size, metrics=metrics,_fit=True)
+            NSL.rename({"multilabel_report":"report", "singlelabel_report":"report"})
             if _run is not None: NSL.log_sacred(_run, i, "nsl")
             NSL_comp = NSL.compute()
             histories["nsl"].append({"nsl_loss": zsl_loss})
@@ -131,6 +117,7 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         else:
             self.single()
         gzsl_loss, GZSL = self.evaluate(data["test_gzsl"], batch_size=batch_size,_fit=True)
+        GZSL.rename({"multilabel_report": "report", "singlelabel_report": "report"})
         if _run is not None: GZSL.log_sacred(_run, epochs, "gzsl")
 
         self.create_labels(data["test_zsl"].classes)
@@ -139,6 +126,7 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         else:
             self.single()
         zsl_loss, ZSL = self.evaluate(data["test_zsl"], batch_size=batch_size,_fit=True)
+        ZSL.rename({"multilabel_report": "report", "singlelabel_report": "report"})
         if _run is not None: ZSL.log_sacred(_run, epochs, "zsl")
 
         self.create_labels(data["test_nsl"].classes)
@@ -147,6 +135,7 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         else:
             self.single()
         nsl_loss, NSL = self.evaluate(data["test_nsl"], batch_size=batch_size,_fit=True)
+        NSL.rename({"multilabel_report": "report", "singlelabel_report": "report"})
         if _run is not None: NSL.log_sacred(_run, epochs, "nsl")
 
         histories["test"] = {
@@ -206,12 +195,11 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         self.build()
 
     def _entail_forward(self, x1, x2):
-        self.create_labels(x2)
-        return self.forward(x1)
+        self.label_embedding = x2
+        return self.forward(x1).diag()
 
     def entailment_pretrain(self, data, valid = None, epochs=10, batch_size=16):
         train_history = {"loss": []}
-
         for e in range(epochs):
             # An epoch
             losses = {"loss": str(0.)}
