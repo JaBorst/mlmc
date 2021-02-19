@@ -30,21 +30,21 @@ def test_MultiLabelReport():
     #Multi-label examples
     y_pred1 = torch.tensor([[1, 1], [0, 1], [0, 1], [1, 0], [0, 1], [1, 1]])
     y_truth1 = torch.tensor([[1, 1], [0, 1], [0, 1], [1, 0], [0, 1], [1, 1]])
-    example1 = (classes1, y_truth1, y_pred1)
+    example1 = (None, y_truth1, y_pred1)
     y_pred2 = torch.tensor([[1, 1], [1, 1], [1, 0], [0, 1], [1, 1]])
     y_truth2 = torch.tensor([[0, 1], [1, 0], [1, 1], [1, 1], [1, 1]])
-    example2 = (classes1, y_truth2, y_pred2)
+    example2 = (None, y_truth2, y_pred2)
     y_pred3 = torch.tensor([[1, 0, 0], [0, 1, 0], [1, 0, 0], [0, 0, 1]])
     y_truth3 = torch.tensor([[0, 1, 0], [1, 0, 0], [1, 0, 0], [0, 0, 1]])
-    example3 = (classes2, y_truth3, y_pred3)
+    example3 = (None, y_truth3, y_pred3)
 
     #Single-label examples
     y_truth4 = torch.tensor([1, 0, 2])
     y_pred4 = torch.tensor([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-    example4 = (classes2, y_truth4, y_pred4)
+    example4 = (None, y_truth4, y_pred4)
     y_truth5 = torch.tensor([0, 1, 1, 0])
     y_pred5 = torch.tensor([[0, 1], [0, 1], [1, 0], [1, 0]])
-    example5 = (classes1, y_truth5, y_pred5)
+    example5 = (None, y_truth5, y_pred5)
 
     results1 = {'micro avg': {
                     'precision': 1.0,
