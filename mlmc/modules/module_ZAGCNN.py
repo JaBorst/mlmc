@@ -10,8 +10,8 @@ class ZAGCNNModule(torch.nn.Module):
         """
         Class constructor and initialization of every hyperparameter.
 
-        :param in_features: Number of inputs for first linear layer
-        :param in_features2: Number of inputs for second linear layer
+        :param in_features: Size of each input sample for first fully-connected layer
+        :param in_features2: Size of each input sample for second fully-connected layer
         :param hidden_features: Hidden state dimension
         :param graph_type: Determines the convolutional layer used. GCNConv if graph_type="gcn", else GatedGraphConv
         :param propagation_layers: Number of GCNConv layers. Only used when graph_type="gcn"
