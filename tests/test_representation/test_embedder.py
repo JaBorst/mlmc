@@ -1,6 +1,6 @@
 from mlmc.representation import Embedder
 
-test_models = ("bert", "roberta",)
+test_models = ("google/bert_uncased_L-2_H-128_A-2", "distilroberta-base",)
 example = ["This sentence", "another !!!!! potsasldkaölskd ölaskdölaskdz!"]
 
 def test_embedder():

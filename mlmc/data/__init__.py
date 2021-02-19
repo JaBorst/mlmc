@@ -143,37 +143,20 @@ class MultiLabelDataset(Dataset):
         :param o: Another dataset
         :return: MultiLabelDataset containing x, y and classes of both datasets
         """
-        from collections import Counter
-
-        new_data = list(self.x + o.x)
-        new_labels = list(self.y + o.y)
         new_classes = list(set(list(self.classes.keys()) + list(o.classes.keys())))
+        new_classes.sort()
+        new_classes = dict(zip(new_classes, range(len(new_classes))))
 
-        duplicate_counter = Counter(new_data)
-        duplicates, duplicates_ids, duplicates_samples = [], [], []
+        new_data = dict(zip(self.x, self.y))
 
-        for sample, amount in duplicate_counter.items():
-            if amount > 1:
-                duplicates.append(sample)
-
-        for i, sample in enumerate(new_data):
-            if sample in duplicates:
-                if sample not in duplicates_samples:
-                    duplicates_samples.append(sample)
-                else:
-                    duplicates_ids.append(i)
-
-        for i in duplicates_ids:
-            new_data[i] = None
-            new_labels[i] = None
-
-        new_data = [x for x in new_data if x is not None]
-        new_labels = [x for x in new_labels if x is not None]
-
+        for x,y in zip(o.x, o.y):
+            if x not in new_data: new_data[x] = []
+            new_data[x].extend(y)
+        new_data = {k:list(set(v)) for k,v in new_data.items()}
         try:
-            return SingleLabelDataset(x=new_data, y=new_labels, classes=new_classes)
+            return SingleLabelDataset(x=list(new_data.keys()), y=list(new_data.values()), classes=new_classes)
         except AssertionError:
-            return MultiLabelDataset(x=new_data, y=new_labels, classes=new_classes)
+            return MultiLabelDataset(x=list(new_data.keys()), y=list(new_data.values()), classes=new_classes)
 
     def remove(self, classes):
         """

@@ -12,7 +12,7 @@ from ..modules import *
 class MoLSANNC(TextClassificationAbstractMultiOutput, TextClassificationAbstractZeroShot):
 
     def __init__(self, scale="mean", share_weighting=False, weight_norm="norm", branch_noise=0., dropout=0.3,
-                 hidden_representations=400,  d_a=200, **kwargs):
+                 hidden_representations=400, label_model="glove300", d_a=200, **kwargs):
         """
         Class constructor and initialization of every hyperparameter.
 
@@ -30,6 +30,7 @@ class MoLSANNC(TextClassificationAbstractMultiOutput, TextClassificationAbstract
         self._config["dropout"] = dropout
         self._config["hidden_representations"] = hidden_representations
         self._config["d_a"] = d_a
+        self._config["label_model"] = label_model
 
         self.log_bw = False
         # Original
@@ -108,7 +109,7 @@ class MoLSANNC(TextClassificationAbstractMultiOutput, TextClassificationAbstract
         with torch.no_grad():
             l = [get_word_embedding_mean(
                 [(" ".join(re.split("[/ _-]", re.sub("[0-9]", "", x.lower())))).strip() for x in classes.keys()],
-                "glove300") for classes in self.classes]
+                self._config["label_model"] ) for classes in self.classes]
 
         self.label_embedding_dim = l[0].shape[-1]
         return [{w: e for w, e in zip(classes.keys(), emb)} for classes, emb in zip(self.classes, l)]

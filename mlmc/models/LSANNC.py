@@ -12,7 +12,7 @@ class LSANNC(TextClassificationAbstract,TextClassificationAbstractZeroShot):
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
     def __init__(self, scale="mean", share_weighting=False, weight_norm ="norm", branch_noise = 0., dropout=0.3,
-                 hidden_representations= 400,  d_a=200, **kwargs):
+                 hidden_representations= 400,  d_a=200, label_model="glove300", **kwargs):
         """
         Class constructor and initialization of every hyperparameter.
 
@@ -31,6 +31,7 @@ class LSANNC(TextClassificationAbstract,TextClassificationAbstractZeroShot):
         self._config["dropout"] = dropout
         self._config["hidden_representations"] = hidden_representations
         self._config["d_a"] = d_a
+        self._config["label_model"] = label_model
 
 
         # Original
@@ -97,7 +98,7 @@ class LSANNC(TextClassificationAbstract,TextClassificationAbstractZeroShot):
         with torch.no_grad():
             l = get_word_embedding_mean(
                 [" ".join(re.split("[/ _-]", x.lower())) for x in self.classes.keys()],
-                "glove300")
+                self._config["label_model"])
         return l
 
 

@@ -23,5 +23,5 @@ def test_XMLCNN():
     assertion_function(model_type=mlmc.models.XMLCNN, representation="test", mode="untrainable", filters=10, kernel_sizes=[3,4])
 
 def test_LSAN_transformer():
-    assertion_function(model_type=mlmc.models.LSANNC, representation="google/electra-small-discriminator", n_layers=1)
+    assertion_function(model_type=mlmc.models.LSANNC,  representation="test", label_model="test", hidden_representations=10, d_a=10)
 

@@ -74,6 +74,8 @@ def custom_embedding(name, file):
         with open(EMBEDDINGCACHEINDEX, "a") as f:
             f.write(f"{name}\t{source_location.name}")
         print("Cached successfully you can now load [%s] in any model." % (name,))
+        global STATICS
+        STATICS = reload_statics()
 
 def delete_custom_embeddings():
     """
