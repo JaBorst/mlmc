@@ -20,6 +20,8 @@ EMBEDDINGCACHEINDEX = Path.home() / ".mlmc" / "embedding" / "index.txt"
 
 if not EMBEDDINGCACHE.exists():
     EMBEDDINGCACHE.mkdir(parents=True)
+if not EMBEDDINGCACHEINDEX.exists():
+    EMBEDDINGCACHEINDEX.touch()
 
 def reload_statics():
     """
