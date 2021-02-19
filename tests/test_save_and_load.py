@@ -3,7 +3,7 @@ from pathlib import Path
 import mlmc
 import torch
 import networkx as nx
-
+mlmc.representation.representations.add_test_example()
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def compare_models(model_1, model_2):
