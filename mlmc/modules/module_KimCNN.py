@@ -39,6 +39,12 @@ class KimCNNModule(torch.nn.Module):
             [torch.nn.Conv1d(self.in_features, self.filters, k) for k in self.kernel_sizes])
 
     def forward(self, x):
+        """
+        Forward pass function for transforming input tensor into output tensor.
+
+        :param x: Input tensor
+        :return: Output tensor
+        """
         c = [torch.nn.functional.relu(conv(x).permute(0, 2, 1).max(1)[0]) for conv in self.convs]
         c = torch.cat(c, 1)
         return c

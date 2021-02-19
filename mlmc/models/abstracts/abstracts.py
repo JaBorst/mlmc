@@ -1,12 +1,11 @@
 import torch
+from ignite.metrics import Average
 from tqdm import tqdm
 
 from ...data import SingleLabelDataset, MultiLabelDataset
+from ...metrics import MetricsDict
 from ...representation import is_transformer, get
 from ...thresholds import get as thresholdget
-from ...metrics import MetricsDict
-from ignite.metrics import Average
-from copy import deepcopy
 
 
 class TextClassificationAbstract(torch.nn.Module):
@@ -19,14 +18,19 @@ class TextClassificationAbstract(torch.nn.Module):
         load a embedding and corresponding tokenizer
         transform(): If self.tokenizer exists the default method wil use this to transform text into the models input
 
+
     """
 
-    def __init__(self, target="multi", representation="roberta",
-                 activation=None, loss=None, optimizer=torch.optim.Adam, max_len=200,
-                 optimizer_params=None, device="cpu", finetune=False, threshold="mcut", n_layer=1, **kwargs):
+    def __init__(self, classes, target="multi", representation="google/bert_uncased_L-2_H-128_A-2",
+                 activation=None, loss=None, optimizer=torch.optim.Adam, max_len=200, label_len=20,
+                 optimizer_params=None, device="cpu", finetune=False, threshold="mcut", n_layers=1, **kwargs):
         """
         Abstract initializer of a Text Classification network.
         Args:
+            classes: A dictionary of classes and ther corresponding index. This argument is mandatory.
+            representation: The string of the input representation. (Supporting the full transformers list, and glove50, glove100, glove200, glove300)
+            max_len: The maximum number of tokens for the input.
+            label_len: The maximum number of tokens for labels.
             target: single label oder multilabel mode. defined by keystrings: ("single", "multi").
             Sets some basic options, like loss function, activation and
                     metrics to sensible defaults.
@@ -40,6 +44,8 @@ class TextClassificationAbstract(torch.nn.Module):
         """
 
         super(TextClassificationAbstract, self).__init__()
+        self.classes = classes
+        self.n_classes = len(classes)
         if optimizer_params is None:
             optimizer_params = {"lr": 5e-5}
         assert target in ("multi", "single"), 'target must be one of "multi" or "single"'
@@ -49,6 +55,8 @@ class TextClassificationAbstract(torch.nn.Module):
         if target == "single":
             self.activation = torch.softmax
             self.loss = torch.nn.CrossEntropyLoss
+            if threshold != "max":
+                print(f"Using non-max prediction for single label target. ({threshold})")
         elif self.target == "multi":
             self.activation = torch.sigmoid
             self.loss = torch.nn.BCEWithLogitsLoss
@@ -75,16 +83,40 @@ class TextClassificationAbstract(torch.nn.Module):
         self.PRECISION_DIGITS = 4
         self.representation = representation
         self._init_input_representations()
-        self.n_layer = n_layer
+        self.n_layers = n_layers
         self.max_len = max_len
 
+        self._config = {
+            "classes": self.classes,
+            "target": self.target, "representation": self.representation,
+            "activation":self.activation, "loss": self.loss,
+            "optimizer": self.optimizer, "max_len": self.max_len,
+            "optimizer_params": self.optimizer_params, "device": self.device,
+            "finetune": finetune, "threshold": threshold, "n_layers": self.n_layers,
+            "label_len":label_len,
+        }
+        self._config.update(kwargs)
+
+
+
     def act(self, x):
+        """
+        Applies activation function to output tensor.
+
+        :param x: An input tensor
+        :return: A tensor
+        """
         if "softmax" in self.activation.__name__ or "softmin" in self.activation.__name__:
             return self.activation(x, -1)
         else:
             return self.activation(x)
 
     def set_threshold(self, name):
+        """
+        Sets the threshold function which will be used to as a decision threshold.
+
+        :param name: Name of the threshold (see mlmc.thresholds.threshold_dict.keys())
+        """
         if not (name == "max") and name=="single":
             Warning("You're using a non max threshold in single label mode")
         self.threshold = name
@@ -107,14 +139,22 @@ class TextClassificationAbstract(torch.nn.Module):
         self.to(self.device)
 
     def _init_metrics(self, metrics=None):
+        """
+        Initializes metrics to be used. If no metrics are specified then depending on the target the default metrics
+        for this target will be used. (see mlmc.metrics.metrics_config.items())
+
+        :param metrics: Name of the metrics (see mlmc.metrics.metrics_dict.keys() and mlmc.metrics.metrics_config.keys())
+        :return: A dictionary containing the initialized metrics
+        """
         if metrics is None:
             metrics=f"default_{self.target}label"
         metrics = MetricsDict(metrics)
         metrics.init(self.__dict__)
         metrics.reset()
+        metrics.rename({"multilabel_report": "report", "singlelabel_report": "report"})
         return metrics
 
-    def evaluate(self, data, batch_size=50, mask=None, metrics=None):
+    def evaluate(self, data, batch_size=50, mask=None, metrics=None, _fit=False):
         """
         Evaluation, return accuracy and loss and some multilabel measure
 
@@ -149,7 +189,10 @@ class TextClassificationAbstract(torch.nn.Module):
                 initialized_metrics.update_metrics((output, y, pred))
 
         self.train()
-        return average.compute().item(), initialized_metrics
+        if _fit:
+            return average.compute().item(), initialized_metrics
+        else:
+            return average.compute().item(), initialized_metrics.compute()
 
     def _epoch(self, train, pbar=None):
         """Combining into training loop"""
@@ -213,17 +256,23 @@ class TextClassificationAbstract(torch.nn.Module):
             return l
 
     def _callback_epoch_end(self, callbacks):
+        # TODO: Documentation
         for cb in callbacks:
             if hasattr(cb, "on_epoch_end"):
                 cb.on_epoch_end(self)
+    def _callback_train_end(self, callbacks):
+        for cb in callbacks:
+            if hasattr(cb, "on_train_end"):
+                cb.on_epoch_end(self)
     def _callback_epoch_start(self, callbacks):
+        # TODO: Documentation
         for cb in callbacks:
             if hasattr(cb, "on_epoch_end"):
                 cb.on_epoch_end(self)
 
     def fit(self, train,
             valid=None, epochs=1, batch_size=16, valid_batch_size=50, patience=-1, tolerance=1e-2,
-            return_roc=False, return_report=False, callbacks=None, metrics=None):
+            return_roc=False, return_report=False, callbacks=None, metrics=None, lr_schedule=None, lr_param ={}):
         """
         Training function
 
@@ -261,6 +310,8 @@ class TextClassificationAbstract(torch.nn.Module):
 
         best_loss = 10000000
         last_best_loss_update = 0
+        if lr_schedule is not None:
+            scheduler = lr_schedule(self.optimizer, **lr_param)
         for e in range(epochs):
             self._callback_epoch_start(callbacks)
 
@@ -270,13 +321,16 @@ class TextClassificationAbstract(torch.nn.Module):
             with tqdm(train_loader,
                       postfix=[losses], desc="Epoch %i/%i" % (e + 1, epochs), ncols=100) as pbar:
                 loss = self._epoch(train_loader, pbar=pbar)
+                if lr_schedule is not None: scheduler.step()
                 train_history["loss"].append(loss)
 
                 # Validation if available
                 if valid is not None:
                     valid_loss, result_metrics = self.evaluate(
                         data=valid,
-                        batch_size=valid_batch_size, metrics=metrics)
+                        batch_size=valid_batch_size,
+                        metrics=metrics,
+                        _fit=True)
 
                     valid_loss_dict= {"valid_loss": valid_loss}
                     valid_loss_dict.update(result_metrics.compute())
@@ -295,9 +349,9 @@ class TextClassificationAbstract(torch.nn.Module):
             if patience > -1:
                 if valid is None:
                     print("check validation loss")
-                    if best_loss - loss() > tolerance:
+                    if best_loss - loss > tolerance:
                         print("update validation and checkoint")
-                        best_loss = loss()
+                        best_loss = loss
                         torch.save(self.state_dict(), id + "_checkpoint.pt")
                         # save states
                         last_best_loss_update = 0
@@ -379,6 +433,12 @@ class TextClassificationAbstract(torch.nn.Module):
         return predictions
 
     def run(self, x):
+        """
+        Transforms textual input into network format and applies activation function.
+
+        :param x: A string or a list of strings
+        :return: A tensor
+        """
         x = [x] if isinstance(x, str) else x
         x = self.transform(x)
         with torch.no_grad(): output = self.act(self(x)).cpu()
@@ -435,6 +495,7 @@ class TextClassificationAbstract(torch.nn.Module):
         return self.tokenizer(x, maxlen=self.max_len).to(self.device)
 
     def _init_input_representations(self):
+        # TODO: Documentation
         if is_transformer(self.representation):
             if not hasattr(self, "n_layers"): self.n_layers = 1
             try:
@@ -474,6 +535,12 @@ class TextClassificationAbstract(torch.nn.Module):
               "Total:\t%i" % (trainable, total - trainable, total))
 
     def embed_input(self, x):
+        """
+        Using a specified representation (language model or glove vectors) embeds an input tensor.
+
+        :param x: Input tensor
+        :return: Embedded tensor
+        """
         if is_transformer(self.representation):
             if self.finetune:
                 if self.n_layers == 1:

@@ -1,14 +1,16 @@
 import torch
 from tqdm import tqdm
 from abc import abstractmethod
-from ...data import MultiLabelDataset, SingleLabelDataset
+from ...data import MultiLabelDataset, SingleLabelDataset, EntailmentDataset
 
 from copy import deepcopy
+from tqdm import tqdm
 
 try:
     from apex import amp
 except:
     pass
+from ...data import is_multilabel
 
 class TextClassificationAbstractZeroShot(torch.nn.Module):
     """
@@ -22,74 +24,81 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
     """
 
     def _zeroshot_printable(self, GZSL, ZSL, NSL, zeroshot_classes):
-        if self.target == "multi":
-            printable = {
-                "gzsl": {
-                    "overall": {"micro": GZSL["multilabel_report"]["micro avg"],
-                                "macro": GZSL["multilabel_report"]["macro avg"]},
-                    "labels": {
-                        x: GZSL["multilabel_report"][x] for x in zeroshot_classes
-                    },
+        printable = {
+            "gzsl": {
+                "overall": {"micro": GZSL["report"]["micro avg"],
+                            "macro": GZSL["report"]["macro avg"]},
+                "accuracy": GZSL["accuracy"] if "accuracy" in GZSL else None,
+                "labels": {
+                    x: GZSL["report"][x] for x in zeroshot_classes
                 },
-                "zsl": {
-                    "overall": {"micro": ZSL["multilabel_report"]["micro avg"],
-                                "macro": ZSL["multilabel_report"]["macro avg"]},
-                    "labels": {x: ZSL["multilabel_report"][x] for x in zeroshot_classes}
-                },
-                "nsl": {
-                    "overall": {"micro": NSL["multilabel_report"]["micro avg"],
-                                "macro": NSL["multilabel_report"]["macro avg"]}
-                }
+            },
+            "zsl": {
+                "overall": {"micro": ZSL["report"]["micro avg"],
+                            "macro": ZSL["report"]["macro avg"]},
+                "accuracy": GZSL["accuracy"] if "accuracy" in GZSL else None,
+                "labels": {x: ZSL["report"][x] for x in zeroshot_classes}
+            },
+            "nsl": {
+                "overall": {"micro": NSL["report"]["micro avg"],
+                            "macro": NSL["report"]["macro avg"]},
+                "accuracy": GZSL["accuracy"] if "accuracy" in GZSL else None,
             }
-        else:
-            printable = {
-                "gzsl": {
-                    "overall": {"accuracy": GZSL["accuracy"],
-                                "macro": GZSL["report"]["macro avg"]},
-                    "labels": {
-                        x: GZSL["report"][x] for x in zeroshot_classes
-                    },
-                },
-                "zsl": {
-                    "overall": {"accuracy": ZSL["accuracy"],
-                                "macro": ZSL["singlelabel_report"]["macro avg"]},
-                    "labels": {x: ZSL["report"][x] for x in zeroshot_classes}
-                },
-                "nsl": {
-                    "overall": {"accuracy": NSL["accuracy"],
-                                "macro": NSL["singlelabel_report"]["macro avg"]}
-                }
-            }
+        }
         return printable
 
+
     def _zeroshot_fit(self,*args, **kwargs):
+        # TODO: Documentation
         return self.zeroshot_fit_sacred(_run=None, *args,**kwargs)
 
-    def zeroshot_fit_sacred(self, data, epochs=10, batch_size=16, _run=None, metrics=None, callbacks=None):
+    def zeroshot_fit_sacred(self, data, epochs=10, batch_size=16, _run=None, metrics=None, callbacks=None, log=False):
         histories = {"train": [], "gzsl": [], "zsl": [], "nsl": []}
-        self._trained_classes.extend(list(data["train"].classes.keys()))
-        self._trained_classes = list(set(self._trained_classes))
+        if "trained_classes" not in self._config:
+            self._config["trained_classes"] = []
+        self._config["trained_classes"].extend(list(data["train"].classes.keys()))
+        self._config["trained_classes"] = list(set(self._config["trained_classes"]))
         for i in range(epochs):
+            self.create_labels(data["train"].classes)
+            if is_multilabel(data["train"]):
+                self.multi()
+            else:
+                self.single()
             history = self.fit(data["train"],
                 batch_size=batch_size, epochs=1, metrics=metrics, callbacks=callbacks)
             if _run is not None: _run.log_scalar("train_loss", history["train"]["loss"][0], i)
 
             self.create_labels(data["valid_gzsl"].classes)
-            gzsl_loss, GZSL = self.evaluate(data["valid_gzsl"], batch_size=batch_size, metrics=metrics)
+            if is_multilabel(data["valid_gzsl"]):
+                self.multi()
+            else:
+                self.single()
+            gzsl_loss, GZSL = self.evaluate(data["valid_gzsl"], batch_size=batch_size, metrics=metrics,_fit=True)
             if _run is not None: GZSL.log_sacred(_run, i, "gzsl")
+            GZSL.rename({"multilabel_report":"report", "singlelabel_report":"report"})
             GZSL_comp = GZSL.compute()
             histories["gzsl"].append({"gzsl_loss": gzsl_loss})
             histories["gzsl"][-1].update(GZSL_comp)
 
             self.create_labels(data["valid_zsl"].classes)
-            zsl_loss, ZSL = self.evaluate(data["valid_zsl"], batch_size=batch_size, metrics=metrics)
+            if is_multilabel(data["valid_zsl"]):
+                self.multi()
+            else:
+                self.single()
+            zsl_loss, ZSL = self.evaluate(data["valid_zsl"], batch_size=batch_size, metrics=metrics,_fit=True)
+            ZSL.rename({"multilabel_report":"report", "singlelabel_report":"report"})
             if _run is not None: ZSL.log_sacred(_run, i, "zsl")
             ZSL_comp = ZSL.compute()
             histories["zsl"].append({"zsl_loss": zsl_loss})
             histories["zsl"][-1].update(ZSL_comp)
 
             self.create_labels(data["valid_nsl"].classes)
-            nsl_loss, NSL = self.evaluate(data["valid_nsl"], batch_size=batch_size, metrics=metrics)
+            if is_multilabel(data["valid_nsl"]):
+                self.multi()
+            else:
+                self.single()
+            nsl_loss, NSL = self.evaluate(data["valid_nsl"], batch_size=batch_size, metrics=metrics,_fit=True)
+            NSL.rename({"multilabel_report":"report", "singlelabel_report":"report"})
             if _run is not None: NSL.log_sacred(_run, i, "nsl")
             NSL_comp = NSL.compute()
             histories["nsl"].append({"nsl_loss": zsl_loss})
@@ -103,15 +112,30 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
             print("========================================================================================\n")
 
         self.create_labels(data["test_gzsl"].classes)
-        gzsl_loss, GZSL = self.evaluate(data["test_gzsl"], batch_size=batch_size)
+        if is_multilabel(data["test_gzsl"]):
+            self.multi()
+        else:
+            self.single()
+        gzsl_loss, GZSL = self.evaluate(data["test_gzsl"], batch_size=batch_size,_fit=True)
+        GZSL.rename({"multilabel_report": "report", "singlelabel_report": "report"})
         if _run is not None: GZSL.log_sacred(_run, epochs, "gzsl")
 
         self.create_labels(data["test_zsl"].classes)
-        zsl_loss, ZSL = self.evaluate(data["test_zsl"], batch_size=batch_size)
+        if is_multilabel(data["test_zsl"]):
+            self.multi()
+        else:
+            self.single()
+        zsl_loss, ZSL = self.evaluate(data["test_zsl"], batch_size=batch_size,_fit=True)
+        ZSL.rename({"multilabel_report": "report", "singlelabel_report": "report"})
         if _run is not None: ZSL.log_sacred(_run, epochs, "zsl")
 
         self.create_labels(data["test_nsl"].classes)
-        nsl_loss, NSL = self.evaluate(data["test_nsl"], batch_size=batch_size)
+        if is_multilabel(data["test_nsl"]):
+            self.multi()
+        else:
+            self.single()
+        nsl_loss, NSL = self.evaluate(data["test_nsl"], batch_size=batch_size,_fit=True)
+        NSL.rename({"multilabel_report": "report", "singlelabel_report": "report"})
         if _run is not None: NSL.log_sacred(_run, epochs, "nsl")
 
         histories["test"] = {
@@ -151,7 +175,72 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         l.sort(key=lambda x: x[1])
 
         #Auxiliary values
-        self._zeroshot_ind = torch.LongTensor([1 if x[0] in self._trained_classes else 0 for x in l])
-        self._mixed_shot = not (self._zeroshot_ind.sum() == 0 or self._zeroshot_ind.sum() == self._zeroshot_ind.shape[
+        self._config["zeroshot_ind"] = torch.LongTensor([1 if x[0] in self._trained_classes else 0 for x in l])
+        self._config["mixed_shot"] = not (self._config["zeroshot_ind"].sum() == 0 or  self._config["zeroshot_ind"].sum() == self._config["zeroshot_ind"].shape[
             0]).item()  # maybe obsolete?
 
+    def single(self):
+        self._config["target"] = "single"
+        self.target = "single"
+        self.set_threshold("max")
+        self.activation = torch.softmax
+        self.loss = torch.nn.CrossEntropyLoss()
+        self.build()
+    def multi(self):
+        self._config["target"] = "multi"
+        self.target = "multi"
+        self.set_threshold("mcut")
+        self.activation = torch.sigmoid
+        self.loss = torch.nn.BCEWithLogitsLoss()
+        self.build()
+
+    def _entail_forward(self, x1, x2):
+        self.label_embedding = x2
+        return self.forward(x1).diag()
+
+    def entailment_pretrain(self, data, valid = None, epochs=10, batch_size=16):
+        train_history = {"loss": []}
+        for e in range(epochs):
+            # An epoch
+            losses = {"loss": str(0.)}
+            dl = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=True)
+            with tqdm(dl,
+                      postfix=[losses], desc="Epoch %i/%i" % (e + 1, epochs), ncols=100) as pbar:
+
+
+                from ignite.metrics import Average
+                average = Average()
+                for b in dl:
+                    self.zero_grad()
+                    scores = self._entail_forward(self.transform(b["x1"]).to(self.device),
+                                                  self.transform(b["x2"]).to(self.device))
+                    l = self.loss(scores, b["labels"].to(self.device).float())
+                    l.backward()
+                    self.optimizer.step()
+                    average.update(l.detach().item())
+                    pbar.postfix[0]["loss"] = round(average.compute().item(), 8)
+                    pbar.update()
+                if valid is not None:
+                    validation_result = self.entailment_eval(valid,batch_size=batch_size*2)
+                    pbar.postfix[0]["valid_loss"] = round(validation_result["loss"], 8)
+                    pbar.postfix[0]["valid_accuracy"] = round(validation_result["accuracy"], 8)
+                    pbar.update()
+
+                train_history["loss"].append(average.compute().item())
+        return {"train": train_history, "valid": validation_result}
+
+    def entailment_eval(self, data, batch_size=16):
+        self.eval()
+        dl = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=True)
+        from ignite.metrics import Average
+        average = Average()
+        accuracy = Average()
+        for b in dl:
+            with torch.no_grad():
+                scores = self._entail_forward(self.transform(b["x1"]).to(self.device),
+                                              self.transform(b["x2"]).to(self.device))
+                l = self.loss(scores, b["labels"].to(self.device).float())
+
+                for i in (b["labels"].to(self.device)==(scores>0.5)): accuracy.update(i.item())
+                average.update(l.detach().item())
+        return { "loss": average.compute().item(), "accuracy": accuracy.compute().item()}

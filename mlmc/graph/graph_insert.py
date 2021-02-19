@@ -6,9 +6,25 @@ import networkx as nx
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 def ngrams(x, k):
+    """
+    Splits text into n-grams.
+
+    :param x: A string
+    :param k: Size of each n-gram
+    :return: List of n-grams
+    """
     return [x[i:(i + k)] for i in range(len(x) - k + 1)]
 
 def _mh(x, k, num_perm, wk):
+    """
+    Calculates MinHash of a string for estimating Jaccard similarity using shingling. Multiple shingling sizes may be
+    specified.
+
+    :param x: A string
+    :param k: Shingling size(s)
+    :param num_perm: Number of permutation functions
+    :return: MinHash
+    """
     from datasketch import MinHash, MinHashLSH
     x = x.upper()
     k = k if isinstance(k, (tuple, list)) else [k]
@@ -22,6 +38,16 @@ def _mh(x, k, num_perm, wk):
     return m1
 
 def _subwordsplits_mh(x, k,num_perm, wk):
+    """
+    Calculates MinHash of a string for estimating Jaccard similarity using shingling. The initial shingling is further
+    split in substrings. Multiple shingling sizes may be specified.
+
+    :param x: A string
+    :param k: Shingling size(s)
+    :param num_perm: Number of permutation functions
+    :param wk: Shingling size(s) of the substrings
+    :return: MinHash
+    """
     x = x.upper()
     from datasketch import MinHash, MinHashLSH
     k = k if isinstance(k, (tuple, list)) else [k]
@@ -35,6 +61,19 @@ def _subwordsplits_mh(x, k,num_perm, wk):
     return m1
 
 def edges(l1, l2,_mh, num_perm=48, n=(2, 3), threshold=0.65, wk=(1,2,3)):
+    """
+    Compares two lists using Jaccard similarity and shingling. Multiple shingling sizes may be specified.
+
+    :param l1: List of nodes
+    :param l2: List of nodes
+    :param _mh: MinHash function (_mh or _subwordsplits_mh)
+    :param num_perm: Number of permutation functions
+    :param n: Shingling size(s)
+    :param threshold: Jaccard similarity threshold
+    :param wk: Shingling size(s) of the substrings
+    :return: Dictionary containing all objects of l1 as keys and the corresponding objects of l2 above the specified
+    threshold as values in list form.
+    """
     # helper for
     from datasketch import MinHash, MinHashLSH
 
@@ -48,6 +87,7 @@ def edges(l1, l2,_mh, num_perm=48, n=(2, 3), threshold=0.65, wk=(1,2,3)):
 
 
 def graph_insert_labels(data, kb, explanations):
+    # TODO: Documentation
 
     l1 = list(data["classes"].keys())
     l2 = list(kb.nodes())

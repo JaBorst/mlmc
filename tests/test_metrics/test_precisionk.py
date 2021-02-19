@@ -1,5 +1,5 @@
 from mlmc.metrics import AccuracyTreshold
-from mlmc.representation import threshold_max, threshold_hard, threshold_mcut
+from mlmc.thresholds import threshold_max, threshold_hard, threshold_mcut
 from mlmc.data import SingleLabelDataset, MultiLabelDataset
 import torch
 
@@ -90,10 +90,10 @@ def test_AccuracyTresholdMultiThreshold():
     d = AccuracyTreshold(threshold_mcut, is_multilabel=True)
 
     example1 = (torch.tensor([[0,0.7,0.001], [0.3,0.7,0.1]]), torch.tensor([[0,1,1], [0,1,0]]))
-    example2 = (torch.tensor([[0,0.51,0.5], [-0.7,-0.5,-0.9]]), torch.tensor([[0,1,0], [0,1,0]]))
+    example2 = (torch.tensor([[0,0.51,0.5], [0.7,0.49,0.9]]), torch.tensor([[0,1,0], [0,1,0]]))
 
     d.update(example1)
     assert d.compute() == 0.5
 
     d.update(example2)
-    assert d.compute() == 0.5
+    assert d.compute() == 0.25

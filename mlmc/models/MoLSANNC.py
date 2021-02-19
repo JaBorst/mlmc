@@ -11,58 +11,66 @@ from ..modules import *
 
 class MoLSANNC(TextClassificationAbstractMultiOutput, TextClassificationAbstractZeroShot):
 
-    def __init__(self, classes, scale="mean", share_weighting=False, weight_norm="norm", branch_noise=0., dropout=0.3,
-                 hidden_representations=400, representation="roberta", d_a=200, max_len=400, n_layers=1, **kwargs):
+    def __init__(self, scale="mean", share_weighting=False, weight_norm="norm", branch_noise=0., dropout=0.3,
+                 hidden_representations=400,  d_a=200, **kwargs):
+        """
+        Class constructor and initialization of every hyperparameter.
+
+        :param dropout: Dropout rate
+        :param hidden_representations: Hidden state dimension of the LSTM used to create the word embeddings
+        :param d_a: Arbitrarily set hyperparameter
+        :param kwargs: Optimizer and loss function keyword arguments, see `mlmc.models.abstracts.abstracts.TextClassificationAbstract`
+        """
         super(MoLSANNC, self).__init__(**kwargs)
         # My Stuff
-        self.classes = classes
-        self.n_classes = [len(x) for x in classes]
-        self.n_outputs = len(classes)
+        self._config["scale"] = scale
+        self._config["share_weighting"] = share_weighting
+        self._config["weight_norm"] = weight_norm
+        self._config["branch_noise"] = branch_noise
+        self._config["dropout"] = dropout
+        self._config["hidden_representations"] = hidden_representations
+        self._config["d_a"] = d_a
 
-        self.max_len = max_len
-        self.representation = representation
-        self.scale = scale
-        self.n_layers = n_layers
-        self.d_a = d_a
-        self.hidden_representations = hidden_representations
-        self.share_weighting = share_weighting
-        self.weight_norm = weight_norm
-        self.branch_noise = branch_noise
-        self.dropout = dropout
         self.log_bw = False
         # Original
-        self.n_classes = len(classes)
-        self.representation = representation
-        self._init_input_representations()
-        self.create_labels(classes)
+        self.create_labels(self.classes)
 
         if is_transformer(self.representation):
             self.projection_input = torch.nn.Linear(self.embeddings_dim,
-                                                    self.hidden_representations * 2)
+                                                    self._config["hidden_representations"] * 2)
         else:
             self.projection_input = torch.nn.LSTM(self.embeddings_dim,
-                                                  hidden_size=self.hidden_representations,
+                                                  hidden_size= self._config["hidden_representations"],
                                                   num_layers=1,
                                                   batch_first=True,
                                                   bidirectional=True)
 
         # self.projection_labels = torch.nn.Linear(self.label_embedding_dim, self.hidden_representations)
         from ..modules import LSANNCModule
-        self.lsannc = LSANNCModule(self.hidden_representations*2, self.label_embedding_dim,)
+        self.lsannc = LSANNCModule(self._config["hidden_representations"]*2,
+                                   self.label_embedding_dim,
+                                   hidden_features=self._config["d_a"])
 
         self.output_layer = torch.nn.ModuleList(
-            [torch.nn.Linear(self.hidden_representations * 2, 1) for _ in range(self.n_outputs)])
+            [torch.nn.Linear(self.label_embedding_dim * 2, 1) for _ in range(self.n_outputs)])
         self.dropout_layer = torch.nn.Dropout(0.3)
         self.build()
 
     def forward(self, x, return_weights=False):
-        outputs = self.projection_input(self.embed_input(x) / self.label_embedding_dim)
+        """
+        Forward pass function for transforming input tensor into output tensor.
+
+        :param x: Input tensor
+        :param return_weights: If true, returns the learnable weights of the module as well
+        :return: Output tensor
+        """
+        outputs = self.projection_input(self.embed_input(x) / self.embeddings_dim)
         label_embed = torch.cat([x for x in self.label_embedding],0)
 
         if not is_transformer(self.representation):
             outputs = outputs[0]
         outputs = self.dropout_layer(outputs)
-        doc = self.lsannc(outputs,label_embed)
+        doc, weights = self.lsannc(outputs,label_embed,return_weights=True)
         # if self.log_bw:
         #     self.bw.append(weights.cpu())
         doc = self.dropout_layer(doc)
@@ -72,21 +80,29 @@ class MoLSANNC(TextClassificationAbstractMultiOutput, TextClassificationAbstract
             labels.append(doc[:,n:(n+i)])
             n = n+i
 
-        pred = [l(o / self.label_embedding_dim).squeeze() for o,l in zip(labels, self.output_layer)]
+        pred = [l(o / self.label_embedding_dim).squeeze(-1) for o,l in zip(labels, self.output_layer)]
         if return_weights:
             return pred, weights
         return pred
 
     def log_branch_weights(self, s=True):
+        """Deprecated"""
         self.log_bw = s
 
     def reset_branch_weights(self):
+        """Deprecated"""
         self.bw = []
 
     def get_branch_weights(self):
+        """Deprecated"""
         return torch.cat(self.bw).cpu()
 
     def create_label_dict(self):
+        """
+        Embeds the labels of each class.
+
+        :return: Dictionary containing the original label with its corresponding embedding.
+        """
         # assert method in ("repeat","generate","embed", "glove", "graph"), 'method has to be one of ("repeat","generate","embed")'
         from ..representation import get_word_embedding_mean
         with torch.no_grad():
@@ -98,7 +114,13 @@ class MoLSANNC(TextClassificationAbstractMultiOutput, TextClassificationAbstract
         return [{w: e for w, e in zip(classes.keys(), emb)} for classes, emb in zip(self.classes, l)]
 
     def create_labels(self, classes):
+        """
+        Creates label embeddings and adds them to the model in form of a ParameterList.
+
+        :param classes: The classes mapping
+        """
         self.classes = classes
+        self._config["classes"]=classes
         self.n_classes = [len(x) for x in classes]
 
         if not hasattr(self, "label_dict"):

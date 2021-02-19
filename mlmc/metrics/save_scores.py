@@ -14,7 +14,7 @@ class SaveScores:
     def init(self, classes, target, **kwargs):
         "an extra function for model specific parameters of the metric"
         self.counter +=1
-        self._zeroshot_ind = kwargs["_zeroshot_ind"]
+        self._zeroshot_ind = kwargs["_config"]["zeroshot_ind"]
         self.filename = self.output/f"{self.counter}-{self.some_hash}_scores.npy"
         self.reset()
 
@@ -35,7 +35,9 @@ class SaveScores:
                 "_zeroshot_ind": self._zeroshot_ind
             }
         )
-        return self.filename
+        return str(self.filename)
 
     def print(self):
-        return self.filename
+        return str(self.filename)
+
+

@@ -7,6 +7,16 @@ from mlmc.modules.layer_nc_attention_comparison import NC_LabelSpecificSelfAtten
 class ZAGCNNModule(torch.nn.Module):
     def __init__(self, in_features, in_features2, hidden_features=512, graph_type="gcn", propagation_layers=3,
                  dropout=0.5):
+        """
+        Class constructor and initialization of every hyperparameter.
+
+        :param in_features: Size of each input sample for first fully-connected layer
+        :param in_features2: Size of each input sample for second fully-connected layer
+        :param hidden_features: Hidden state dimension
+        :param graph_type: Determines the convolutional layer used. GCNConv if graph_type="gcn", else GatedGraphConv
+        :param propagation_layers: Number of GCNConv layers. Only used when graph_type="gcn"
+        :param dropout: Dropout rate
+        """
         super(ZAGCNNModule, self).__init__()
 
         self.graph_type = graph_type
@@ -29,6 +39,14 @@ class ZAGCNNModule(torch.nn.Module):
         self.projection = torch.nn.Linear(in_features=self.in_features2 * 2, out_features=self.in_features)
 
     def forward(self, x, nodes, adjacency):
+        """
+        Forward pass function for transforming input tensor into output tensor.
+
+        :param x: Input tensor
+        :param nodes: Nodes of the graph
+        :param adjacency: Adjacency matrix of the graph
+        :return: Output tensor
+        """
         # nodes wise label attention
         e = self.lssa(x, nodes)
 

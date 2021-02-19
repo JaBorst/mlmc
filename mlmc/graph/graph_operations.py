@@ -4,11 +4,19 @@ import re
 
 
 def cos(x,y):
+    """
+    Calculates cosine similarity between two tensors.
+
+    :param x: Tensor
+    :param y: Tensor
+    :return: Cosine similarity
+    """
     return torch.matmul((x/x.norm(p=2,dim=-1,keepdim=True)) , (y/y.norm(p=2,dim=-1,keepdim=True)).t())
 
 
 
 def embed_align(classes, graph, model="glove50", topk=10, batch_size=50, device="cpu"):
+    # TODO: Documentation
     from ..representation import Embedder
     e = Embedder(model, device=device, return_device=device)
     classes_tokens = [" ".join(re.split("[/ _-]", x.lower())) for x in classes.keys()]
@@ -32,7 +40,7 @@ def extend(classes, graph, depth=1, topk=20, allow_non_alignment=False, device="
         graph:  The graph from which to draw the subgraph from
         depth: The longest path from a classes label to any node
 
-    Returns:
+    Returns: Subgraph
     """
     augmented = embed_align(classes, graph, "glove300", topk=topk, batch_size=64, device=device)
     if not allow_non_alignment:
@@ -66,6 +74,7 @@ import networkx as nx
 import torch
 
 def subgraphs(classes, graph, depth=1, model="glove50", topk=10,  allow_non_alignment=False, batch_size=50, device="cpu"):
+    # TODO: Documentation
     from ..representation import Embedder
 
     e = Embedder(model, device=device, return_device=device)
@@ -113,6 +122,19 @@ def subgraphs(classes, graph, depth=1, model="glove50", topk=10,  allow_non_alig
 
 
 def plot_activation(graph, classes, scores, tr, target=None, title = None, layout="lgl", options={}):
+    """
+    Draws a plot of a given graph.
+
+    :param graph: A networkx graph
+    :param classes: The classes mapping
+    :param scores: TODO: Documentation
+    :param tr: TODO: Documentation
+    :param target: The target where the graph should be plotted (None/cairo.Surface/string)
+    :param title: Title of the plot
+    :param layout: Layout of the graph (see igraph.Graph.layout_*)
+    :param options: Additional keyword arguments of the chosen layout
+    :return: A plot
+    """
     import igraph
     g = igraph.Graph(directed=True)
     g.add_vertices(list(graph.nodes()))
@@ -122,6 +144,12 @@ def plot_activation(graph, classes, scores, tr, target=None, title = None, layou
         x["score"] = scores[x["name"]] -tr
 
     def score_color(alpha):
+        """
+        Get a color depending on the given alpha value. Used in conjunction with vertex sequence score.
+
+        :param alpha: Alpha channel value (score)
+        :return: RGBA values
+        """
         if alpha <= 0:
             return igraph.color_name_to_rgb("red") + (-alpha,)
         else:
@@ -158,6 +186,12 @@ from tqdm import tqdm
 import requests
 import string
 def augment_wikiabstracts(graph):
+    """
+    Retrieves the Wikipedia abstract corresponding to each Wikidata entry and adds it to the graph.
+
+    :param graph: A networkx graph
+    :return: Graph with added Wikipedia abstracts.
+    """
     abstracts = {}
     batch_size = 20
     for ind in tqdm(list(range(0, len(graph), batch_size))):
@@ -178,13 +212,31 @@ def augment_wikiabstracts(graph):
     return graph
 
 def ascii_graph(graph):
+    """
+    Removes all non-ASCII characters from a graph.
+
+    :param graph: A networkx graph
+    :return: Cleaned graph
+    """
     import string
     from copy import deepcopy
     def char_string(text):
+        """
+        Removes all non-ASCII characters from a string and replaces them with whitespaces.
+
+        :param text: A string
+        :return: Cleaned string
+        """
         if isinstance(text, int) or isinstance(text, float): text = str(text)
         if not isinstance(text, str): return text
         return ''.join([i if i in string.ascii_letters+string.digits+" " else " " for i in text ])
     def char_dict(d):
+        """
+        Removes all non-ASCII characters from every dictionary tuple and replaces them with whitespaces.
+
+        :param d: A dictionary
+        :return: Cleaned dictionary
+        """
         return {char_string(k):char_string(v) for k, v in d.items()}
 
     new_graph = deepcopy(graph)

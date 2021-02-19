@@ -33,7 +33,9 @@ class TextClassificationAbstractGraph(TextClassificationAbstract, TextClassifica
         """
         super(TextClassificationAbstractGraph,self).__init__(**kwargs)
 
-        self.embed=embed
+        self._config["embed"] = embed
+        self._config["graph"] = graph
+
         if isinstance(graph, str) or isinstance(graph, list):
             self.graph = graph
             self.kb = graph_get(graph)
@@ -228,10 +230,14 @@ class TextClassificationAbstractGraph(TextClassificationAbstract, TextClassifica
         self.adfdense= tmp_adj
         self.adj = torch.stack(torch.where(tmp_adj == 1), dim=0).to(self.device)
 
-        if self.embed=="label":
+        if self._config["embed"] =="label":
             self.label_embeddings = self.tokenizer(list(self.label_subgraph.nodes), pad=True, maxlen=10).to(self.device)
         else:
-            embedsequences = [x[1][self.embed] if self.embed in x[1].keys() and x[1][self.embed] != "" else x[0] for x in self.label_subgraph.nodes(True)]
+            embedsequences = [x[1][self._config["embed"] ]
+                              if self._config["embed"]  in x[1].keys() and x[1][self._config["embed"] ] != ""
+                              else x[0]
+                              for x in self.label_subgraph.nodes(True)]
+
             p = max([len(x) for x in embedsequences])
             self.label_embeddings = self.tokenizer(embedsequences, pad=True, maxlen=min(int(p/3),512)).to(self.device)
 

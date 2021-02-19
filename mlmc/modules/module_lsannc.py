@@ -10,7 +10,14 @@ class LSANNCModule(torch.nn.Module):
     """
 
     def __init__(self, in_dim, node_dim, hidden_features=512, noise=0.00, **kwargs):
+        """
+        Class constructor.
 
+        :param in_dim: Size of each input sample
+        :param node_dim: Size of each label embedding
+        :param hidden_features: Hidden state size
+        :param noise: Noise for regularization
+        """
         super(LSANNCModule, self).__init__()
         self.noise = noise
         self.in_dim = in_dim
@@ -28,6 +35,15 @@ class LSANNCModule(torch.nn.Module):
         self.dwf = DynamicWeightedFusion(self.node_dim * 2, 2, noise=self.noise)
 
     def forward(self, x, nodes, mask=None, return_weights=False):
+        """
+        Forward pass function for transforming input tensor into output tensor. Creates the label-specific document
+        representation along all labels.
+
+        :param x: Input tensor
+        :param nodes: Tensor containing label embeddings
+        :param return_weights: If true, returns the learnable weights of the module as well
+        :return: Output tensor
+        """
         x = self.x_projection(x)
         i = self.lssa(x, nodes)
         l = self.lsa(x, nodes)
@@ -46,6 +62,14 @@ class LSANVocabModule(torch.nn.Module):
     """
 
     def __init__(self, in_dim, node_dim, hidden_features=512, noise=0.01):
+        """
+        Class constructor.
+
+        :param in_dim: Size of each input sample
+        :param node_dim: Size of each label embedding
+        :param hidden_features: Hidden state size
+        :param noise: Noise for regularization
+        """
         super(LSANVocabModule, self).__init__()
         self.hidden_features = hidden_features
         self.node_dim = node_dim
@@ -59,6 +83,14 @@ class LSANVocabModule(torch.nn.Module):
         self.projection2 = torch.nn.Linear(self.in_dim, self.node_dim)
 
     def forward(self, x, nodes, return_weights=False, mask=None):
+        """
+        Forward pass function for transforming input tensor into output tensor.
+
+        :param x: Input tensor
+        :param nodes: Tensor containing label embeddings
+        :param return_weights: If true, returns the learnable weights of the module as well
+        :return: Output tensor
+        """
         nodes_p = self.projection(nodes)
         selfatt = torch.tanh(self.linear_first(x))
         selfatt = torch.matmul(selfatt, self.linear_second(nodes).t())
@@ -72,6 +104,7 @@ class LSANVocabModule(torch.nn.Module):
         return fused
 
     def regularize(self):
+        """Regularization function"""
         return self.linear_first.weight.data.norm(p=2) + self.linear_second.weight.data.norm(p=2) + \
                self.projection.weight.data.norm(p=2) + self.projection2.weight.data.norm(p=2)
 
@@ -85,6 +118,16 @@ class LSANGraphModule(torch.nn.Module):
     """
 
     def __init__(self, in_dim, node_dim, hidden_features=512, n_layers=3, gtype="GraphConv", noise=0.01, **kwargs):
+        """
+        Class constructor.
+
+        :param in_dim: Size of each input sample
+        :param node_dim: Size of each label embedding
+        :param hidden_features: Hidden state size
+        :param n_layers: Number of convolutional layers
+        :param gtype: Determines the convolutional layer used. GCNConv if graph_type="gcn", else GatedGraphConv
+        :param noise: Noise for regularization
+        """
         super(LSANGraphModule, self).__init__()
         self.hidden_features = hidden_features
         self.node_dim = node_dim
@@ -110,6 +153,16 @@ class LSANGraphModule(torch.nn.Module):
         self.projection = torch.nn.Linear(self.node_dim, self.in_dim)
 
     def forward(self, x, nodes, graph, weights=None, return_weights=False, mask=None):
+        """
+        Forward pass function for transforming input tensor into output tensor.
+
+        :param x: Input tensor
+        :param nodes: Tensor containing label embeddings
+        :param graph: Tensor containing graph adjacency matrix
+        :param weights: Tensor containing edge weights
+        :param return_weights: If true, returns the learnable weights of the module as well
+        :return: Output tensor
+        """
         nodes_p = nodes
         if self.gtype == "GraphConv":
             for l in self.gcn:
@@ -132,4 +185,5 @@ class LSANGraphModule(torch.nn.Module):
         return fused
 
     def regularize(self):
+        """Regularization function"""
         return self.linear_first.weight.data.norm(p=2) + self.linear_second.weight.data.norm(p=2)

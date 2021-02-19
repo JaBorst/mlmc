@@ -22,7 +22,7 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
 
     """
 
-    def __init__(self, aggregation="mean", weights=None,  **kwargs):
+    def __init__(self, aggregation="mean", class_weights=None, **kwargs):
         """
         Abstract initializer of a Text Classification network.
         Args:
@@ -38,10 +38,14 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
             device: torch device, destination of training (cpu or cuda:0)
         """
         super(TextClassificationAbstractMultiOutput, self).__init__(**kwargs)
-        self.class_weights = weights
-
-
+        self.class_weights = class_weights
         self.aggregation = aggregation
+
+        self.n_classes = [len(x) for x in self.classes]
+        self.n_outputs = len(self.classes)
+
+        self._config["class_weights"] = class_weights
+        self._config["aggregation"] = aggregation
 
     def build(self):
         """
@@ -58,12 +62,25 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
         self.to(self.device)
 
     def act(self, x):
+        """
+        Applies activation function to output tensor.
+
+        :param x: An input tensor
+        :return: A tensor
+        """
         if "softmax" in self.activation.__name__ or "softmin" in self.activation.__name__:
             return [self.activation(o, -1) for o in x]
         else:
             return [self.activation(o) for o in x]
 
     def _init_metrics(self, metrics=None):
+        """
+        Initializes metrics to be used. If no metrics are specified then depending on the target the default metrics
+        for this target will be used. (see mlmc.metrics.metrics_config.items())
+
+        :param metrics: Name of the metrics (see mlmc.metrics.metrics_dict.keys() and mlmc.metrics.metrics_config.keys())
+        :return: A dictionary containing the initialized metrics
+        """
         from copy import deepcopy
         if metrics is None:
             metrics=f"default_{self.target}label"
@@ -256,6 +273,7 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
             A list of the labels
 
         """
+
         self.eval()
         if self.target == "single":
             method = "max"
@@ -265,9 +283,9 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
         x = self.transform(x).to(self.device)
         if len(x.shape) == 1: x[None]
         with torch.no_grad():
-            output = [self.act(o) for o in self(x)]
+            output = self.act(self(x))
 
-        predictions = [self.threshold(o) for o in output]
+        predictions = [self._threshold_fct(o) for o in output]
         self.train()
         if return_scores:
             labels = [[[(d[i.item()], s[i].item())

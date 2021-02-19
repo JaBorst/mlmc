@@ -12,47 +12,40 @@ import tempfile
 import torch
 from io import BytesIO
 from transformers import *
+import pathlib
 
 
 EMBEDDINGCACHE = Path.home() / ".mlmc" / "embedding"
 EMBEDDINGCACHEINDEX = Path.home() / ".mlmc" / "embedding" / "index.txt"
-EMBEDDINGCACHEMODELS = Path.home() / ".mlmc" / "models.txt"
 
 if not EMBEDDINGCACHE.exists():
     EMBEDDINGCACHE.mkdir(parents=True)
 
-def reload_transformers():
-    import requests
-    import re
-    s = requests.get("https://huggingface.co/models")
-    with open(EMBEDDINGCACHEMODELS, "w") as f:
-        f.writelines([x + "\n" for x in re.findall("<a href=\"/(\S{5,50})\"", s.text)][8:])
+def reload_statics():
+    """
+    Gets all static embeddings from cache.
+
+    :return: A dictionary mapping the embedding name to its file name
+    """
+
+    statics = {
+        "glove50": "glove.6B.50d.txt",
+        "glove100": "glove.6B.100d.txt",
+        "glove200": "glove.6B.200d.txt",
+        "glove300": "glove.6B.300d.txt"
+    }
+
+    cache = {}
+    with open(EMBEDDINGCACHEINDEX, "r") as f:
+        for line in f:
+            mapping = line.split("\t")
+            cache[mapping[0]] = mapping[1]
+
+    statics.update(cache)
+    return statics
 
 
-if not(EMBEDDINGCACHEMODELS).exists():
-    reload_transformers()
-with open(EMBEDDINGCACHEMODELS, "r") as f:
-    MODELS = {k.replace("\n", ""): (AutoModel, AutoTokenizer, k.replace("\n","")) for k in f.readlines()}
-
-
-for k, v in {"bert": (BertModel, BertTokenizer, 'bert-large-uncased'),
-             "albert": (AlbertModel, AlbertTokenizer, 'albert-large-v2'),
-             "ctrl": (CTRLModel, CTRLTokenizer, 'ctrl'),
-             "distilbert": (DistilBertModel, DistilBertTokenizer, 'distilbert-base-uncased'),
-             "roberta": (RobertaModel, RobertaTokenizer, 'roberta-base'),
-             # "electra-small": (AutoModel, AutoModelWithLMHead, "google/electra-small-generator")
-             }.items():
-    if k not in MODELS.keys():
-        MODELS[k]=v
-
-STATICS = {
-    "glove50": "glove.6B.50d.txt",
-    "glove100": "glove.6B.100d.txt",
-    "glove200": "glove.6B.200d.txt",
-    "glove300": "glove.6B.300d.txt"
-}
-
-
+STATICS = reload_statics()
 
 def custom_embedding(name, file):
     """
@@ -109,6 +102,7 @@ def empty_cache():
         file.unlink()
 
 def add_test_example():
+    """Helper function for model tests."""
     if not EMBEDDINGCACHE.exists():
         EMBEDDINGCACHE.mkdir(parents=True)
     with tempfile.TemporaryDirectory() as tempdir:
@@ -178,7 +172,20 @@ def map_vocab(query, vocab, maxlen):
     return result
 
 def get_white_space_tokenizer(v):
+    """
+    Creates a tokenizer which splits input using whitespaces.
+
+    :param v: A mapping from tokens to indices
+    :return: A callable tokenizer function
+    """
     def tokenizer(x, maxlen=500, pad=True):
+        """
+        Splits the input using whitespaces and maps the tokens to their indices.
+
+        :param x: A string or a list containing strings
+        :param maxlen: Maximum length of the second dimension of the output tensor
+        :return: A torch.Tensor with shape (len(x), maxlen)
+        """
         x = [x] if isinstance(x, str) else x
         x = [s.lower().split() for s in x]
         return map_vocab(x, v, maxlen).long()
@@ -211,7 +218,6 @@ def get_embedding(name, **kwargs):
     tokenizer = get_white_space_tokenizer(vocabulary)
     return e, tokenizer
 
-import pathlib
 
 def get_transformer(model="bert", **kwargs):
     """
@@ -223,20 +229,13 @@ def get_transformer(model="bert", **kwargs):
     Returns:  A tuple of embedding and corresponding tokenizer
 
     """
-    if pathlib.Path(model).exists() and pathlib.Path(model).is_dir():
-        model_class, tokenizer_class, pretrained_weights = AutoModel, AutoTokenizer, model
-        MODELS[model] = (AutoModel, AutoTokenizer, model)
-    else:
-        model_class, tokenizer_class, pretrained_weights = MODELS.get(model,(None,None,None))
+    model_class, tokenizer_class, pretrained_weights = AutoModel, AutoTokenizer, model
 
-    if model_class is None:
-        return None
-    else:
-        # Load pretrained model/tokenizer
-        from .tokenizer_wrapper import TokenizerWrapper
-        tokenizer = TokenizerWrapper(tokenizer_class, pretrained_weights)
-        model = model_class.from_pretrained(pretrained_weights, **kwargs)
-        return model, tokenizer
+    # Load pretrained model/tokenizer
+    from .tokenizer_wrapper import TokenizerWrapper
+    tokenizer = TokenizerWrapper(tokenizer_class, pretrained_weights)
+    model = model_class.from_pretrained(pretrained_weights, **kwargs)
+    return model, tokenizer
 
 
 def get(model, **kwargs):
@@ -267,16 +266,12 @@ def get(model, **kwargs):
         logging.getLogger("transformers.tokenization_utils").setLevel(logging.ERROR)
     except:
         logging.get_logger("transformers.tokenization_utils").setLevel(logging.ERROR)
-    module = get_transformer(model, **kwargs)
-    if module is None:
-        module = get_embedding(model, **kwargs)
-        if module is None:
-            raise FileNotFoundError
-        # print("Loaded Static Embedding")
-        return module
+
+    if not is_transformer(model):
+        module = get_embedding(model)
     else:
-        # print("Loaded Transformer Embedding")
-        return module
+        module = get_transformer(model)
+    return module
 
 def is_transformer(name):
     """
@@ -288,4 +283,4 @@ def is_transformer(name):
     Returns: bool
 
     """
-    return name in MODELS.keys() or pathlib.Path(name).is_dir()
+    return name not in STATICS.keys() or pathlib.Path(name).is_dir()

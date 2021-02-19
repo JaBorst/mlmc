@@ -12,7 +12,7 @@ def assertion_function(model_type, **kwargs):
         y = [["label_0"], [ "label_2"], [ "label_3"], ["label_1"], ["label_4"]],
         classes = classes
     )
-    model = model_type(classes, **kwargs, target="single", optimizer_params={"lr": 0.001})
+    model = model_type(classes=classes, **kwargs, target="single", optimizer_params={"lr": 0.001})
     history = model.fit(train=data, epochs=5, batch_size=3)
     assert len(history["train"]["loss"]) == 5, "Number of Epochs not reached"
 
@@ -23,5 +23,5 @@ def test_XMLCNN():
     assertion_function(model_type=mlmc.models.XMLCNN, representation="test", mode="untrainable", filters=10, kernel_sizes=[3,4])
 
 def test_LSAN_transformer():
-    assertion_function(model_type=mlmc.models.LSANOriginalTransformerNoClasses, representation="google/electra-small-discriminator", n_layers=1)
+    assertion_function(model_type=mlmc.models.LSANNC, representation="google/electra-small-discriminator", n_layers=1)
 

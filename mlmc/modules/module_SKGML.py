@@ -3,6 +3,16 @@ import torch
 
 class SKGModule(torch.nn.Module):
     def __init__(self, in_features, in_features2, sequence_length, graph_type="gcn", propagation_layers=3, dropout=0.5):
+        """
+        Class constructor and initialization of every hyperparameter.
+
+        :param in_features: Size of each input sample for first fully-connected layer
+        :param in_features2: Size of each input sample for second fully-connected layer
+        :param sequence_length: Maximum size of each input/output sample
+        :param graph_type: Determines the convolutional layer used. GCNConv if graph_type="gcn", else GatedGraphConv
+        :param propagation_layers: Number of GCNConv layers. Only used when graph_type="gcn"
+        :param dropout: Dropout rate
+        """
         super(SKGModule, self).__init__()
         self.sequence_length = sequence_length
         self.graph_type = graph_type
@@ -24,7 +34,15 @@ class SKGModule(torch.nn.Module):
         self.dropout_layer = torch.nn.Dropout(dropout)
 
     def forward(self, x, nodes, adjacency):
-        score_matrix = torch.einsum("ijk,lk->ijl", self.dropout_layer(x), self.projection(nodes))
+        """
+        Forward pass function for transforming input tensor into output tensor.
+
+        :param x: Input tensor
+        :param nodes: Nodes of the graph
+        :param adjacency: Adjacency matrix of the graph
+        :return: Output tensor
+        """
+        score_matrix = torch.einsum("ijk,lmk->ijl", self.dropout_layer(x), self.projection(nodes))
         beliefs = score_matrix.transpose(1, 2)
         if self.graph_type == "gcn":
             for m in self.gcn1:
