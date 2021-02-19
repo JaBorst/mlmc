@@ -16,7 +16,6 @@ from transformers import *
 
 EMBEDDINGCACHE = Path.home() / ".mlmc" / "embedding"
 EMBEDDINGCACHEINDEX = Path.home() / ".mlmc" / "embedding" / "index.txt"
-EMBEDDINGCACHEMODELS = Path.home() / ".mlmc" / "models.txt"
 
 if not EMBEDDINGCACHE.exists():
     EMBEDDINGCACHE.mkdir(parents=True)
