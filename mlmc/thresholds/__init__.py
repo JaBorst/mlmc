@@ -6,6 +6,7 @@ thresholds_dict = {
     "max": threshold_max,
     "mcut": threshold_mcut,
     "scaling_mcut": threshold_scaling_mcut,
+    "mean": threshold_mean,
 }
 
 class ThresholdWrapper():

@@ -32,7 +32,6 @@ def threshold_mcut(x):
     thresholds = values + 0.5 * thresholds[0][:,None]
     return (x > thresholds).float()
 
-
 def threshold_mean(x):
     """
     Transform input tensor into a multiple-hot tensor using a threshold
@@ -78,9 +77,3 @@ def threshold_max(x):
         One-Hot Tensor
     """
     return torch.zeros_like(x).scatter(1, torch.topk(x, k=1)[1], 1)
-
-
-
-
-
-
