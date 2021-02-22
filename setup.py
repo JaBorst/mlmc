@@ -22,8 +22,6 @@ else:
 with open("mlmc/_version.py", "w") as f:
     f.write(f"__version__='{version}'")
 
-CUDA = "cu102"
-
 setup(
     name='melmac',
     python_requires='>=3.7',
@@ -42,9 +40,8 @@ setup(
     license='',
     author='Janos Borst',
     author_email='borst@informatik.uni-leipzig.de',
-    description='A package for neural multilabel and multiclass classification.',
-    install_requires=['numpy',
-                      'transformers',
+    description='A package specialized in neural multilabel and multiclass text classification.',
+    install_requires=['transformers',
                       'nltk',
                       'scikit-learn',
                       'pytorch-ignite',
