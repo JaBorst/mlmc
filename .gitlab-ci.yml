@@ -29,12 +29,11 @@ coverage:
         refs:
         - master
         - merge_requests
+        - dev
     image: python:3.7.5-slim-buster
     stage: test
     script:
-      - pytest --cov mlmc/ tests/ --cov-report xml
-      - coverage report
-
+      - coverage run -m pytest tests && coverage report
 
 pypi_deploy:
   stage: deploy

@@ -4,9 +4,9 @@ Defines dataset class and provides automated load/cache functions for some publi
 
 from torch.utils.data import Dataset
 import torch
-from .data_loaders  import load_eurlex, load_wiki30k, load_huffpost, load_aapd, load_rcv1, \
-    load_moviesummaries,load_blurbgenrecollection, load_blurbgenrecollection_de, load_20newsgroup,export,\
-    load_agnews, load_dbpedia, load_ohsumed
+from .data_loaders import load_eurlex, load_wiki30k, load_huffpost, load_aapd, load_rcv1, \
+    load_moviesummaries, load_blurbgenrecollection, load_blurbgenrecollection_de, load_20newsgroup, export, \
+    load_agnews, load_dbpedia, load_ohsumed, load_yahoo_answers
 
 # String Mappings
 register = {
@@ -21,9 +21,9 @@ register = {
     "20newsgroup": load_20newsgroup,
     "agnews": load_agnews,
     "dbpedia": load_dbpedia,
-    "ohsumed": load_ohsumed
+    "ohsumed": load_ohsumed,
+    "yahoo_answers": load_yahoo_answers,
 }
-
 
 
 class MultiLabelDataset(Dataset):
@@ -35,6 +35,7 @@ class MultiLabelDataset(Dataset):
     It also inherits torch.utils.data.Dataset, so it can be used in combination with torch.utils.data.Dataloader
     for fast training loops.
     """
+
     def __init__(self, x, y, classes, target_dtype=torch._cast_Float, one_hot=True, **kwargs):
         """
         Class constructor
@@ -82,9 +83,21 @@ class MultiLabelDataset(Dataset):
         self.target_dtype = target_dtype
 
     def __len__(self):
+        """
+        Returns the length of the dataset. The length is determined by the size
+        of the list containing the input text.
+
+        :return: Length of the dataset
+        """
         return len(self.x)
 
     def __getitem__(self, idx):
+        """
+        Retrieves a single entry from the dataset.
+
+        :param idx: Index of the entry
+        :return: Dictionary containing the text and labels of the entry
+        """
         if self.one_hot:
             labels = [self.classes[tag] for tag in self.y[idx]]
             labels = torch.nn.functional.one_hot(torch.LongTensor(labels), len(self.classes)).sum(0)
@@ -121,25 +134,29 @@ class MultiLabelDataset(Dataset):
          Returns:
               A python dictionary of the training data (only x, y and the classes)
         """
-        return {"x": self.x, "y": self.y, "classes":list(self.classes.keys())}
+        return {"x": self.x, "y": self.y, "classes": list(self.classes.keys())}
 
     def __add__(self, o):
-        new_classes = list(set( list(self.classes.keys()) +  list(o.classes.keys()) ))
+        """
+        Merges dataset with another dataset.
+
+        :param o: Another dataset
+        :return: MultiLabelDataset containing x, y and classes of both datasets
+        """
+        new_classes = list(set(list(self.classes.keys()) + list(o.classes.keys())))
         new_classes.sort()
         new_classes = dict(zip(new_classes, range(len(new_classes))))
 
-        new_data = list(set(self.x + o.x))
-        new_labels = [[] for _ in range(len(new_data))]
+        new_data = dict(zip(self.x, self.y))
 
-        for i, x in enumerate(self.x):
-            new_labels[new_data.index(x)].extend(self.y[i])
-
-        for i, x in enumerate(o.x):
-            new_labels[new_data.index(x)].extend(o.y[i])
-
-        new_labels = [list(set(x)) for x in new_labels]
-
-        return MultiLabelDataset(x=new_data, y=new_labels, classes=new_classes)
+        for x,y in zip(o.x, o.y):
+            if x not in new_data: new_data[x] = []
+            new_data[x].extend(y)
+        new_data = {k:list(set(v)) for k,v in new_data.items()}
+        try:
+            return SingleLabelDataset(x=list(new_data.keys()), y=list(new_data.values()), classes=new_classes)
+        except AssertionError:
+            return MultiLabelDataset(x=list(new_data.keys()), y=list(new_data.values()), classes=new_classes)
 
     def remove(self, classes):
         """
@@ -153,11 +170,17 @@ class MultiLabelDataset(Dataset):
         """
         if isinstance(classes, str):
             classes = [classes]
-        assert all([x in self.classes.keys() for x in classes]), "Some of the provided classes are not contained in the dataset"
+        assert all([x in self.classes.keys() for x in
+                    classes]), "Some of the provided classes are not contained in the dataset"
         self.y = [[label for label in labelset if label not in classes] for labelset in self.y]
-        emptylabelsets = [i for i, x in enumerate(self.y) if x == []]
-        self.x = [ x for i,x in enumerate(self.x) if i not in emptylabelsets]
-        self.y = [ x for i,x in enumerate(self.y) if i not in emptylabelsets]
+        nonemptylabelsets = [i for i, x in enumerate(self.y) if x != []]
+        new_x = [self.x[i] for i in nonemptylabelsets]
+        new_y = [self.y[i] for i in nonemptylabelsets]
+        self.x = new_x
+        self.y = new_y
+
+        new_classes = [x for x in self.classes.keys() if x not in classes]
+        self.classes = dict(zip(new_classes, range(len(new_classes))))
 
     def map(self, map: dict):
         """
@@ -169,26 +192,37 @@ class MultiLabelDataset(Dataset):
             map: Dictionary of map from current label string to new label string
         """
         if any([x not in map.keys() for x in self.classes.keys()]):
-            print("Some classes are not present in the map. The will be returned as is.")
-        self.classes = {map.get(k,k):v for k,v in self.classes.items()}
-        self.y = [[map.get(l,l) for l in labelset] for labelset in self.y]
+            print("Some classes are not present in the map. They will be returned as is.")
+        self.classes = {map.get(k, k): v for k, v in self.classes.items()}
+        self.y = [[map.get(l, l) for l in labelset] for labelset in self.y]
 
-    def reduce(self, subset: dict):
+    def reduce(self, subset):
         """
         Reduces the dataset to a subset of the classes.
 
         The resulting dataset will only contain instances with at least one label that appears in the subset argument.
-        The subset must also provide a new mapping from the new label names to indices.
+        The subset can also provide a new mapping from the new label names to indices (dict).
         All labels not in subset will be removed. Instances with an empty label set will be removed.
 
         Args:
             subset: A mapping of classes to indices
         """
-        assert all([x in self.classes.keys() for x in subset.keys()]), "Subset contains classes not present in dataset"
-        ind = [i for i, labelset in enumerate(self.y) if any([l in subset.keys() for l in labelset])]
-        self.x = [self.x[i] for i in ind]
-        self.y = [[x for x in self.y[i] if x in subset.keys()] for i in ind]
-        self.classes = subset
+
+        if isinstance(subset, str): subset = [subset]
+
+        if isinstance(subset, dict):
+            subset_dict = subset
+            subset_list = list(subset.keys())
+
+        elif isinstance(subset, list):
+            subset_dict = dict(zip(subset, range(len(subset))))
+            subset_list = subset
+        else:
+            raise ValueError
+
+        remove_classes = [x for x in self.classes.keys() if x not in subset_list]
+        self.remove(remove_classes)
+        self.classes = subset_dict
 
     def count(self, label):
         """
@@ -200,9 +234,9 @@ class MultiLabelDataset(Dataset):
              Dictionary of label name and frequency in the dataset.
         """
         if isinstance(label, list):
-            result = {   l: sum([l in s for s in self.y])
-                for l in label
-            }
+            result = {l: sum([l in s for s in self.y])
+                      for l in label
+                      }
         else:
             result = {label: sum([label in s for s in self.y])}
         return result
@@ -213,20 +247,230 @@ class MultiLabelDataset(Dataset):
 
         Returns: The average labelset size per instance
         """
-        return sum([len(x) for x in self.y])/len(self.y)
+        return sum([len(x) for x in self.y]) / len(self.y)
 
 
 class SingleLabelDataset(MultiLabelDataset):
     def __init__(self, *args, **kwargs):
+        """
+        Class constructor. Creates an instance of SingleLabelDataset.
+
+        :param classes: A class mapping from label strings to successive indices
+        :param x: A list of the input text
+        :param y: A list of corresponding label sets
+        :param target_dtype: The final cast on the label output. (Some of torch's loss functions expect other data types. This argument defines
+                a function that is applied to the final output of the label tensors. (default: torch._cast_Float)
+        :param kwargs: Any additional information that is given by named keywords will be saved as metadata
+
+        Example:
+            ```
+            x = ["This is a text about science",
+                "This is another text about philosophy"]
+
+
+            y = [['science'],
+                ['politics']]
+
+            classes = {
+                "science": 0,
+                "philosophy": 1,
+            }
+            dataset = mlmc.data.SingleLabelDataset(x=x, y=y, classes=classes)
+            dataset[0]
+            ```
+        """
         super(SingleLabelDataset, self).__init__(*args, **kwargs)
-        assert all([len(x)==1 for x in self.y]), "This is not a single label dataset. Some labels contain multiple labels."
+        assert all(
+            [len(x) == 1 for x in self.y]), "This is not a single label dataset. Some labels contain multiple labels."
 
     def __getitem__(self, idx):
+        """
+        Retrieves a single entry from the dataset.
+
+        :param idx: Index of the entry
+        :return: Dictionary containing the text and labels of the entry
+        """
         return {'text': self.x[idx], 'labels': torch.tensor(self.classes[self.y[idx][0]])}
 
 
+class MultiOutputMultiLabelDataset(Dataset):
+    def __init__(self, classes, x, y, target_dtype=torch._cast_Float, **kwargs):
+        """
+        Class constructor. Creates an instance of MultiOutputMultiLabelDataset.
 
-#-------------------------------------------------------------------------------------
+        :param classes: A class mapping from label strings to successive indices
+        :param x: A list of the input text
+        :param y: A list of corresponding label sets
+        :param target_dtype: The final cast on the label output. (Some of torch's loss functions expect other data types. This argument defines
+                a function that is applied to the final output of the label tensors. (default: torch._cast_Float)
+        :param kwargs: Any additional information that is given by named keywords will be saved as metadata
+
+        Example:
+            ```
+            x = ["Text sample 1", "Text sample 2"]
+
+            y = [[["label0", "label1"], ["label2"]],
+                [["label1"], ["label1", "label2"]]]
+
+            classes = [{
+                "label0": 0,
+                "label1": 1
+            }, {
+                "label1": 0,
+                "label2": 1
+            }]
+            dataset = mlmc.data.MultiOutputMultiLabelDataset(x=x, y=y, classes=classes)
+            dataset[0]
+            ```
+        """
+        super(MultiOutputMultiLabelDataset, self).__init__(**kwargs)
+        if isinstance(classes, dict):
+            self.classes = [classes.copy() for _ in range(len(y[0]))]
+        else:
+            self.classes = classes
+
+        assert isinstance(y[0][0], list), "Each element of a multiple out multilabel dataset has to be a list"
+
+        assert len(y[0]) == len(self.classes), "Number of labels and number of class dicts do not agree"
+
+        assert len(set([len(labelset) for labelset in y])) == 1, \
+            "Not all instances have the same number of labels."
+        self.target_dtype = target_dtype
+        self.x = x
+        self.y = y
+
+    def __len__(self):
+        """
+        Returns the length of the dataset. The length is determined by the size
+        of the list containing the input text.
+
+        :return: Length of the dataset
+        """
+        return len(self.x)
+
+    def __getitem__(self, item):
+        """
+        Retrieves a single entry from the dataset.
+
+        :param idx: Index of the entry
+        :return: Dictionary containing the text and labels of the entry
+        """
+        result = {"text": self.x[item]}
+        label_one_hot = [
+            torch.stack([torch.nn.functional.one_hot(torch.tensor(x[label]), len(x)) for label in labelset], 0) for
+            x, labelset in zip(self.classes, self.y[item])]
+        result.update({f"labels_{i}": v.sum(0) for i, v in enumerate(label_one_hot)})
+        return result
+
+class MultiOutputSingleLabelDataset(Dataset):
+    def __init__(self, classes, x, y=None,  **kwargs):
+        """
+        Class constructor. Creates an instance of MultiOutputSingleLabelDataset.
+
+        :param classes: A class mapping from label strings to successive indices
+        :param x: A list of the input text
+        :param y: A list of corresponding label sets
+        :param kwargs: Any additional information that is given by named keywords will be saved as metadata
+
+        Example:
+            ```
+            x = ["Text sample 1", "Text sample 2"]
+
+            y = [[["label0"], ["label2"]],
+                 [["label1"], ["label2"]]]
+
+            classes = [{
+                "label0": 0,
+                "label1": 1
+            }, {
+                "label2": 0
+            }]
+                dataset = mlmc.data.MultiOutputSingleLabelDataset(x=x, y=y, classes=classes)
+            dataset[0]
+            ```
+        """
+        super(MultiOutputSingleLabelDataset, self).__init__(**kwargs)
+        if y is not None:
+            if isinstance(classes, dict):
+                self.classes = [classes.copy() for _ in range(len(y[0]))]
+            else:
+                self.classes = classes
+
+        assert len(y[0]) == len(self.classes), "Number of labels and number of class dicts do not agree"
+
+        assert all([len(labelset)==1 for outputset in y for labelset in outputset]) == 1, \
+            "All output sets must be of length 1."
+
+        self.target_dtype = torch._cast_Float
+        self.x = x
+        self.y = y
+
+    def __getitem__(self, item):
+        """
+        Retrieves a single entry from the dataset.
+
+        :param idx: Index of the entry
+        :return: Dictionary containing the text and labels of the entry
+        """
+        if self.y is None:
+            return {'text': self.x[item]}
+        else:
+            return {'text': self.x[item], 'labels': torch.tensor([d[y[0]] for d, y in zip(self.classes, self.y[item])])}
+
+    def __len__(self):
+        """
+        Returns the length of the dataset. The length is determined by the size
+        of the list containing the input text.
+
+        :return: Length of the dataset
+        """
+        return len(self.x)
+
+    def reduce(self, subset):
+        """
+        Reduces the dataset to a subset of the classes.
+
+        The resulting dataset will only contain instances with at least one label that appears in the subset argument.
+        The subset can also provide a new mapping from the new label names to indices (dict).
+        All labels not in subset will be removed. Instances with an empty label set will be removed.
+
+        :param subset: A mapping of classes to indices
+        """
+        assert len(subset) == len(self.classes), "Subset and existing classes have varying outputsizes"
+        assert all([all([x in c.keys() for x in s.keys()]) for s, c in
+                    zip(subset, self.classes)]), "Subset contains classes not present in dataset"
+
+        keep = [i for i, labelset in enumerate(self.y) if all(x in y.keys() for x, y in zip(labelset, subset))]
+        self.x = [self.x[i] for i in keep]
+        self.y = [self.y[i] for i in keep]
+        self.classes = subset
+
+    def __add__(self, o):
+        """
+        Merges dataset with another dataset.
+
+        :param o: Another dataset
+        :return: MultiOutputSingleLabelDataset containing x, y and classes of both datasets
+        """
+        new_classes = [list(set(list(c1.keys()) + list(c2.keys()))) for c1, c2 in zip(self.classes, o.classes)]
+        new_classes = [dict(zip(c, range(len(c)))) for c in new_classes]
+
+        new_data = list(set(self.x + o.x))
+        new_labels = [[] for _ in range(len(new_data))]
+
+        for i, x in enumerate(self.x):
+            new_labels[new_data.index(x)] = self.y[i]
+
+        for i, x in enumerate(o.x):
+            new_labels[new_data.index(x)] = o.y[i]
+
+        assert all([len(l) == len(new_classes) for l in
+                    new_labels]), "Some data points have mor label than allowed outputs exist"
+
+        return MultiOutputSingleLabelDataset(x=new_data, y=new_labels, classes=new_classes)
+
+
+# -------------------------------------------------------------------------------------
 
 
 def get_dataset(name, type, ensure_valid=False, valid_split=0.25, target_dtype=torch.FloatTensor):
@@ -240,54 +484,54 @@ def get_dataset(name, type, ensure_valid=False, valid_split=0.25, target_dtype=t
     :param target_dtype: Target Tensortype of the label multihot representation. (default torch.FloatTensor)
     :return: a dictionary with keys: "train", "valid" and "test" and additional information the dataset provides (graphs, maps, classes,..)
     """
-    data, classes = register.get(name, None)()
-    if data is None:
-        Warning("data not found")
-        return None
-    else:
-        if "valid" not in data.keys():
-            print("No Validation data found.")
-            if ensure_valid:
-                print("Providing random split...")
-                from sklearn.model_selection import train_test_split
-                splits_from_train = train_test_split(*data["train"], test_size=valid_split)
-                train=[splits_from_train[0],splits_from_train[2]]
-                valid = [splits_from_train[1],splits_from_train[3]]
-                data["train"]=train
-                data["valid"]=valid
-            else:
-                data["valid"]= None
-        datasets = {
-            split: type(x=data[split][0],
-                                     y=data[split][1],
-                                     classes=classes,
-                                     purpose=split,
-                                     target_dtype=target_dtype) if data[split] is not None else None
-        for split in ["test","train","valid"]
-        }
-        for k in data.keys():
-            if k not in ["test", "train", "valid"]:
-                datasets[k] = data[k]
-        datasets["classes"]=classes
+    f = register.get(name, None)
+    assert f is not None, "Dataset name not found"
 
-        return datasets
+    data, classes = f()
+
+    if "valid" not in data.keys():
+        print("No Validation data found.")
+        if ensure_valid:
+            print("Providing random split...")
+            from sklearn.model_selection import train_test_split
+            splits_from_train = train_test_split(*data["train"], test_size=valid_split)
+            train = [splits_from_train[0], splits_from_train[2]]
+            valid = [splits_from_train[1], splits_from_train[3]]
+            data["train"] = train
+            data["valid"] = valid
+        else:
+            data["valid"] = None
+    datasets = {
+        split: type(x=data[split][0],
+                    y=data[split][1],
+                    classes=classes,
+                    purpose=split,
+                    target_dtype=target_dtype) if data[split] is not None else None
+        for split in ["test", "train", "valid"]
+    }
+    for k in data.keys():
+        if k not in ["test", "train", "valid"]:
+            datasets[k] = data[k]
+    datasets["classes"] = classes
+
+    return datasets
+
 
 ## Wrapper for multilabel datasets
-def get_multilabel_dataset(name, target_dtype=torch._cast_Float):
+def get_multilabel_dataset(name):
     """
     Load multilabel training data if available.
 
     This is the default wrapper function for retrieving multilabel datasets.
 
     :param name: See: mlmc.data.register.keys()
-    :param target_dtype: The target_dtype of the labeldata in training. See MultilabelDataset
     :return:
     """
     return get_dataset(name, type=MultiLabelDataset, ensure_valid=False, target_dtype=torch._cast_Float)
 
 
 ## Wrapper for singlelabel datasets
-def get_singlelabel_dataset(name, target_dtype=torch._cast_Float):
+def get_singlelabel_dataset(name):
     """
     Load singlelabel training data if available.
 
@@ -295,14 +539,47 @@ def get_singlelabel_dataset(name, target_dtype=torch._cast_Float):
     This is a special case of MultilabelDataset.
 
     :param name: See: mlmc.data.register.keys()
-    :param target_dtype: The target_dtype of the labeldata in training. See MultilabelDataset
     :return:
     """
     return get_dataset(name, type=SingleLabelDataset, ensure_valid=False, target_dtype=torch._cast_Float)
 
+def get(name):
+    """
+    Universal get function for datasets.
 
+    :param name: Name of the dataset
+    :return: A dataset if the name exists
+    """
+    try:
+        try:
+            return get_singlelabel_dataset(name)
+        except:
+            return get_multilabel_dataset(name)
+    except:
+        print("Datset not found. Must be one of:")
+        print(register.keys())
 
+def is_multilabel(x):
+    """
+    Checks if input is a multilabel dataset.
+
+    :param x: A dataset
+    :return: True if multilabel, else False.
+    """
+    return type(x) in  (MultiLabelDataset, MultiOutputMultiLabelDataset)
+
+class EntailmentDataset(Dataset):
+    def __init__(self, x1, x2, labels, classes):
+        self.x1 = x1
+        self.x2 = x2
+        self.labels = labels
+        self.classes = classes
+
+    def __len__(self):
+        return len(self.x1)
+
+    def __getitem__(self, item):
+        return {"x1": self.x1[item], "x2": self.x2[item], "labels": self.classes[self.labels[item]]}
 
 ## Sampler import
 from .sampler import sampler, successive_sampler, class_sampler, validation_split
-from .data_loaders_text import RawTextDatasetTokenizer, RawTextDataset,RawTextDatasetTensor

@@ -22,17 +22,20 @@ else:
 with open("mlmc/_version.py", "w") as f:
     f.write(f"__version__='{version}'")
 
+CUDA = "cu102"
+
 setup(
     name='melmac',
-    python_requires='>=3.6',
+    python_requires='>=3.7',
     version=version,
     packages=['mlmc',
               'mlmc.data',
               'mlmc.graph',
-              'mlmc.layers',
-              'mlmc.loss',
               'mlmc.metrics',
               'mlmc.models',
+              'mlmc.modules',
+              'mlmc.models.abstracts',
+              'mlmc.thresholds',
               'mlmc.representation'
               ],
     url='',
@@ -43,7 +46,6 @@ setup(
     install_requires=['numpy',
                       'transformers',
                       'nltk',
-                      'node2vec',
                       'scikit-learn',
                       'pytorch-ignite',
                       'tqdm',
@@ -52,7 +54,9 @@ setup(
                       'pytest',
                       'pytest-cov',
                       'rdflib',
-                      'h5py'
-                      ],
+                      'h5py',
+                      'datasketch',
+                      'torch>=1.5.1'
+    ],
     include_package_data=True,
 )

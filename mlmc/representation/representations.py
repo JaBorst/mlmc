@@ -8,33 +8,46 @@ from urllib.request import urlopen
 from zipfile import ZipFile
 
 import numpy as np
-import os
+import tempfile
 import torch
 from io import BytesIO
 from transformers import *
+import pathlib
 
-dir_path = Path(os.path.dirname(os.path.realpath(__file__)))
-with open(dir_path/"model.txt", "r") as f:
-    MODELS = {k.replace("\n", ""): (AutoModel, AutoTokenizer, k.replace("\n","")) for k in f.readlines()}
-
-for k, v in {"bert": (BertModel, BertTokenizer, 'bert-large-uncased'),
-             "albert": (AlbertModel, AlbertTokenizer, 'albert-large-v2'),
-             "ctrl": (CTRLModel, CTRLTokenizer, 'ctrl'),
-             "distilbert": (DistilBertModel, DistilBertTokenizer, 'distilbert-base-uncased'),
-             "roberta": (RobertaModel, RobertaTokenizer, 'roberta-base'),
-             }.items():
-    if k not in MODELS.keys():
-        MODELS[k]=v
-
-STATICS = {
-    "glove50": "glove.6B.50d.txt",
-    "glove100": "glove.6B.100d.txt",
-    "glove200": "glove.6B.200d.txt",
-    "glove300": "glove.6B.300d.txt"
-}
 
 EMBEDDINGCACHE = Path.home() / ".mlmc" / "embedding"
 EMBEDDINGCACHEINDEX = Path.home() / ".mlmc" / "embedding" / "index.txt"
+
+if not EMBEDDINGCACHE.exists():
+    EMBEDDINGCACHE.mkdir(parents=True)
+if not EMBEDDINGCACHEINDEX.exists():
+    EMBEDDINGCACHEINDEX.touch()
+
+def reload_statics():
+    """
+    Gets all static embeddings from cache.
+
+    :return: A dictionary mapping the embedding name to its file name
+    """
+
+    statics = {
+        "glove50": "glove.6B.50d.txt",
+        "glove100": "glove.6B.100d.txt",
+        "glove200": "glove.6B.200d.txt",
+        "glove300": "glove.6B.300d.txt"
+    }
+
+    cache = {}
+    with open(EMBEDDINGCACHEINDEX, "r") as f:
+        for line in f:
+            mapping = line.split("\t")
+            cache[mapping[0]] = mapping[1]
+
+    statics.update(cache)
+    return statics
+
+
+STATICS = reload_statics()
 
 def custom_embedding(name, file):
     """
@@ -49,6 +62,9 @@ def custom_embedding(name, file):
     Returns:
 
     """
+    # assert type is not None, "When registering a custom embedding, ensure you set the type"
+    # assert type in ("static", "transformer"), "When registering a custom embedding, ensure you set the type to either 'static' or 'transformer'"
+
     source_location = Path(file)
     target_location = EMBEDDINGCACHE / source_location.name
     if (EMBEDDINGCACHE/source_location.name).exists():
@@ -56,8 +72,10 @@ def custom_embedding(name, file):
     else:
         shutil.copy(source_location, target_location)
         with open(EMBEDDINGCACHEINDEX, "a") as f:
-            f.write(name + "\t" + source_location.name)
+            f.write(f"{name}\t{source_location.name}")
         print("Cached successfully you can now load [%s] in any model." % (name,))
+        global STATICS
+        STATICS = reload_statics()
 
 def delete_custom_embeddings():
     """
@@ -88,9 +106,13 @@ def empty_cache():
         file.unlink()
 
 def add_test_example():
+    """Helper function for model tests."""
     if not EMBEDDINGCACHE.exists():
         EMBEDDINGCACHE.mkdir(parents=True)
-    custom_embedding("test", dir_path / "custom_embedding.txt")
+    with tempfile.TemporaryDirectory() as tempdir:
+        with open(Path(tempdir)/"embedding", "w") as f:
+            f.write('Text 0.1 0.2 0.3 0.4 0.5\n1   0.2 0.1 -0.01 0.2 0.1\nexample -0.001 0.01 0.1 -0.5 0.2\ntext 0.5 0.0 0.0 0.0 0.02\n2 0.04 0.34 0.2 -0.24 0.4')
+        custom_embedding("test", Path(tempdir)/"embedding")
 
 
 def load_static(embedding):
@@ -108,7 +130,7 @@ def load_static(embedding):
             for x in f.read().split("\n"):
                 STATICS[x.split("\t")[0]] = x.split("\t")[1]
 
-    if not (EMBEDDINGCACHE / STATICS[embedding]).exists():
+    if not (EMBEDDINGCACHE / STATICS[embedding]).exists() and "glove" in STATICS[embedding]:
         try:
             resp = urlopen("http://nlp.stanford.edu/data/glove.6B.zip")
         except error.HTTPError:
@@ -118,6 +140,7 @@ def load_static(embedding):
         print("Downloading glove vectors... This may take a while...")
         zipfile = ZipFile(BytesIO(resp.read()))
         zipfile.extractall(EMBEDDINGCACHE)
+
     fp = EMBEDDINGCACHE / STATICS[embedding]
 
     glove = np.loadtxt(fp, dtype='str', comments=None)
@@ -153,7 +176,20 @@ def map_vocab(query, vocab, maxlen):
     return result
 
 def get_white_space_tokenizer(v):
-    def tokenizer(x, maxlen=500):
+    """
+    Creates a tokenizer which splits input using whitespaces.
+
+    :param v: A mapping from tokens to indices
+    :return: A callable tokenizer function
+    """
+    def tokenizer(x, maxlen=500, pad=True):
+        """
+        Splits the input using whitespaces and maps the tokens to their indices.
+
+        :param x: A string or a list containing strings
+        :param maxlen: Maximum length of the second dimension of the output tensor
+        :return: A torch.Tensor with shape (len(x), maxlen)
+        """
         x = [x] if isinstance(x, str) else x
         x = [s.lower().split() for s in x]
         return map_vocab(x, v, maxlen).long()
@@ -197,31 +233,14 @@ def get_transformer(model="bert", **kwargs):
     Returns:  A tuple of embedding and corresponding tokenizer
 
     """
-    model_class, tokenizer_class, pretrained_weights = MODELS.get(model,(None,None,None))
-    if model_class is None:
-        print("Model is not a transformer...")
-        return None
-    else:
-        # Load pretrained model/tokenizer
-        tokenizer = tokenizer_class.from_pretrained(pretrained_weights)
+    model_class, tokenizer_class, pretrained_weights = AutoModel, AutoTokenizer, model
 
-        def list_tokenizer(x, maxlen=500, return_start=False):
-            x = [x] if isinstance(x, str) else x
-            if return_start:
-                i = [tokenizer.tokenize(sentence, add_special_tokens=False, pad_to_max_length=True) for sentence in x]
-                ind = [torch.tensor([x.startswith("Ġ") or i == 0 for i, x in enumerate(sentence)]) for sentence in i]
-                i = torch.nn.utils.rnn.pad_sequence([torch.tensor(tokenizer.convert_tokens_to_ids(a)) for a in i],
-                                                    batch_first=True, padding_value=tokenizer.pad_token_id)
-                return i, torch.nn.utils.rnn.pad_sequence(ind, batch_first=True, padding_value=False)
-            else:
-                i = torch.nn.utils.rnn.pad_sequence(
-                    [torch.tensor([tokenizer.encode(sentence, add_special_tokens=False, pad_to_max_length=True)][0]) for
-                     sentence in x], batch_first=True, padding_value=tokenizer.pad_token_id)
-            i = i[:, :min(maxlen, i.shape[-1])]
-            return i
+    # Load pretrained model/tokenizer
+    from .tokenizer_wrapper import TokenizerWrapper
+    tokenizer = TokenizerWrapper(tokenizer_class, pretrained_weights)
+    model = model_class.from_pretrained(pretrained_weights, **kwargs)
+    return model, tokenizer
 
-        model = model_class.from_pretrained(pretrained_weights, **kwargs)
-        return model, list_tokenizer
 
 def get(model, **kwargs):
     """
@@ -247,15 +266,16 @@ def get(model, **kwargs):
 
 
     """
-    logging.getLogger("transformers.tokenization_utils").setLevel(logging.ERROR)
-    module = get_transformer(model, **kwargs)
-    if module is None:
-        module = get_embedding(model, **kwargs)
-        if module is None:
-            raise FileNotFoundError
-        return module
+    try:
+        logging.getLogger("transformers.tokenization_utils").setLevel(logging.ERROR)
+    except:
+        logging.get_logger("transformers.tokenization_utils").setLevel(logging.ERROR)
+
+    if not is_transformer(model):
+        module = get_embedding(model)
     else:
-        return module
+        module = get_transformer(model)
+    return module
 
 def is_transformer(name):
     """
@@ -267,4 +287,4 @@ def is_transformer(name):
     Returns: bool
 
     """
-    return name in MODELS.keys()
+    return name not in STATICS.keys() or pathlib.Path(name).is_dir()

@@ -2,12 +2,19 @@
 
 import networkx as nx
 import numpy as np
-from node2vec import Node2Vec
 from sklearn import random_projection
 from sklearn.decomposition import NMF
 
 
 def subgraph_extract(X, graph, subnodelist):
+    """
+    Extracts a subset of node embeddings from a graph.
+
+    :param X: Node embeddings of graph
+    :param graph: A networkx graph
+    :param subnodelist: Dictionary of nodes for which the embedding will be returned
+    :return: Embeddings of all nodes in subnodelist
+    """
     new = np.zeros_like(X)
     for i, nm in enumerate(graph.nodes):
         if nm in subnodelist.keys():
@@ -24,6 +31,7 @@ def get_node2vec(graph, classes, dim, return_all=False):
     :param return_all: If True the embedding to every node will be returned. If False only the subset of embeddings for nodes that are in 'classes' will be returned.
     :return: A Matrix of embedding vectors
     """
+    from node2vec import Node2Vec
     node2vec = Node2Vec(graph, dimensions=dim, walk_length=30, num_walks=500, workers=4)
     model = node2vec.fit(window=50, min_count=1, batch_words=4)
     W = model.wv.vectors

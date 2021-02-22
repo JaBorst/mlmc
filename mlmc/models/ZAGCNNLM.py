@@ -2,103 +2,119 @@
 Few-Shot and Zero-Shot Multi-Label Learning for Structured Label Spaces - Rios & Kavuluru (2018)
 """
 import torch
-from ..models.abstracts import TextClassificationAbstract
-from ..representation import get, is_transformer
+from mlmc.models.abstracts.abstracts_graph import TextClassificationAbstractGraph
+from mlmc.models.abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
 import re
+import networkx as nx
 
-class ZAGCNNLM(TextClassificationAbstract):
-    def __init__(self, classes,   adjacency, method, scale, representation="roberta", max_len=200, dropout = 0.5, norm=False, n_layers=4, **kwargs):
+
+class ZAGCNNLM(TextClassificationAbstractGraph, TextClassificationAbstractZeroShot):
+    def __init__(self,dropout = 0.5, norm=False, filters=300, hidden_dim=512, kernel_sizes = [3,4,5,6] , **kwargs):
+        """
+        Class constructor and initialization of every hyperparameter.
+
+        :param dropout: Dropout rate
+        :param norm: If true the output of the tanh activation will be divided by its norm
+        :param filters: Number of filters used in the convolution
+        :param hidden_dim: Hidden state dimension
+        :param kernel_sizes: Sizes of the kernel used for the convolution
+        :param kwargs: Optimizer and loss function keyword arguments, see `mlmc.models.abstracts.abstracts.TextClassificationAbstractGraph`
+                    and `mlmc.models.abstracts.abstracts.TextClassificationAbstractZeroShot`
+        """
         super(ZAGCNNLM, self).__init__(**kwargs)
 
-        self.classes = classes
-        self.n_classes = len(classes)
-        self.max_len = max_len
         self.use_dropout = dropout
-        self.filters = 300
-        self.hidden_dim=512
-        self.scale = scale
-        self.kernel_sizes = [3,10]
-        self.dropout = dropout
-        self.adjacency = adjacency
-        self.method = method
-        self.adjacency_param = torch.nn.Parameter(torch.from_numpy(adjacency).float())
-        self.adjacency_param.requires_grad = False
-        self.n_layers=n_layers
-        self.norm = norm
-        self.representation = representation
-        self._init_input_representations()
+        self._config["filters"] = filters
+        self._config["hidden_dim"]=hidden_dim
+        self._config["kernel_sizes"] = kernel_sizes
+        self._config["dropout"] = dropout
+        self._config["norm"] = norm
 
-        from ..graph import get as gget
-        self.graph = gget(["stw"])
-        self.create_labels(classes, method=self.method, scale=self.scale)
+        self.create_labels(self.classes)
 
         self.convs = torch.nn.ModuleList(
-            [torch.nn.Conv1d(self.embeddings_dim, self.filters, k) for k in self.kernel_sizes])
+            [torch.nn.Conv1d(self.embeddings_dim, self._config["filters"], k) for k in self._config["kernel_sizes"]])
         self.pool = torch.nn.MaxPool1d(3, stride=2)
-        self.document_projection = torch.nn.Linear(self.filters, self.label_embeddings_dim)
+        self.document_projection = torch.nn.Linear(self._config["filters"], self.label_embeddings_dim)
 
 
-        self.dropout_layer= torch.nn.Dropout(self.dropout)
+        self.dropout_layer= torch.nn.Dropout(self._config["dropout"])
         import torch_geometric as torchg
-        self.gcn1 = torchg.nn.GCNConv(in_channels=self.label_embeddings.shape[-1], out_channels=self.hidden_dim)
-        self.gcn2 = torchg.nn.GCNConv(in_channels=self.hidden_dim, out_channels=self.hidden_dim)
-        self.projection = torch.nn.Linear(in_features=self.filters, out_features=self.hidden_dim+self.label_embeddings.shape[-1])
+        self.gcn1 = torchg.nn.GCNConv(in_channels=self.label_embeddings.shape[-1], out_channels=self._config["hidden_dim"])
+        self.gcn2 = torchg.nn.GCNConv(in_channels=self._config["hidden_dim"], out_channels=self._config["hidden_dim"])
+        self.projection = torch.nn.Linear(in_features=self._config["filters"], out_features=self._config["hidden_dim"]+self.label_embeddings.shape[-1])
         self.build()
 
     def forward(self, x):
-        if self.n_layers == 1:
-            with torch.no_grad():
-                embeddings = self.embedding(x)[0]
-        else:
-            with torch.no_grad():
-                embeddings = torch.cat(self.embedding(x)[2][-self.n_layers:], -1)
+        """
+        Forward pass function for transforming input tensor into output tensor.
+
+        :param x: Input tensor
+        :return: Output tensor
+        """
+        embeddings = self.embed_input(x)
         embedded = self.dropout_layer(embeddings)
         c = torch.cat([self.pool(torch.nn.functional.relu(conv(embedded.permute(0,2,1)))) for conv in self.convs], dim=-1).permute(0,2,1)
         d2 = torch.tanh(self.document_projection(c))
-        if self.norm: d2 = d2/d2.norm(p=2,dim=-1,keepdim=True)
+        if self._config["norm"]: d2 = d2/d2.norm(p=2,dim=-1,keepdim=True)
         a = torch.softmax(torch.matmul(d2, self.label_embeddings.t()), -1)
         label_wise_representation = torch.matmul(a.permute(0, 2, 1), c)
 
         label_wise_representation = self.dropout_layer(label_wise_representation)
 
-        labelgcn = self.gcn1(self.label_embeddings, torch.stack(torch.where(self.adjacency_param == 1), dim=0))
+        labelgcn = self.gcn1(self.label_embeddings, self.adj)
         labelgcn = self.dropout_layer(labelgcn)
-        labelgcn = self.gcn2(labelgcn, torch.stack(torch.where(self.adjacency_param == 1), dim=0))
+        labelgcn = self.gcn2(labelgcn, self.adj)
         labelvectors = torch.cat([self.label_embeddings, labelgcn], dim=-1)
         return (torch.relu(self.projection(label_wise_representation)) * labelvectors).sum(-1)
 
-    def create_labels(self, classes, method="repeat",scale="mean"):
+    def create_label_dict(self):
+        """
+        Embeds the labels of each class.
+
+        :return: Dictionary containing the original label with its corresponding embedding.
+        """
         # assert method in ("repeat","generate","embed", "glove", "graph"), 'method has to be one of ("repeat","generate","embed")'
-        self.classes = classes
-        if method=="repeat":
-            from ..representation import get_lm_repeated
-            l = get_lm_repeated(self.classes, self.representation)
-        if method == "generate":
-            from ..representation import get_lm_generated
-            l = get_lm_generated(self.classes, self.representation)
-        if method == "embed":
-            l = self.embedding(self.tokenizer(self.classes.keys()).to(list(self.parameters())[0].device))[1]
-        if method == "glove":
-            from ..representation import get_word_embedding_mean
+        from ..representation import get_word_embedding_mean
+        with torch.no_grad():
             l = get_word_embedding_mean(
                 [" ".join(re.split("[/ _-]", x.lower())) for x in self.classes.keys()],
                 "glove300")
-        if method == "graph":
-            from ..representation import get_graph_augmented
-            l = get_graph_augmented(self.classes, graph=self.graph, model=self.representation, topk=200, batch_size=64, device=self.device)
+        self.label_embeddings_dim = l.shape[-1]
+        return  {w:e for w,e in zip(self.classes, l)}
 
-        if scale=="mean":
-            print("subtracting mean")
-            l = l - l.mean(0,keepdim=True)
-        if scale == "normalize":
-            print("normalizing")
-            l = l/l.norm(p=2,dim=-1,keepdim=True)
+    def create_labels(self, classes):
+        """
+        Creates label embeddings and adds them to the model.
 
-        self.label_embeddings = torch.nn.Parameter(l.to(self.device))
-        self.label_embeddings.requires_grad = False
-        self.label_embeddings_dim = self.label_embeddings.shape[-1]
+        :param classes: The classes mapping
+        """
+        self._config["classes"] = classes
+        self.classes = classes
+        self.n_classes = len(classes)
 
-    def set_adjacency(self, adj):
-        del self.adjacency_param
-        self.adjacency_param = torch.nn.Parameter(torch.from_numpy(adj).float().to(self.device))
-        self.adjacency_param.requires_grad = False
+        ind = [list(self.kb.nodes).index(k) for k in classes.keys()]
+        tmp_adj = torch.from_numpy(nx.adjacency_matrix(self.kb).toarray()).float()
+
+        tmp_adj = torch.stack([tmp_adj[i] for i in ind])
+        tmp_adj = torch.stack([tmp_adj[:, i] for i in ind], 1)
+        tmp_adj = tmp_adj + torch.eye(tmp_adj.shape[0])
+        self.adj = torch.stack(torch.where(tmp_adj.t() == 1), dim=0).to(self.device)
+
+
+        try:
+            self.label_embeddings = torch.stack([self.label_dict[cls] for cls in classes.keys()])
+        except:
+            self.label_dict = self.create_label_dict()
+            self.label_embeddings = torch.stack([self.label_dict[cls] for cls in classes.keys()])
+        self.label_embeddings = self.label_embeddings.to(self.device)
+
+        if not hasattr(self, "_trained_classes"):
+            self._trained_classes = []
+        #Auxiliary values
+        l = list(classes.items())
+        l.sort(key=lambda x: x[1])
+        self._config["zeroshot_ind"] = torch.LongTensor([1 if x[0] in self._trained_classes else 0 for x in l])
+        self._config["mixed_shot"] = not (self._config["zeroshot_ind"].sum() == 0 or  self._config["zeroshot_ind"].sum() == self._config["zeroshot_ind"].shape[
+            0]).item()  # maybe obsolete?
+
