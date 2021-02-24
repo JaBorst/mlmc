@@ -182,7 +182,7 @@ class TextClassificationAbstract(torch.nn.Module):
         with torch.no_grad():
             for i, b in enumerate(data_loader):
                 y = b["labels"]
-                l, output = self._step(x=self.transform(b["text"]).to(self.device), y=y.to(self.device))
+                l, output = self._step(x=self.transform(b["text"]), y=y.to(self.device))
                 output = self.act(output).cpu()
                 pred = self._threshold_fct(output)
                 average.update(l.item())
@@ -199,7 +199,7 @@ class TextClassificationAbstract(torch.nn.Module):
         average = Average()
         for i, b in enumerate(train):
             self.optimizer.zero_grad()
-            l, _ = self._step(x=self.transform(b["text"]).to(self.device), y=b["labels"].to(self.device))
+            l, _ = self._step(x=self.transform(b["text"]), y=b["labels"].to(self.device))
             l.backward()
             self.optimizer.step()
             average.update(l.item())
@@ -220,8 +220,8 @@ class TextClassificationAbstract(torch.nn.Module):
             loss, output: loss tensor, and the raw prediction output of the network
         """
         output = self(x)
-        if x.shape[0] == 1 and output.shape[0] != 1:
-            output = output[None]
+        # if x.shape[0] == 1 and output.shape[0] != 1:
+        #     output = output[None]
         l = self._loss(output, y)
         l = self._regularize(l)
         return l, output
