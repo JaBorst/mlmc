@@ -27,8 +27,9 @@ import sys
 import torch
 
 
-def install_torch_geometric():
-    cuda = torch.version.cuda
+def install_torch_geometric(cuda=None):
+    if cuda is None:
+        cuda = torch.version.cuda
     if cuda is None:
         cuda = "cpu"
     else:
