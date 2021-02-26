@@ -569,3 +569,8 @@ class TextClassificationAbstract(torch.nn.Module):
         self.optimizer = type(self.optimizer)(filter(lambda p: p.requires_grad, self.parameters()),
                                               **self.optimizer_params)
         self.to(self.device)
+
+    def set_lm(self, finetune):
+        self.finetune=finetune
+        for param in self.embedding.parameters(): param.requires_grad = self.finetune
+        self.rebuild
