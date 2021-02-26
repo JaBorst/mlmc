@@ -742,3 +742,33 @@ def load_yahoo_answers():
         }
         _save_to_tmp("yahoo_answers", (data, classes))
         return data, classes
+
+
+def load_movie_reviews():
+    url = "http://www.cs.cornell.edu/people/pabo/movie-review-data/review_polarity.tar.gz"
+    data = _load_from_tmp("movie_reviews")
+    if data is not None:
+        return data
+    else:
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            resp = urlopen(url)
+            tf = tarfile.open(fileobj=resp, mode="r|gz")
+            tf.extractall(Path(tmpdir))
+
+            negatives = []
+            for p in (Path(tmpdir) / 'txt_sentoken'/ "neg").iterdir():
+                with open(p,"r") as f:
+                    negatives.append(f.read())
+            positives = []
+            for p in (Path(tmpdir) / 'txt_sentoken'/ "pos").iterdir():
+                with open(p,"r") as f:
+                    positives.append(f.read())
+
+        classes = {"negative":0, "positive":1}
+        data = {
+            "train": (negatives+positives, [["negative"] for _ in negatives]+[["positive"] for _ in positives]),
+            "test":([],[])
+        }
+        _save_to_tmp("movie_reviews", (data, classes))
+        return data, classes
