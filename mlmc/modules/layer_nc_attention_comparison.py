@@ -64,26 +64,38 @@ class SplitWrapper(torch.nn.Module):
 
 
 class DynamicWeightedFusion(torch.nn.Module):
-    def __init__(self, in_features, n_inputs, noise=0.01, dropout=0.2, norm="norm", share_weights=False):
+    def __init__(self, in_features, n_inputs, noise=0.01, dropout=0.2, norm="norm", share_weights=False, multiplier=None):
         super(DynamicWeightedFusion, self).__init__()
+
+        if multiplier is None:
+            multiplier = [1 for _ in range(n_inputs)]
+        self.multiplier = multiplier
+
         self.in_features = in_features
         self.n_inputs = n_inputs
         self.noise = noise
         self.dropout = dropout
         self.norm = norm
         self.share_weights = share_weights
-        assert norm in ("softmax", "sigmoid", "norm")
+        assert norm in ("softmax", "sigmoid", "norm", "only")
         if self.share_weights:
             self.weights_projection = torch.nn.Linear(in_features, 1)
         else:
             self.weights_projection = torch.nn.ModuleList(
                 [torch.nn.Linear(in_features, 1) for _ in range(self.n_inputs)])
 
+            for l, m in zip(self.weights_projection, self.multiplier):
+                torch.nn.init.uniform_(l.weight, a=min(0.0,m), b=max(0.,m))
+                torch.nn.init.uniform_(l.bias, a=min(0.0,m), b=max(0.,m))
+                # torch.nn.init._no_grad_fill_(l.weight, m/in_features)
+                # torch.nn.init._no_grad_fill_(l.bias, m/in_features)
+
     def forward(self, x):
         if self.share_weights:
             weights = torch.cat([self.weights_projection(i) for i in x], -1)
         else:
             weights = torch.cat([p(i) for p, i in zip(self.weights_projection, x)], -1)
+
         if self.training:
             noise = self.noise * torch.rand(weights.size()).to(weights.device)
             weights = weights + noise
@@ -94,5 +106,7 @@ class DynamicWeightedFusion(torch.nn.Module):
             weights = weights / weights.sum(-1, keepdim=True)
         elif self.norm == "sigmoid":
             weights = torch.sigmoid(weights)
+        elif self.norm == "only":
+            weights = weights / weights.sum(-1, keepdim=True)
 
         return (torch.stack(x, -2) * weights.unsqueeze(-1)).sum(-2), weights
