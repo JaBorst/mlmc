@@ -8,6 +8,9 @@ from .graph_loaders import load_wordnet, load_wordnet_sample, load_NELL,load_els
 from .graph_operations import subgraphs, embed_align, augment_wikiabstracts,ascii_graph
 from .graph_operations import plot_activation
 from .graph_insert import graph_insert_labels
+import torch
+
+
 register = {
     "wordnet": load_wordnet,
     "stw": load_stw,
@@ -44,3 +47,13 @@ def get(name: [list, str]):
     if isinstance(name, str):
         name = [name]
     return nx.compose_all([get_graph(x) for x in name])
+
+def get_random_graph(n=100, dim=300, density=0.1):
+    e = torch.normal(0, 1, (n, dim), )
+    e = e / e.norm(p=2, dim=-1, keepdim=True)
+    a = torch.matmul(e, e.t())
+
+    k = int(density * n * n) + n
+    threshold = a.flatten().topk(k)[0].min()
+    return e, (a > threshold).long()
+
