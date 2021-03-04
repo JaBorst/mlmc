@@ -491,7 +491,7 @@ def get_dataset(name, type, ensure_valid=False, valid_split=0.25, target_dtype=t
     data, classes = f()
 
     if "valid" not in data.keys():
-        print("No Validation data found.")
+        # print("No Validation data found.")
         if ensure_valid:
             print("Providing random split...")
             from sklearn.model_selection import train_test_split

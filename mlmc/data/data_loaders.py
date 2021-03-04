@@ -31,7 +31,7 @@ def _load_from_tmp(dataset):
     if not Path.exists(CACHE):
         Path.mkdir(CACHE)
     if Path.is_file(CACHE / dataset):
-        print("Loading from cache...")
+        # print("Loading from cache...")
         with open(CACHE / dataset, "rb") as f:
             data = pickle.load(f)
         return data
