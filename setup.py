@@ -31,6 +31,7 @@ setup(
               'mlmc.graph',
               'mlmc.metrics',
               'mlmc.models',
+              'mlmc.callbacks',
               'mlmc.modules',
               'mlmc.models.abstracts',
               'mlmc.thresholds',
