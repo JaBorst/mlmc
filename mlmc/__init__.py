@@ -16,6 +16,7 @@ import mlmc.graph
 import mlmc.metrics
 import mlmc.representation
 import mlmc.modules
+import mlmc.callbacks
 # Save and load models for inference
 from .save_and_load import save, load
 

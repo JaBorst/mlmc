@@ -263,12 +263,12 @@ class TextClassificationAbstract(torch.nn.Module):
     def _callback_train_end(self, callbacks):
         for cb in callbacks:
             if hasattr(cb, "on_train_end"):
-                cb.on_epoch_end(self)
+                cb.on_train_end(self)
     def _callback_epoch_start(self, callbacks):
         # TODO: Documentation
         for cb in callbacks:
-            if hasattr(cb, "on_epoch_end"):
-                cb.on_epoch_end(self)
+            if hasattr(cb, "on_epoch_start"):
+                cb.on_epoch_start(self)
 
     def fit(self, train,
             valid=None, epochs=1, batch_size=16, valid_batch_size=50, patience=-1, tolerance=1e-2,
@@ -300,8 +300,8 @@ class TextClassificationAbstract(torch.nn.Module):
             print("You are using the model in multi mode but input is SingeleLabelDataset.")
             return 0
 
-        validation = []
-        train_history = {"loss": []}
+        self.validation = []
+        self.train_history = {"loss": []}
 
         assert not (type(train) == SingleLabelDataset and self.target == "multi"), \
             "You inserted a SingleLabelDataset but chose multi as target."
@@ -322,7 +322,7 @@ class TextClassificationAbstract(torch.nn.Module):
                       postfix=[losses], desc="Epoch %i/%i" % (e + 1, epochs), ncols=100) as pbar:
                 loss = self._epoch(train_loader, pbar=pbar)
                 if lr_schedule is not None: scheduler.step()
-                train_history["loss"].append(loss)
+                self.train_history["loss"].append(loss)
 
                 # Validation if available
                 if valid is not None:
@@ -334,7 +334,7 @@ class TextClassificationAbstract(torch.nn.Module):
 
                     valid_loss_dict= {"valid_loss": valid_loss}
                     valid_loss_dict.update(result_metrics.compute())
-                    validation.append(valid_loss_dict)
+                    self.validation.append(valid_loss_dict)
 
                     printables= {"valid_loss": valid_loss}
                     printables.update(result_metrics.print())
@@ -364,8 +364,8 @@ class TextClassificationAbstract(torch.nn.Module):
                         print("Early Stopping.")
                         break
                 elif valid is not None:
-                    if best_loss - validation[-1]["valid_loss"] > tolerance:
-                        best_loss = validation[-1]["valid_loss"]
+                    if best_loss - self.validation[-1]["valid_loss"] > tolerance:
+                        best_loss = self.validation[-1]["valid_loss"]
                         torch.save(self.state_dict(), id + "_checkpoint.pt")
                         # save states
                         last_best_loss_update = 0
@@ -376,11 +376,13 @@ class TextClassificationAbstract(torch.nn.Module):
                         print("Early Stopping.")
                         break
 
-
+        self._callback_train_end(callbacks)
         if patience > -1:
             self.load_state_dict(torch.load(id + "_checkpoint.pt"))
         # Load best
-        return {"train": train_history, "valid": validation}
+        from copy import copy
+        return_copy = {"train": copy(self.train_history), "valid": copy(self.validation)}
+        return return_copy
 
     def predict(self, x, return_scores=False):
         """
