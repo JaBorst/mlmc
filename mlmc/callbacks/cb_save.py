@@ -30,8 +30,8 @@ class CallbackSaveAndRestore(Callback):
         self.training_procedure.append(tmp)
 
     def on_epoch_end(self, model):
-        torch.save(model.state_dict(), self.dir / f"{self.file}_{len(self.training_procedure)-1}.pt")
         self._add_metric(model)
+        torch.save(model.state_dict(), self.dir / f"{self.file}_{len(self.training_procedure)-1}.pt")
 
     def on_train_end(self, model):
         i = torch.argmax(torch.tensor(self.training_procedure)) if self.mode=="max" else torch.argmin(torch.tensor(self.training_procedure))
