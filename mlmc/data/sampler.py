@@ -173,3 +173,18 @@ def validation_split(dataset, fraction=None, absolute=None):
            type(dataset)(x=[dataset.x[i] for i in ind[n_samples:]],
                          y=[dataset.y[i] for i in ind[n_samples:]],
                          classes=dataset.classes)
+
+def kfolds(dataset, k=10):
+    from sklearn.model_selection import KFold
+    for i1, i2 in KFold(k, shuffle=True).split(dataset.y):
+        yield {"train":
+            type(dataset)(
+                x = [i for n, i in enumerate(dataset.x) if n in i1],
+                y = [i for n, i in enumerate(dataset.y) if n in i1]
+            ),
+        "test":
+            type(dataset)(
+                x=[i for n, i in enumerate(dataset.x) if n in i2],
+                y=[i for n, i in enumerate(dataset.y) if n in i2]
+            )
+        }
