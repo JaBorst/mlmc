@@ -180,11 +180,13 @@ def kfolds(dataset, k=10):
         yield {"train":
             type(dataset)(
                 x = [i for n, i in enumerate(dataset.x) if n in i1],
-                y = [i for n, i in enumerate(dataset.y) if n in i1]
+                y = [i for n, i in enumerate(dataset.y) if n in i1],
+                classes=dataset.classes
             ),
         "test":
             type(dataset)(
                 x=[i for n, i in enumerate(dataset.x) if n in i2],
-                y=[i for n, i in enumerate(dataset.y) if n in i2]
+                y=[i for n, i in enumerate(dataset.y) if n in i2],
+                classes=dataset.classes
             )
         }
