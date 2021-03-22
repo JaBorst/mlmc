@@ -31,7 +31,7 @@ def _load_from_tmp(dataset):
     if not Path.exists(CACHE):
         Path.mkdir(CACHE)
     if Path.is_file(CACHE / dataset):
-        print("Loading from cache...")
+        # print("Loading from cache...")
         with open(CACHE / dataset, "rb") as f:
             data = pickle.load(f)
         return data
@@ -768,7 +768,7 @@ def load_movie_reviews():
         classes = {"negative":0, "positive":1}
         data = {
             "train": (negatives+positives, [["negative"] for _ in negatives]+[["positive"] for _ in positives]),
-            "test":([],[])
+            "test": None
         }
         _save_to_tmp("movie_reviews", (data, classes))
         return data, classes
