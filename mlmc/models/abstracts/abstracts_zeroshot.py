@@ -179,20 +179,7 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         self._config["mixed_shot"] = not (self._config["zeroshot_ind"].sum() == 0 or  self._config["zeroshot_ind"].sum() == self._config["zeroshot_ind"].shape[
             0]).item()  # maybe obsolete?
 
-    def single(self):
-        self._config["target"] = "single"
-        self.target = "single"
-        self.set_threshold("max")
-        self.activation = torch.softmax
-        self.loss = torch.nn.CrossEntropyLoss()
-        self.build()
-    def multi(self):
-        self._config["target"] = "multi"
-        self.target = "multi"
-        self.set_threshold("mcut")
-        self.activation = torch.sigmoid
-        self.loss = torch.nn.BCEWithLogitsLoss()
-        self.build()
+
 
     def _entail_forward(self, x1, x2):
         self.label_embedding = x2

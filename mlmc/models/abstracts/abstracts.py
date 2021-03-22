@@ -136,6 +136,7 @@ class TextClassificationAbstract(torch.nn.Module):
         if isinstance(self.optimizer, type) and self.optimizer is not None:
             self.optimizer = self.optimizer(filter(lambda p: p.requires_grad, self.parameters()),
                                             **self.optimizer_params)
+
         self.to(self.device)
 
     def _init_metrics(self, metrics=None):
@@ -567,7 +568,27 @@ class TextClassificationAbstract(torch.nn.Module):
         """
         Internal build method.
         """
-        self.loss = [type(x)().to(self.device) for x in self.loss]
+        for param in self.embedding.parameters(): param.requires_grad = self.finetune
+        self.embedding.requires_grad = self.finetune
+        self.loss = type(self.loss)().to(self.device)
         self.optimizer = type(self.optimizer)(filter(lambda p: p.requires_grad, self.parameters()),
                                               **self.optimizer_params)
         self.to(self.device)
+
+    def single(self):
+        """Setting the default single label mode"""
+        self._config["target"] = "single"
+        self.target = "single"
+        self.set_threshold("max")
+        self.activation = torch.softmax
+        self.loss = torch.nn.CrossEntropyLoss()
+        self.build()
+        
+    def multi(self):
+        """Setting the defaults for multi label mode"""
+        self._config["target"] = "multi"
+        self.target = "multi"
+        self.set_threshold("mcut")
+        self.activation = torch.sigmoid
+        self.loss = torch.nn.BCEWithLogitsLoss()
+        self.build()
