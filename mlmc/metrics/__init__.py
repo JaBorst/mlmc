@@ -5,7 +5,7 @@ from .confusion import ConfusionMatrix
 
 from ..thresholds import get as thresholdget
 from .save_scores import SaveScores
-from .helpers import flatten
+from .helpers import flatten, flt
 
 metrics_dict= {
     "p@1": lambda: PrecisionK(k=1, is_multilabel=True, average=True),
