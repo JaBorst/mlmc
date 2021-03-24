@@ -435,6 +435,29 @@ class TextClassificationAbstract(torch.nn.Module):
         del self.classes_rev
         return predictions
 
+    def predict_batch(self, data, batch_size=50):
+        """
+        Predict all labels for a dataset int the mlmc.data.MultilabelDataset format.
+
+        For detailed information on the arcuments see `mlmc.models.TextclassificationAbstract.predict`
+
+        Args:
+            data: A MultilabelDataset
+            batch_size: Batch size
+
+        Returns:
+            A list of labels
+
+        """
+        train_loader = torch.utils.data.DataLoader(MultiLabelDataset(x=data), batch_size=batch_size, shuffle=False)
+        predictions = []
+        if not hasattr(self, "classes_rev"):
+            self.classes_rev = {v: k for k, v in self.classes.items()}
+        for b in tqdm(train_loader, ncols=100):
+            predictions.extend(self.predict(b["text"]))
+        del self.classes_rev
+        return predictions
+
     def run(self, x):
         """
         Transforms textual input into network format and applies activation function.
