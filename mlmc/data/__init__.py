@@ -250,6 +250,12 @@ class MultiLabelDataset(Dataset):
         """
         return sum([len(x) for x in self.y]) / len(self.y)
 
+class PredictionDataset(MultiLabelDataset):
+    def __init__(self, x, **kwargs):
+        super().__init__(x, y=None, classes=None, target_dtype=torch._cast_Float, one_hot=True, **kwargs)
+    def __getitem__(self, idx):
+        return {'text': self.x[idx]}
+
 
 class SingleLabelDataset(MultiLabelDataset):
     def __init__(self, *args, **kwargs):
@@ -292,6 +298,8 @@ class SingleLabelDataset(MultiLabelDataset):
         :return: Dictionary containing the text and labels of the entry
         """
         return {'text': self.x[idx], 'labels': torch.tensor(self.classes[self.y[idx][0]])}
+
+
 
 
 class MultiOutputMultiLabelDataset(Dataset):

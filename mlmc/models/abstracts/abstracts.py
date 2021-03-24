@@ -2,7 +2,7 @@ import torch
 from ignite.metrics import Average
 from tqdm import tqdm
 
-from ...data import SingleLabelDataset, MultiLabelDataset
+from ...data import SingleLabelDataset, MultiLabelDataset, PredictionDataset
 from ...metrics import MetricsDict
 from ...representation import is_transformer, get
 from ...thresholds import get as thresholdget
@@ -89,15 +89,13 @@ class TextClassificationAbstract(torch.nn.Module):
         self._config = {
             "classes": self.classes,
             "target": self.target, "representation": self.representation,
-            "activation":self.activation, "loss": self.loss,
+            "activation": self.activation, "loss": self.loss,
             "optimizer": self.optimizer, "max_len": self.max_len,
             "optimizer_params": self.optimizer_params, "device": self.device,
             "finetune": finetune, "threshold": threshold, "n_layers": self.n_layers,
-            "label_len":label_len,
+            "label_len": label_len,
         }
         self._config.update(kwargs)
-
-
 
     def act(self, x):
         """
@@ -117,7 +115,7 @@ class TextClassificationAbstract(torch.nn.Module):
 
         :param name: Name of the threshold (see mlmc.thresholds.threshold_dict.keys())
         """
-        if not (name == "max") and name=="single":
+        if not (name == "max") and name == "single":
             Warning("You're using a non max threshold in single label mode")
         self.threshold = name
         if isinstance(name, str):
@@ -148,7 +146,7 @@ class TextClassificationAbstract(torch.nn.Module):
         :return: A dictionary containing the initialized metrics
         """
         if metrics is None:
-            metrics=f"default_{self.target}label"
+            metrics = f"default_{self.target}label"
         metrics = MetricsDict(metrics)
         metrics.init(self.__dict__)
         metrics.reset()
@@ -261,10 +259,12 @@ class TextClassificationAbstract(torch.nn.Module):
         for cb in callbacks:
             if hasattr(cb, "on_epoch_end"):
                 cb.on_epoch_end(self)
+
     def _callback_train_end(self, callbacks):
         for cb in callbacks:
             if hasattr(cb, "on_train_end"):
                 cb.on_train_end(self)
+
     def _callback_epoch_start(self, callbacks):
         # TODO: Documentation
         for cb in callbacks:
@@ -273,7 +273,7 @@ class TextClassificationAbstract(torch.nn.Module):
 
     def fit(self, train,
             valid=None, epochs=1, batch_size=16, valid_batch_size=50, patience=-1, tolerance=1e-2,
-            return_roc=False, return_report=False, callbacks=None, metrics=None, lr_schedule=None, lr_param ={}):
+            return_roc=False, return_report=False, callbacks=None, metrics=None, lr_schedule=None, lr_param={}):
         """
         Training function
 
@@ -333,18 +333,17 @@ class TextClassificationAbstract(torch.nn.Module):
                         metrics=metrics,
                         _fit=True)
 
-                    valid_loss_dict= {"valid_loss": valid_loss}
+                    valid_loss_dict = {"valid_loss": valid_loss}
                     valid_loss_dict.update(result_metrics.compute())
                     self.validation.append(valid_loss_dict)
 
-                    printables= {"valid_loss": valid_loss}
+                    printables = {"valid_loss": valid_loss}
                     printables.update(result_metrics.print())
                     pbar.postfix[0].update(printables)
                     pbar.update()
 
             # Callbacks
             self._callback_epoch_end(callbacks)
-
 
             # Early Stopping
             if patience > -1:
@@ -449,7 +448,7 @@ class TextClassificationAbstract(torch.nn.Module):
             A list of labels
 
         """
-        train_loader = torch.utils.data.DataLoader(MultiLabelDataset(x=data), batch_size=batch_size, shuffle=False)
+        train_loader = torch.utils.data.DataLoader(PredictionDataset(x=data), batch_size=batch_size, shuffle=False)
         predictions = []
         if not hasattr(self, "classes_rev"):
             self.classes_rev = {v: k for k, v in self.classes.items()}
@@ -606,7 +605,7 @@ class TextClassificationAbstract(torch.nn.Module):
         self.activation = torch.softmax
         self.loss = torch.nn.CrossEntropyLoss()
         self.build()
-        
+
     def multi(self):
         """Setting the defaults for multi label mode"""
         self._config["target"] = "multi"
