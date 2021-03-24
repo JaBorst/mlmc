@@ -190,7 +190,7 @@ class MetricsDict:
         import mlflow
         results = self.print()
         for k, v in self._recurse_dictionary(results, prefix=prefix):
-            mlflow.log_metric(k.replace("@","/a/)"),v,step)
+            mlflow.log_metric(k.replace("@","/a/"),v,step)
         return _run
 
     def __repr__(self):
