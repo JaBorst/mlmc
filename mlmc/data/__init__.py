@@ -591,4 +591,4 @@ class EntailmentDataset(Dataset):
         return {"x1": self.x1[item], "x2": self.x2[item], "labels": self.classes[self.labels[item]]}
 
 ## Sampler import
-from .sampler import sampler, successive_sampler, class_sampler, validation_split, kfolds
+from .sampler import sampler, successive_sampler, class_sampler, validation_split, kfolds, fewshot_sampler

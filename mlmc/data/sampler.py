@@ -190,3 +190,53 @@ def kfolds(dataset, k=10):
                 classes=dataset.classes
             )
         }
+
+
+import random
+def fewshot_sampler(dataset, k):
+    from . import is_multilabel
+    if is_multilabel(dataset):
+        index = list(range(len(dataset)))
+        random.shuffle(index)
+        sample_x = []
+        sample_y = []
+        counter = {k: 0 for k in dataset.classes}
+        for i in index:
+            r = sum([counter[l] < k for l in dataset.y[i]]) / len(dataset.y[i])
+            if r == 1:#random.uniform(0, 1) < r:
+                sample_x.append(dataset.x[i])
+                sample_y.append(dataset.y[i])
+                for l in dataset.y[i]:
+                    counter[l] = counter[l] + 1
+
+            if all([k <= v for v in counter.values()]):
+                break
+
+        for key, val in counter.items():
+            if val==0:
+                for x, y in zip(dataset.x, dataset.y):
+                    if key in y:
+                        sample_x.append(x)
+                        sample_y.append(y)
+                        for al in y:
+                            counter[al] = counter[al] + 1
+                        if counter[key] >= k:
+                            break
+        data = type(dataset)(x=sample_x, y=sample_y, classes=dataset.classes)
+        data.count(list(data.classes.keys()))
+        return type(dataset)(x = sample_x, y = sample_y, classes = dataset.classes)
+    else:
+        index = list(range(len(dataset)))
+        random.shuffle(index)
+        sample_x = []
+        sample_y = []
+        counter = {k: 0 for k in dataset.classes}
+        for i in index:
+            if counter[dataset.y[i][0]] < k:
+                sample_x.append(dataset.x[i])
+                sample_y.append(dataset.y[i])
+                counter[dataset.y[i][0]] = counter[dataset.y[i][0]] + 1
+
+            if all([k <= v for v in counter.values()]):
+                break
+        return type(dataset)(x = sample_x, y = sample_y, classes = dataset.classes)
