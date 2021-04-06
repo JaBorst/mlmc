@@ -5,7 +5,7 @@ from pathlib import Path
 
 import torch
 import warnings
-
+import dill
 
 def save(model, path, only_inference=False):
     """Saving a model to disk
@@ -30,7 +30,7 @@ def save(model, path, only_inference=False):
         # Use torch.save to save the inference state. if save_all: Save the input representation (embedding or lm)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            torch.save(model, Path(path))
+            torch.save(model, Path(path), pickle_module=dill)
 
     else:
         with warnings.catch_warnings():
@@ -40,7 +40,7 @@ def save(model, path, only_inference=False):
                 "args": model._config,
                 "optimizer": optimizer_tmp,
                 "loss": loss_tmp,
-                "model_state_dict": model.state_dict()}, path)
+                "model_state_dict": model.state_dict()}, path, pickle_module=dill)
 
 
     # Reattach loss and optimizer and variables
@@ -69,11 +69,11 @@ def load(path, only_inference=False, only_cpu=False):
         additional_arguments["map_location"] = torch.device('cpu')
 
     if only_inference:
-        loaded = torch.load(Path(path),**additional_arguments)
+        loaded = torch.load(Path(path), pickle_module=dill, **additional_arguments)
         return loaded
     else:
         #load all information
-        loaded = torch.load(Path(path),**additional_arguments)
+        loaded = torch.load(Path(path), pickle_module=dill, **additional_arguments)
         # Create a model with the same parameters
         model = loaded["type"](**loaded["args"])
         model.load_state_dict(loaded["model_state_dict"])
