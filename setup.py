@@ -49,6 +49,7 @@ setup(
                       'tqdm',
                       'networkx',
                       'bs4',
+                      "dill",
                       'pytest',
                       'pytest-cov',
                       'rdflib',
