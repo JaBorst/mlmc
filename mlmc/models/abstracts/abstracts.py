@@ -404,14 +404,14 @@ class TextClassificationAbstract(torch.nn.Module):
         x = self.transform(x)
         with torch.no_grad():
             output = self.act(self(x))
-        prediction = self._threshold_fct(output)
+        prediction = self._threshold_fct(output).cpu()
         self.train()
         if return_scores:
             return [[(self.classes_rev[i.item()], s[i].item())
                      for i in torch.where(p == 1)[0]] for s, p in zip(output, prediction)]
         return [[self.classes_rev[i.item()] for i in torch.where(p == 1)[0]] for p in prediction]
 
-    def predict_dataset(self, data, batch_size=50, tr=0.5):
+    def predict_dataset(self, data, batch_size=50, tr=0.5, return_scores=False):
         """
         Predict all labels for a dataset int the mlmc.data.MultilabelDataset format.
 
@@ -430,11 +430,11 @@ class TextClassificationAbstract(torch.nn.Module):
         if not hasattr(self, "classes_rev"):
             self.classes_rev = {v: k for k, v in self.classes.items()}
         for b in tqdm(train_loader, ncols=100):
-            predictions.extend(self.predict(b["text"]))
+            predictions.extend(self.predict(b["text"], return_scores=return_scores))
         del self.classes_rev
         return predictions
 
-    def predict_batch(self, data, batch_size=50):
+    def predict_batch(self, data, batch_size=50, return_scores=False):
         """
         Predict all labels for a dataset int the mlmc.data.MultilabelDataset format.
 
@@ -453,7 +453,7 @@ class TextClassificationAbstract(torch.nn.Module):
         if not hasattr(self, "classes_rev"):
             self.classes_rev = {v: k for k, v in self.classes.items()}
         for b in tqdm(train_loader, ncols=100):
-            predictions.extend(self.predict(b["text"]))
+            predictions.extend(self.predict(b["text"], return_scores=return_scores))
         del self.classes_rev
         return predictions
 
