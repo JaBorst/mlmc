@@ -46,6 +46,27 @@ class AccuracyTreshold(Accuracy):
         :param output: output of classification task in form (scores, truth, pred)
         """
         super(AccuracyTreshold, self).update((self.trf(x=output[0]).int(), output[1].int()))
+        # super(AccuracyTreshold, self).update((output[2].int(), output[1].int()))
+
+    def print(self):
+        """
+        Computes metric.
+
+        :return: Accuracy threshold
+        """
+        return self.compute()
+
+class Accuracy(Accuracy):
+    """
+    Class for calculating a threshold regarding accuracy. Uses ignite's accuracy metric.
+    """
+    def update(self, output):
+        """
+        Adds classification output to class for computation of metric.
+
+        :param output: output of classification task in form (scores, truth, pred)
+        """
+        super(Accuracy, self).update((output[2].int(), output[1].int()))
 
     def print(self):
         """
