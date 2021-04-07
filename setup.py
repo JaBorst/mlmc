@@ -55,7 +55,8 @@ setup(
                       'rdflib',
                       'h5py',
                       'datasketch',
-                      'torch>=1.5.1'
+                      'torch>=1.5.1',
+                      'sentencepiece'
     ],
     include_package_data=True,
 )
