@@ -15,6 +15,8 @@ from .MoLSANNC import MoLSANNC
 from .MoTransformer import MoTransformer
 from .Transformer import Transformer
 
+from .Encoder.simple import SimpleEncoder
+
 # Geometric Models
 try:
     from .ZAGCNNLM import ZAGCNNLM
