@@ -34,6 +34,7 @@ setup(
               'mlmc.callbacks',
               'mlmc.modules',
               'mlmc.models.abstracts',
+              'mlmc.models.Encoder',
               'mlmc.thresholds',
               'mlmc.representation'
               ],
