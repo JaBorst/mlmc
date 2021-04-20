@@ -19,7 +19,10 @@ class EncoderAbstract(TextClassificationAbstract):
         assert callable(c)
         self._config["sformatter"] = c
 
-    def transform(self,x, max_length=400, reshape=False):
+    def transform(self,x, max_length=400, reshape=False, device=None):
+        if device is None:
+            device=self.device
+
         if self._all_compare:
             label = list(self.classes) * len(x)
             text = [s for s in x for _ in range(len(self.classes))]
@@ -31,11 +34,11 @@ class EncoderAbstract(TextClassificationAbstract):
                                        max_length=self.max_len)
 
         if reshape:
-            tok["input_ids"]= tok["input_ids"].reshape((len(x), len(self.classes), -1)).to(self.device)
-            tok["attention_mask"] = tok["attention_mask"].reshape((len(x), len(self.classes), -1)).to(self.device)
+            tok["input_ids"]= tok["input_ids"].reshape((len(x), len(self.classes), -1)).to(device)
+            tok["attention_mask"] = tok["attention_mask"].reshape((len(x), len(self.classes), -1)).to(device)
         else:
-            tok["input_ids"]= tok["input_ids"].to(self.device)
-            tok["attention_mask"] = tok["attention_mask"].to(self.device)
+            tok["input_ids"]= tok["input_ids"].to(device)
+            tok["attention_mask"] = tok["attention_mask"].to(device)
         return tok
 
     def single(self):
@@ -53,6 +56,46 @@ class EncoderAbstract(TextClassificationAbstract):
         self.activation = lambda x: x
         # self.loss = torch.nn.MSELoss()
         # self.build()
+
+    def _step(self, x, y):
+        """
+        This method gets input and output for of one batch and calculates output and predictions
+        Args:
+            x: input tensor
+            y: tensor of truth indices
+
+        Returns:
+            loss, output: loss tensor, and the raw prediction output of the network
+        """
+        output = self(x)
+        # if x.shape[0] == 1 and output.shape[0] != 1:
+        #     output = output[None]
+        l = self._loss(output, y)
+        l = self._regularize(l)
+        return l, output
+
+    # def _epoch(self, train, sub_batch_size=32, pbar=None):
+    #     """Implementing a subbatching loop"""
+    #     average = Average()
+    #     for i, b in enumerate(train):
+    #         x = self.transform(b["text"], device="cpu")
+    #         y = b["labels"].reshape((x["input_ids"].shape[0],))
+    #         for ind in range(0, sub_batch_size, y.shape[0], ):
+    #             self.optimizer.zero_grad()
+    #             self._all_compare = False
+    #             l, _ = self._step(
+    #                 {k:v[ind:(ind+sub_batch_size)].to(self.device) for k, v in x.items()},
+    #                 y[ind:(ind+sub_batch_size)].to(self.device)
+    #             )
+    #             self._all_compare = True
+    #             l.backward()
+    #             self.optimizer.step()
+    #             average.update(l.item())
+    #
+    #         if pbar is not None:
+    #             pbar.postfix[0]["loss"] = round(average.compute().item(), 8)
+    #             pbar.update()
+    #     return average.compute().item()
 
     def pretrain_entailment(self, train,
             valid=None, epochs=1, batch_size=16, valid_batch_size=50, callbacks=None, lr_schedule=None, lr_param={}):
