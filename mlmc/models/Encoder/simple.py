@@ -10,6 +10,7 @@ class SimpleEncoder(EncoderAbstract):
         """Only there to initialize a projection for binary classification"""
         super(EncoderAbstract, self).__init__(*args, **kwargs)
         self.decision = torch.nn.Linear(self.embeddings_dim, 1)
+        self._all_compare = True
         self.build()
 
     def forward(self, x):
