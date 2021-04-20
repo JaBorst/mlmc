@@ -24,10 +24,10 @@ class EncoderAbstract(TextClassificationAbstract):
             device=self.device
 
         if self._all_compare:
-            label = list([self._config["sformatter"][x] for x in self.classes]) * len(x)
+            label = list([self._config["sformatter"](x) for x in self.classes]) * len(x)
             text = [s for s in x for _ in range(len(self.classes))]
         else:
-            label = list([self._config["sformatter"][x] for x in self.classes])
+            label = list([self._config["sformatter"](x) for x in self.classes])
             text = x
         tok = self.tokenizer.tokenizer(text, label, return_tensors="pt", add_special_tokens=True, padding=True,
                                        truncation=True,
