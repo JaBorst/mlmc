@@ -15,10 +15,6 @@ class SimpleEncoder(EncoderAbstract):
 
     def forward(self, x):
         e = self.embedding(x["input_ids"])[1]
-        # if isinstance(e[1], tuple):
-        #     e = e[1][0][:,-1,:]
-        # else:
-        #     e = e
         if self._all_compare:
             return self.decision(e).squeeze(-1).reshape((int(x["input_ids"].shape[0]/len(self.classes)), len(self.classes)))
         else:
