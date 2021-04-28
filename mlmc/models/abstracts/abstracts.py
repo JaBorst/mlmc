@@ -464,9 +464,11 @@ class TextClassificationAbstract(torch.nn.Module):
         :param x: A string or a list of strings
         :return: A tensor
         """
+        self.eval()
         x = [x] if isinstance(x, str) else x
         x = self.transform(x)
         with torch.no_grad(): output = self.act(self(x)).cpu()
+        self.train()
         return output
 
     def scores_dataset(self, data, return_truth=False, batch_size=50):
@@ -486,17 +488,20 @@ class TextClassificationAbstract(torch.nn.Module):
         train_loader = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=False)
         scores = []
         truth = []
+        self.eval()
         if return_truth:
             for b in tqdm(train_loader, ncols=100):
                 scores.append(self.run(b["text"]))
                 truth.append(b["labels"])
             scores = torch.cat(scores)
             truth = torch.cat(truth)
+            self.train()
             return scores, truth
         else:
             for b in tqdm(train_loader, ncols=100):
                 scores.append(self.run(b["text"]))
             scores = torch.cat(scores)
+            self.train()
             return scores
 
     def transform(self, x):
