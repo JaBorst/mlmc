@@ -178,7 +178,7 @@ class MetricsDict:
             _run.log_scalar(k,v,step)
         return _run
 
-    def log_mlflow(self, _run, step, prefix=""):
+    def log_mlflow(self, step, prefix=""):
         """
         Logs a metric to MLflow.
 
@@ -191,7 +191,6 @@ class MetricsDict:
         results = self.print()
         for k, v in self._recurse_dictionary(results, prefix=prefix):
             mlflow.log_metric(k.replace("@","/a/"),v,step)
-        return _run
 
     def __repr__(self):
         return ", ".join(self.map.keys())
