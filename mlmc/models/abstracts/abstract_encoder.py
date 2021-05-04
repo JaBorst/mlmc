@@ -34,11 +34,10 @@ class EncoderAbstract(TextClassificationAbstract):
                                        max_length=self.max_len)
 
         if reshape:
-            tok["input_ids"]= tok["input_ids"].reshape((len(x), len(self.classes), -1)).to(device)
-            tok["attention_mask"] = tok["attention_mask"].reshape((len(x), len(self.classes), -1)).to(device)
+            tok = {k:v.reshape((len(x), len(self.classes), -1)).to(device) for k,v in tok.items()}
         else:
-            tok["input_ids"]= tok["input_ids"].to(device)
-            tok["attention_mask"] = tok["attention_mask"].to(device)
+            tok = {k: v.to(device) for k, v in tok.items()}
+
         return tok
 
     def single(self):
