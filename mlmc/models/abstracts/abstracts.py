@@ -6,7 +6,7 @@ from ...data import SingleLabelDataset, MultiLabelDataset, PredictionDataset
 from ...metrics import MetricsDict
 from ...representation import is_transformer, get
 from ...thresholds import get as thresholdget
-
+from ...representation.character import makemultilabels
 
 class TextClassificationAbstract(torch.nn.Module):
     """
@@ -153,6 +153,14 @@ class TextClassificationAbstract(torch.nn.Module):
         metrics.rename({"multilabel_report": "report", "singlelabel_report": "report"})
         return metrics
 
+    def evaluate_classes(self, classes_subset=None, **kwargs):
+        """wrapper for evaluation function if you just want to evaluate on subsets of the classes."""
+        if classes_subset is None:
+            return self.evaluate(**kwargs)
+        else:
+            mask = makemultilabels([list(classes_subset.values())], maxlen=len(self.classes))
+            return self.evaluate(**kwargs, mask=mask)
+
     def evaluate(self, data, batch_size=50, mask=None, metrics=None, _fit=False):
         """
         Evaluation, return accuracy and loss and some multilabel measure
@@ -184,6 +192,13 @@ class TextClassificationAbstract(torch.nn.Module):
                 l, output = self._step(x=self.transform(b["text"]), y=y.to(self.device))
                 output = self.act(output).cpu()
                 pred = self._threshold_fct(output)
+
+                # Subset evaluation if ...
+                if mask is not None:
+                    output = output * mask
+                    y = y * mask
+                    pred = pred * mask
+
                 average.update(l.item())
                 initialized_metrics.update_metrics((output, y, pred))
 
