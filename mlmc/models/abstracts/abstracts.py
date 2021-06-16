@@ -157,7 +157,7 @@ class TextClassificationAbstract(torch.nn.Module):
         :return: A dictionary containing the initialized metrics
         """
         if metrics is None:
-            metrics = f"default_{self.target}label"
+            metrics = f"default_{self._config['target']}label"
         metrics = MetricsDict(metrics)
         metrics.init(self.__dict__)
         metrics.reset()
@@ -189,9 +189,9 @@ class TextClassificationAbstract(torch.nn.Module):
         """
         self.eval()  # set mode to evaluation to disable dropout
 
-        assert not (type(data) == SingleLabelDataset and self.target == "multi"), \
+        assert not (type(data) == SingleLabelDataset and self._config["target"] == "multi"), \
             "You inserted a SingleLabelDataset but chose multi as target."
-        assert not (type(data) == MultiLabelDataset and self.target == "single"), \
+        assert not (type(data) == MultiLabelDataset and self._config["target"] == "single"), \
             "You inserted a MultiLabelDataset but chose single as target."
 
         initialized_metrics = self._init_metrics(metrics)
@@ -323,16 +323,16 @@ class TextClassificationAbstract(torch.nn.Module):
         import datetime
         id = str(hash(datetime.datetime.now()))[1:7]
         from ...data import SingleLabelDataset
-        if isinstance(train, SingleLabelDataset) and self.target != "single":
+        if isinstance(train, SingleLabelDataset) and self._config["target"] != "single":
             print("You are using the model in multi mode but input is SingeleLabelDataset.")
             return 0
 
         self.validation = []
         self.train_history = {"loss": []}
 
-        assert not (type(train) == SingleLabelDataset and self.target == "multi"), \
+        assert not (type(train) == SingleLabelDataset and self._config["target"] == "multi"), \
             "You inserted a SingleLabelDataset but chose multi as target."
-        assert not (type(train) == MultiLabelDataset and self.target == "single"), \
+        assert not (type(train) == MultiLabelDataset and self._config["target"] == "single"), \
             "You inserted a MultiLabelDataset but chose single as target."
 
         best_loss = 10000000
