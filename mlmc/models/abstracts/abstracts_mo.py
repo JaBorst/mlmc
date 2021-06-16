@@ -6,7 +6,7 @@ from mlmc.representation import is_transformer, get
 from mlmc.models.abstracts import TextClassificationAbstract
 from mlmc.thresholds import get as  thresholdget
 from ...metrics import MetricsDict
-
+from ...representation.character import  makemultilabels
 from mlmc.data import MultiOutputMultiLabelDataset, MultiOutputSingleLabelDataset
 import re
 
@@ -46,6 +46,8 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
 
         self._config["class_weights"] = class_weights
         self._config["aggregation"] = aggregation
+        self._config["n_classes"] = self.n_classes
+        self._config["n_outputs"] = self.n_outputs
 
     def build(self):
         """
@@ -93,7 +95,6 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
             m.init({"classes":i, "_threshold_fct":self._threshold_fct, "target":self.target})
         return metrics
 
-
     def evaluate_classes(self, classes_subset=None, **kwargs):
         """wrapper for evaluation function if you just want to evaluate on subsets of the classes."""
         if classes_subset is None:
@@ -101,7 +102,6 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
         else:
             mask = makemultilabels([list(classes_subset.values())], maxlen=len(self.classes))
             return self.evaluate(**kwargs, mask=mask)
-
 
     def evaluate(self, data, batch_size=50, mask=None, metrics=None, _fit=False):
         """
@@ -274,6 +274,7 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
             labels = [[[d[i.item()] for i in torch.where(p == 1)[0]] for p in prediction] for d, prediction in
                       zip(self.classes_rev, predictions)]
         return list(zip(*labels))
+
 
 
     def rebuild(self):

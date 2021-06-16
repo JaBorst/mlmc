@@ -650,8 +650,7 @@ class TextClassificationAbstract(torch.nn.Module):
         self.target = "single"
         self.set_threshold("max")
         self.activation = torch.softmax
-        self.set_loss(torch.nn.CrossEntropyLoss())
-        self.build()
+        self.set_loss(torch.nn.CrossEntropyLoss)
 
     def multi(self):
         """Setting the defaults for multi label mode"""
@@ -659,5 +658,4 @@ class TextClassificationAbstract(torch.nn.Module):
         self.target = "multi"
         self.set_threshold("mcut")
         self.activation = torch.sigmoid
-        self.set_loss(torch.nn.BCEWithLogitsLoss())
-        self.build()
+        self.set_loss(torch.nn.BCEWithLogitsLoss)

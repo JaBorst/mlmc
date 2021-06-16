@@ -35,4 +35,3 @@ def test_XMLCNN():
 
 def test_LSAN_transformer():
     assertion_function(model_type=mlmc.models.LSANNC, representation="test", target="multi", label_model="test",n_layers=1, hidden_representations=10, d_a=10)
-
