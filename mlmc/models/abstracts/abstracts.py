@@ -405,9 +405,29 @@ class TextClassificationAbstract(torch.nn.Module):
 
         Args:
             x:  A list of the text instances.
-            return_scores:  If True, the labels are returned with their corresponding confidence scores
+            return_scores:  If True, the labels are returned with their corresponding confidence scores and prediction mask
         Returns:
-            A list of the labels
+            A list of the labels or a tuple of (labels, scores, mask) if return_scores=True
+
+        """
+        self.eval()
+        output = self.scores(x)
+        prediction = self._threshold_fct(output).cpu()
+        self.train()
+
+        labels = [[self.classes_rev[i.item()] for i in torch.where(p == 1)[0]] for p in prediction]
+
+        if return_scores:
+            return labels, output, prediction==1
+        return labels
+
+    def scores(self, x):
+        """
+        Returns 2D tensor with length of x and number of labels as shape: (N, L)
+        Args:
+            x:
+
+        Returns:
 
         """
         self.eval()
@@ -419,14 +439,10 @@ class TextClassificationAbstract(torch.nn.Module):
         x = self.transform(x)
         with torch.no_grad():
             output = self.act(self(x))
-        prediction = self._threshold_fct(output).cpu()
         self.train()
-        if return_scores:
-            return [[(self.classes_rev[i.item()], s[i].item())
-                     for i in torch.where(p == 1)[0]] for s, p in zip(output, prediction)]
-        return [[self.classes_rev[i.item()] for i in torch.where(p == 1)[0]] for p in prediction]
+        return output
 
-    def predict_dataset(self, data, batch_size=50, tr=0.5, return_scores=False):
+    def predict_dataset(self, data, batch_size=50, return_scores=False):
         """
         Predict all labels for a dataset int the mlmc.data.MultilabelDataset format.
 
