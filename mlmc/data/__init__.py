@@ -404,11 +404,11 @@ class MultiOutputSingleLabelDataset(Dataset):
                 self.classes = [classes.copy() for _ in range(len(y[0]))]
             else:
                 self.classes = classes
+        if y is not None:
+            assert len(y[0]) == len(self.classes), "Number of labels and number of class dicts do not agree"
 
-        assert len(y[0]) == len(self.classes), "Number of labels and number of class dicts do not agree"
-
-        assert all([len(labelset)==1 for outputset in y for labelset in outputset]) == 1, \
-            "All output sets must be of length 1."
+            assert all([len(labelset)==1 for outputset in y for labelset in outputset]) == 1, \
+                "All output sets must be of length 1."
 
         self.target_dtype = torch._cast_Float
         self.x = x
@@ -449,7 +449,7 @@ class MultiOutputSingleLabelDataset(Dataset):
         assert all([all([x in c.keys() for x in s.keys()]) for s, c in
                     zip(subset, self.classes)]), "Subset contains classes not present in dataset"
 
-        keep = [i for i, labelset in enumerate(self.y) if all(x in y.keys() for x, y in zip(labelset, subset))]
+        keep = [i for i, labelset in enumerate(self.y) if all(x[0] in y.keys() for x, y in zip(labelset, subset))]
         self.x = [self.x[i] for i in keep]
         self.y = [self.y[i] for i in keep]
         self.classes = subset
