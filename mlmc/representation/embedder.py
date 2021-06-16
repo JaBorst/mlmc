@@ -134,7 +134,7 @@ class Embedder:
 
     def embed(self, sentences: List, pad=None):
         """
-        Embedding method for a list of sentences.
+        embedding method for a list of sentences.
         :param sentences:  List of sentences
         :param pad: (default: None) If pad is set all sentences will be padded (or cut repectively) to the desired length.
         :return: if pad is None a list of embeddings (with varying lengths) is returned, is pad is set a tensor of (num_sentences, pad, embedding_size) will be returned.

@@ -21,7 +21,7 @@ def get_word_embedding_mean(words, model):
 def get_word_embeddings(words, model):
     """
     Get the sequence of word embeddings for a list of words. (This is basically a functional wrapper around
-    the Embedding class. Use only if the model to create word embeddings is used once and you need the memory freed)
+    the embedding class. Use only if the model to create word embeddings is used once and you need the memory freed)
     Args:
         words: List of words
         model: Model name (one of [glove50, glove100, glove200, glove300] or any of the models on https://huggingface.co/models
