@@ -15,7 +15,7 @@ from .MoLSANNC import MoLSANNC
 from .MoTransformer import MoTransformer
 from .Transformer import Transformer
 
-from .Encoder import *
+from .zeroshot import *
 
 # Geometric Models
 try:
