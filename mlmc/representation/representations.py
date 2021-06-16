@@ -68,7 +68,7 @@ def custom_embedding(name, file):
     source_location = Path(file)
     target_location = EMBEDDINGCACHE / source_location.name
     if (EMBEDDINGCACHE/source_location.name).exists():
-        print("Embedding already cached")
+        print("embedding already cached")
     else:
         shutil.copy(source_location, target_location)
         with open(EMBEDDINGCACHEINDEX, "a") as f:
