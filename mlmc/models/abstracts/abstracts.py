@@ -20,10 +20,9 @@ class TextClassificationAbstract(torch.nn.Module):
 
 
     """
-
-    def __init__(self, classes, target="multi", representation="google/bert_uncased_L-2_H-128_A-2",
+    def __init__(self, classes, target=None, representation="google/bert_uncased_L-2_H-128_A-2",
                  activation=None, loss=None, optimizer=torch.optim.Adam, max_len=200, label_len=20,
-                 optimizer_params=None, device="cpu", finetune=False, threshold="mcut", n_layers=1, **kwargs):
+                 optimizer_params=None, device="cpu", finetune=False, threshold=None,  **kwargs):
         """
         Abstract initializer of a Text Classification network.
         Args:
@@ -44,37 +43,13 @@ class TextClassificationAbstract(torch.nn.Module):
         """
 
         super(TextClassificationAbstract, self).__init__()
-        self.classes = classes
-        self.n_classes = len(classes)
+
+
         if optimizer_params is None:
             optimizer_params = {"lr": 5e-5}
-        assert target in ("multi", "single"), 'target must be one of "multi" or "single"'
 
-        # Setting default values for learning mode
-        self.target = target
-        if target == "single":
-            self.activation = torch.softmax
-            self.loss = torch.nn.CrossEntropyLoss
-            if threshold != "max":
-                print(f"Using non-max prediction for single label target. ({threshold})")
-        elif self.target == "multi":
-            self.activation = torch.sigmoid
-            self.loss = torch.nn.BCEWithLogitsLoss
-
-        # If there were external arguments we will use them
-        if activation is not None:
-            self.activation = activation
-        if loss is not None:
-            self.loss = loss
-
-        self.set_threshold(threshold)
-
-        assert not (self.loss is torch.nn.BCEWithLogitsLoss and target == "single"), \
-            "You are using BCE with a single label target. " \
-            "Not possible, please use torch.nn.CrossEntropy with a single label target."
-        assert not (self.loss is torch.nn.CrossEntropyLoss and target == "multi"), \
-            "You are using CrossEntropy with a multi label target. " \
-            "Not possible, please use torch.nn.BCELossWithLogits with a multi label target."
+        self.classes = classes
+        self.n_classes = len(classes)
         self.use_amp = False
         self.finetune = finetune
         self.device = device
@@ -83,19 +58,48 @@ class TextClassificationAbstract(torch.nn.Module):
         self.PRECISION_DIGITS = 4
         self.representation = representation
         self._init_input_representations()
-        self.n_layers = n_layers
         self.max_len = max_len
+        self.target = target
 
         self._config = {
-            "classes": self.classes,
-            "target": self.target, "representation": self.representation,
-            "activation": self.activation, "loss": self.loss,
-            "optimizer": self.optimizer, "max_len": self.max_len,
-            "optimizer_params": self.optimizer_params, "device": self.device,
-            "finetune": finetune, "threshold": threshold, "n_layers": self.n_layers,
-            "label_len": label_len,
-        }
-        self._config.update(kwargs)
+            "classes": classes,
+            "target": target,
+            "representation": representation,
+            "activation": activation, "loss": loss,
+            "optimizer": optimizer, "max_len": max_len,
+            "optimizer_params": optimizer_params, "device": device,
+            "finetune": finetune, "threshold": threshold,
+            "label_len": label_len,}
+
+
+
+        # Setting default values for learning mode
+        if self._config["target"] is None:
+            assert activation is not None, "Did not specify a target type from ('single', 'multi') and activation function is not set"
+            assert loss is not None, "Did not specify a target type from ('single', 'multi') and loss function is not set"
+        else:
+            assert self._config["target"] in ("multi", "single",), 'target must be one of "multi" or "single"'
+            if self._config["target"] == "single":
+                self.single()
+            elif   self._config["target"]=="multi":
+                self.multi()
+            else:
+                Warning(f"Unknown target {target}. Not in ('single', 'multi')")
+
+        # If there were external arguments we will overwrite
+        if activation is not None:
+            self.set_activation(activation)
+        if loss is not None:
+            self.set_loss(loss)
+        if threshold is not None:
+            self.set_threshold(threshold)
+
+        assert not (self.loss is torch.nn.BCEWithLogitsLoss and target == "single"), \
+            "You are using BCE with a single label target. " \
+            "Not possible, please use torch.nn.CrossEntropy with a single label target."
+        assert not (self.loss is torch.nn.CrossEntropyLoss and target == "multi"), \
+            "You are using CrossEntropy with a multi label target. " \
+            "Not possible, please use torch.nn.BCELossWithLogits with a multi label target."
 
     def act(self, x):
         """
@@ -115,15 +119,22 @@ class TextClassificationAbstract(torch.nn.Module):
 
         :param name: Name of the threshold (see mlmc.thresholds.threshold_dict.keys())
         """
-        if not (name == "max") and name == "single":
-            Warning("You're using a non max threshold in single label mode")
         self.threshold = name
+        self._config["threshold"] = name
         if isinstance(name, str):
             self._threshold_fct = thresholdget(name)
         elif callable(name):
             self._threshold_fct = name
         else:
             Warning("Threshold is neither callable nor a string")
+
+    def set_activation(self, name):
+        self._config["activation"] = name
+        self.activation = name
+
+    def set_loss(self, loss):
+        self._config["loss"] = loss
+        self.loss = loss
 
     def build(self):
         """
@@ -431,7 +442,7 @@ class TextClassificationAbstract(torch.nn.Module):
 
         """
         self.eval()
-        assert not (self.target == "single" and self.threshold != "max"), \
+        assert not (self._config["target"] == "single" and   self._config["threshold"] != "max"), \
             "You are running single target mode and predicting not in max mode."
 
         if not hasattr(self, "classes_rev") or (list(self.classes_rev.values())[0] not in self.classes.keys()):
@@ -639,7 +650,7 @@ class TextClassificationAbstract(torch.nn.Module):
         self.target = "single"
         self.set_threshold("max")
         self.activation = torch.softmax
-        self.loss = torch.nn.CrossEntropyLoss()
+        self.set_loss(torch.nn.CrossEntropyLoss())
         self.build()
 
     def multi(self):
@@ -648,5 +659,5 @@ class TextClassificationAbstract(torch.nn.Module):
         self.target = "multi"
         self.set_threshold("mcut")
         self.activation = torch.sigmoid
-        self.loss = torch.nn.BCEWithLogitsLoss()
+        self.set_loss(torch.nn.BCEWithLogitsLoss())
         self.build()

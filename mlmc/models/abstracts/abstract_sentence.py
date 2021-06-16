@@ -1,12 +1,7 @@
-from scipy.special.cython_special import ker
-from transformers import AutoTokenizer, AutoModel
 import torch
-from mlmc.modules import LSANNCModule, KimCNNModule, LSANGraphModule,DynamicWeightedFusion
 from mlmc.models.abstracts.abstracts import TextClassificationAbstract
-from mlmc.models.abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
 import mlmc
 from ignite.metrics import Average
-from tqdm import tqdm
 from mlmc.metrics.precisionk import Accuracy
 
 
@@ -15,7 +10,7 @@ class SentenceTextClassificationAbstract(TextClassificationAbstract):
     """
     Extending the base class with functionality regarding the sentence-embedding approach and zeroshot capabilities
     """
-    def __init__(self, sformatter = lambda x: f"This is about {x}", label_len=15, *args, **kwargs):
+    def __init__(self, sformatter = lambda x: f"This is about {x}", label_len=45, *args, **kwargs):
         """
         Additional Arguments for sentence Embedder
         Args:
@@ -101,16 +96,14 @@ class SentenceTextClassificationAbstract(TextClassificationAbstract):
     def single(self):
         """Helper function to set model into default single label mode"""
         self._config["target"] = "single"
-        self.target = "single"
         self.set_threshold("max")
-        self.activation = lambda x: x
+        self.set_activation( lambda x: x)
 
     def multi(self):
         """Helper function to set model into default multi label mode"""
         self._config["target"] = "multi"
-        self.target = "multi"
         self.set_threshold("mcut")
-        self.activation = lambda x: x
+        self.set_activation(lambda x: x)
 
     def _metric_sim(self, x, y, m=None):
         """
