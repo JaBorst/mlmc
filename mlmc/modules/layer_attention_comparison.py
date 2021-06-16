@@ -83,7 +83,7 @@ class LabelEmbeddingAttention(torch.nn.Module):
 
 
 class LabelEmbeddingScoring(torch.nn.Module):
-    """Layer that keeps a representation (static Embedding) and compares the input to all vectors. The metric
+    """Layer that keeps a representation (static embedding) and compares the input to all vectors. The metric
         should be freely choosable
     """
 
