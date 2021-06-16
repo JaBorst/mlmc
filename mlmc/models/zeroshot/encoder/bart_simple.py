@@ -1,4 +1,4 @@
-from ..abstracts.abstract_encoder import EncoderAbstract
+from mlmc.models.abstracts.abstract_encoder import EncoderAbstract
 import torch
 import transformers
 from transformers import BartTokenizer, BartForSequenceClassification
