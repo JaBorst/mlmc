@@ -1,6 +1,6 @@
 import torch
-from mlmc.models.abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
-from mlmc.models.abstracts.abstract_sentence import SentenceTextClassificationAbstract
+from ...abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
+from ...abstracts.abstract_sentence import SentenceTextClassificationAbstract
 
 class EmbeddingBasedWeighted(SentenceTextClassificationAbstract,TextClassificationAbstractZeroShot):
     """
@@ -9,22 +9,22 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract,TextClassificati
     def __init__(self, mode="vanilla", entailment_output=3, *args, **kwargs):
         """
          Zeroshot model based on cosine distance of embedding vectors.
-
+        This changes the default activation to identity function (lambda x:x)
         Args:
             mode: one of ("vanilla", "max", "mean", "max_mean", "attention", "attention_max_mean"). determines how the sequence are weighted to build the input representation
             entailment_output: the format of the entailment output if NLI pretraining is used. (experimental)
             *args:
             **kwargs:
         """
+        if "act" not in kwargs:
+            kwargs["activation"] = lambda x: x
         super(EmbeddingBasedWeighted, self).__init__(*args, **kwargs)
         self.modes = ("vanilla","max","mean","max_mean", "attention","attention_max_mean")
         assert mode in self.modes, f"Unknown mode: '{self.mode}'!"
         self.set_mode(mode=mode)
-        self.return_proba = False
 
         self.create_labels(self.classes)
         self.parameter = torch.nn.Linear(self.embeddings_dim,256)
-        self._all_compare=True
         self.entailment_projection = torch.nn.Linear(3 * self.embeddings_dim, entailment_output)
         self.build()
 
@@ -68,42 +68,43 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract,TextClassificati
         if "max" in self.mode:
             word_maxs = word_scores.reshape((input_embedding.shape[0], label_embedding.shape[0],-1)).max(-1)[0]
             r = r * word_maxs
-
-        if self.return_proba:
-            return torch.log(0.5*(r+1))
-        return r
+        return 0.5*(r+1)
 
     def single(self):
         """Helper function to set the model into single label mode"""
-        self.return_proba=False
         self._config["target"] = "single"
-        self.target = "single"
         self.set_threshold("max")
-        self.activation = lambda x: x
-        self.loss = torch.nn.CrossEntropyLoss()
+        self.set_activation(lambda x: x)
+        self.set_loss(torch.nn.CrossEntropyLoss())
         self._all_compare=True
         self.build()
 
     def multi(self):
         """Helper function to set the model into multi label mode"""
-        self.return_proba=False
         self._config["target"] = "multi"
-        self.target = "multi"
         self.set_threshold("mcut")
-        self.activation = lambda x: x
-        self.loss = torch.nn.BCEWithLogitsLoss()
+        self.set_activation(lambda x: x)
+        self.set_loss(torch.nn.BCELoss())
         self._all_compare=True
         self.build()
 
     def sts(self):
         """Helper function to set the model into multi label mode"""
-        self.return_proba=True
+        from ....loss import RelativeRankingLoss
+        self._config["target"] = "multi"
+        self.set_threshold("mcut")
+        self.set_activation(lambda x: x)
+        self.set_loss(RelativeRankingLoss(0.5))
+        self._all_compare = True
+        self.build()
 
     def entailment(self):
         self._config["target"] = "single"
+        self._config["entailment_output"] = 3
         self.target = "single"
         self.set_sformatter(lambda x: x)
         self.set_threshold("max")
-        self.activation = torch.softmax
-        self.loss = torch.nn.CrossEntropyLoss()
+        self.set_activation(torch.softmax)
+        self.set_loss = torch.nn.CrossEntropyLoss()
+        self._all_compare = False
         self.build()
