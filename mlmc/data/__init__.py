@@ -6,7 +6,8 @@ from torch.utils.data import Dataset
 import torch
 from .data_loaders import load_eurlex, load_wiki30k, load_huffpost, load_aapd, load_rcv1, \
     load_moviesummaries, load_blurbgenrecollection, load_blurbgenrecollection_de, load_20newsgroup, export, \
-    load_agnews, load_dbpedia, load_ohsumed, load_yahoo_answers, load_movie_reviews
+    load_agnews, load_dbpedia, load_ohsumed, load_yahoo_answers, load_movie_reviews, load_amazonfull, load_trec6, \
+    load_trec50, load_yelpfull
 
 # String Mappings
 register = {
@@ -24,6 +25,10 @@ register = {
     "ohsumed": load_ohsumed,
     "yahoo_answers": load_yahoo_answers,
     "movie_reviews": load_movie_reviews,
+    "trec6": load_trec6,
+    "trec50":load_trec50,
+    "yelpfull": load_yelpfull,
+    "amazonfull": load_amazonfull
 }
 
 
@@ -589,6 +594,8 @@ class EntailmentDataset(Dataset):
 
     def __getitem__(self, item):
         return {"x1": self.x1[item], "x2": self.x2[item], "labels": self.classes[self.labels[item]]}
+
+
 
 ## Sampler import
 from .sampler import sampler, successive_sampler, class_sampler, validation_split, kfolds, fewshot_sampler

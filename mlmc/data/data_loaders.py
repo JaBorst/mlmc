@@ -772,3 +772,95 @@ def load_movie_reviews():
         }
         _save_to_tmp("movie_reviews", (data, classes))
         return data, classes
+
+
+
+def load_yelpfull():
+    from datasets import load_dataset
+    train = load_dataset("yelp_review_full", split="train")
+    test = load_dataset("yelp_review_full", split="test")
+
+    data = {
+                "train": (train["text"], [[str(x+1)] for x in train["label"]]),
+                "test": (test["text"], [[str(x+1)] for x in test["label"]]),
+            }
+    return data, dict((str(i+1),i) for i in range(5))
+import tempfile
+import tarfile
+import csv
+from pathlib import Path
+def load_amazonfull():
+    url = "https://s3.amazonaws.com/fast-ai-nlp/amazon_review_full_csv.tgz"
+
+    data = _load_from_tmp(f"amazonfull")
+    if data is not None:
+        return data
+    else:
+        with tempfile.TemporaryDirectory() as tmpdir:
+
+            resp = urlopen(url)
+            tf = tarfile.open(fileobj=resp, mode="r|gz")
+            tf.extractall(Path(tmpdir))
+            testfile = Path(tmpdir) / 'amazon_review_full_csv' / "test.csv"
+            trainfile = Path(tmpdir) / 'amazon_review_full_csv' / "train.csv"
+
+            with open(trainfile, newline='') as csvfile: traindata = list(csv.reader(csvfile))
+            with open(testfile, newline='') as csvfile: testdata = list(csv.reader(csvfile))
+
+            data = {
+                        "train": ([" | ".join(x[1:]) for x in traindata], [[x[0]] for x in traindata]),
+                        "test": ([" | ".join(x[1:]) for x in testdata], [[x[0]] for x in testdata]),
+                    }
+            classes = {str(i):i-1  for i in range(1,6)}
+
+            _save_to_tmp(f"amazonfull", (data, classes))
+
+            return data, classes
+
+def load_trec6():
+
+    train = 'http://cogcomp.org/Data/QA/QC/train_5500.label'
+    test = 'http://cogcomp.org/Data/QA/QC/TREC_10.label'
+
+    data = _load_from_tmp(f"trec6")
+    if data is not None:
+        return data
+    else:
+
+        train_resp = [ (line.split(" ")[0].split(":")[0]," ".join(line.split(" ")[1:]))  for line in urlopen(train).read().replace(b'\xf0', b' ').decode().strip().split("\n")]
+        test_resp = [ (line.split(" ")[0].split(":")[0]," ".join(line.split(" ")[1:]))  for line in urlopen(test).read().replace(b'\xf0', b' ').decode().strip().split("\n")]
+
+        classes =  sorted(list(set([x[0] for x in train_resp] +  [x[0] for x in test_resp])))
+        classes = {k:i for i, k in enumerate(classes)}
+
+        data = {
+            "train": ([x[1] for x in train_resp], [[x[0]] for x in train_resp]),
+            "test": ([x[1] for x in test_resp], [[x[0]] for x in test_resp]),
+        }
+        _save_to_tmp(f"trec6", (data, classes))
+
+    return data, classes
+
+def load_trec50():
+
+    train = 'http://cogcomp.org/Data/QA/QC/train_5500.label'
+    test = 'http://cogcomp.org/Data/QA/QC/TREC_10.label'
+
+    data = _load_from_tmp(f"trec50")
+    if data is not None:
+        return data
+    else:
+
+        train_resp = [ (line.split(" ")[0]," ".join(line.split(" ")[1:]))  for line in urlopen(train).read().replace(b'\xf0', b' ').decode().strip().split("\n")]
+        test_resp = [ (line.split(" ")[0]," ".join(line.split(" ")[1:]))  for line in urlopen(test).read().replace(b'\xf0', b' ').decode().strip().split("\n")]
+
+        classes =  sorted(list(set([x[0] for x in train_resp] +  [x[0] for x in test_resp])))
+        classes = {k:i for i, k in enumerate(classes)}
+
+        data = {
+            "train": ([x[1] for x in train_resp], [[x[0]] for x in train_resp]),
+            "test": ([x[1] for x in test_resp], [[x[0]] for x in test_resp]),
+        }
+        _save_to_tmp(f"trec50", (data, classes))
+
+    return data, classes
