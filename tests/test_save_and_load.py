@@ -60,13 +60,13 @@ def assertion_function(model_type, **kwargs):
     save_and_load(model)
 
 def test_KimCNN():
-    assertion_function(model_type=mlmc.models.KimCNN, representation="google/bert_uncased_L-2_H-128_A-2")
+    assertion_function(model_type=mlmc.models.KimCNN,target="multi", representation="google/bert_uncased_L-2_H-128_A-2")
 
 def test_LSAN():
-    assertion_function(model_type=mlmc.models.LSAN, representation="google/bert_uncased_L-2_H-128_A-2", hidden_representations=10, d_a=10)
+    assertion_function(model_type=mlmc.models.LSAN, target="multi",representation="google/bert_uncased_L-2_H-128_A-2", hidden_representations=10, d_a=10)
 
 def test_LSANNC():
-    assertion_function(model_type=mlmc.models.LSANNC, representation="google/bert_uncased_L-2_H-128_A-2", label_model="test", hidden_representations=10, d_a=10)
+    assertion_function(model_type=mlmc.models.LSANNC, target="multi",representation="google/bert_uncased_L-2_H-128_A-2", label_model="test", hidden_representations=10, d_a=10)
 
 def test_MoKimCNN():
     assertion_function(model_type=mlmc.models.MoKimCNN, representation="google/bert_uncased_L-2_H-128_A-2", target="single")
@@ -78,10 +78,10 @@ def test_MoTransformer():
     assertion_function(model_type=mlmc.models.MoTransformer, representation="google/bert_uncased_L-2_H-128_A-2", target="single")
 
 def test_Transformer():
-    assertion_function(model_type=mlmc.models.Transformer, representation="google/bert_uncased_L-2_H-128_A-2")
+    assertion_function(model_type=mlmc.models.Transformer, target="multi", representation="google/bert_uncased_L-2_H-128_A-2")
 
 def test_XMLCNN():
-    assertion_function(model_type=mlmc.models.XMLCNN, representation="google/bert_uncased_L-2_H-128_A-2")
+    assertion_function(model_type=mlmc.models.XMLCNN, target="multi", representation="google/bert_uncased_L-2_H-128_A-2")
 
 #Geometric Models:
 # def test_SKGLM():
@@ -89,3 +89,4 @@ def test_XMLCNN():
 #
 # def test_ZAGCNNLM():
 #     assertion_function(model_type=mlmc.models.ZAGCNNLM, representation="google/bert_uncased_L-2_H-128_A-2", n_layers=1)
+test_MoKimCNN()

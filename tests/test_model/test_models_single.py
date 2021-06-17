@@ -25,3 +25,6 @@ def test_XMLCNN():
 def test_LSAN_transformer():
     assertion_function(model_type=mlmc.models.LSANNC,  representation="test", label_model="test", hidden_representations=10, d_a=10)
 
+def test_ewb_transformer():
+    assertion_function(model_type=mlmc.models.zeroshot.EmbeddingBasedWeighted, finetune=True)
+

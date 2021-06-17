@@ -6,7 +6,7 @@ from mlmc.representation import is_transformer, get
 from mlmc.models.abstracts import TextClassificationAbstract
 from mlmc.thresholds import get as  thresholdget
 from ...metrics import MetricsDict
-
+from ...representation.character import  makemultilabels
 from mlmc.data import MultiOutputMultiLabelDataset, MultiOutputSingleLabelDataset
 import re
 
@@ -46,6 +46,8 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
 
         self._config["class_weights"] = class_weights
         self._config["aggregation"] = aggregation
+        self._config["n_classes"] = self.n_classes
+        self._config["n_outputs"] = self.n_outputs
 
     def build(self):
         """
@@ -84,13 +86,24 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
         from copy import deepcopy
         if metrics is None:
             metrics=f"default_{self.target}label"
-        metrics = [MetricsDict(metrics) for i in self.classes]
+        metrics = [MetricsDict(metrics) for i in range(len(self.classes))]
+
+        for i, m in enumerate(metrics):
+            m.rename({k: f"{k}_{i}" for k in m.map.keys()})
+
         for m, i in zip(metrics, self.classes):
             m.init({"classes":i, "_threshold_fct":self._threshold_fct, "target":self.target})
         return metrics
 
+    def evaluate_classes(self, classes_subset=None, **kwargs):
+        """wrapper for evaluation function if you just want to evaluate on subsets of the classes."""
+        if classes_subset is None:
+            return self.evaluate(**kwargs)
+        else:
+            mask = makemultilabels([list(classes_subset.values())], maxlen=len(self.classes))
+            return self.evaluate(**kwargs, mask=mask)
 
-    def evaluate(self, data, batch_size=50,  metrics=None):
+    def evaluate(self, data, batch_size=50, mask=None, metrics=None, _fit=False):
         """
         Evaluation, return accuracy and loss and some multilabel measure
 
@@ -101,21 +114,14 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
             to fit into GPU memory. In general it can be larger than batch_size in training.
             return_roc: If True, the return dictionary contains the ROC values.
             return_report: If True, the return dictionary will contain a class wise report of F1, Precision and Recall.
+            metrics: Additional metrics
         Returns:
             A dictionary with the evaluation measurements.
         """
-
         self.eval()  # set mode to evaluation to disable dropout
+
+        initialized_metrics = self._init_metrics(metrics)
         from ignite.metrics import Average
-
-        assert not (type(data) == MultiOutputSingleLabelDataset and self.target == "multi"), \
-            "You inserted a SingleLabelDataset but chose multi as target."
-        assert not (type(data) == MultiOutputMultiLabelDataset and self.target == "single"), \
-            "You inserted a MultiLabelDataset but chose single as target."
-
-
-        initialized_metrics = self._init_metrics(metrics=metrics)
-
         average = Average()
         data_loader = torch.utils.data.DataLoader(data, batch_size=batch_size)
         with torch.no_grad():
@@ -127,13 +133,17 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
 
                 average.update(l.item())
                 for p, o, t, m in zip(pred, output, y.transpose(0, 1), initialized_metrics):
-                    m.update_metrics(( o.cpu(), t.cpu(), p.cpu()))
+                    m.update_metrics((o.cpu(), t.cpu(), p.cpu()))
+
         self.train()
-        return average.compute().item(), initialized_metrics
+        if _fit:
+            return average.compute().item(), initialized_metrics
+        else:
+            return average.compute().item(), [x.compute() for x in initialized_metrics]
 
     def fit(self, train,
             valid=None, epochs=1, batch_size=16, valid_batch_size=50, patience=-1, tolerance=1e-2,
-            return_roc=False, return_report=False):
+            return_roc=False, return_report=False, callbacks=None, metrics=None, lr_schedule=None, lr_param={}):
         """
         Training function
 
@@ -152,6 +162,8 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
             A history dictionary with the loss and the validation evaluation measurements.
 
         """
+        if callbacks is None:
+            callbacks = []
         import datetime
         id = str(hash(datetime.datetime.now()))[1:7]
         from ...data import SingleLabelDataset
@@ -159,84 +171,50 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
             print("You are using the model in multi mode but input is SingeleLabelDataset.")
             return 0
 
-        validation = []
-        train_history = {"loss": []}
-        from ...data import MultiOutputSingleLabelDataset, MultiOutputMultiLabelDataset
-        assert not (type(train) == MultiOutputSingleLabelDataset and self.target == "multi"), \
-            "You inserted a SingleLabelDataset but chose multi as target."
-        assert not (type(train) == MultiOutputMultiLabelDataset and self.target == "single"), \
-            "You inserted a MultiLabelDataset but chose single as target."
+        self.validation = []
+        self.train_history = {"loss": []}
 
-        best_loss = 10000000
-        last_best_loss_update = 0
-        from ignite.metrics import Average
+
+        if lr_schedule is not None:
+            scheduler = lr_schedule(self.optimizer, **lr_param)
         for e in range(epochs):
-            losses = {"loss": str(0.)}
-            average = Average()
-            train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size, shuffle=True)
+            self._callback_epoch_start(callbacks)
 
+            # An epoch
+            losses = {"loss": str(0.)}
+            train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size, shuffle=True)
             with tqdm(train_loader,
                       postfix=[losses], desc="Epoch %i/%i" % (e + 1, epochs), ncols=100) as pbar:
-                for i, b in enumerate(train_loader):
-                    self.optimizer.zero_grad()
-                    l, _ = self._step(x=self.transform(b["text"]).to(self.device), y=b["labels"].to(self.device))
+                loss = self._epoch(train_loader, pbar=pbar)
+                if lr_schedule is not None: scheduler.step()
+                self.train_history["loss"].append(loss)
 
-                    l.backward()
-                    self.optimizer.step()
-
-                    average.update(l.item())
-                    pbar.postfix[0]["loss"] = round(average.compute().item(), 2 * self.PRECISION_DIGITS)
-                    pbar.update()
-                # torch.cuda.empty_cache()
+                # Validation if available
                 if valid is not None:
                     valid_loss, result_metrics = self.evaluate(
                         data=valid,
-                        batch_size=valid_batch_size)
+                        batch_size=valid_batch_size,
+                        _fit=True)
 
                     valid_loss_dict= {"valid_loss": valid_loss}
                     valid_loss_dict.update({k:v for d in result_metrics for k,v in d.compute().items()})
-                    validation.append(valid_loss_dict)
+                    self.validation.append(valid_loss_dict)
 
                     printables= {"valid_loss": valid_loss}
-                    printables.update({k+f"_{i}":v for i,d in enumerate(result_metrics) for k,v in d.print().items()})
+                    printables.update({k:v for i,d in enumerate(result_metrics) for k,v in d.print().items()})
                     pbar.postfix[0].update(printables)
                     pbar.update()
 
-            if patience > -1:
-                if valid is None:
-                    print("check validation loss")
-                    if best_loss - average.compute().item() > tolerance:
-                        print("update validation and checkoint")
-                        best_loss = average.compute().item()
-                        torch.save(self.state_dict(), id + "_checkpoint.pt")
-                        # save states
-                        last_best_loss_update = 0
-                    else:
-                        print("increment no epochs")
-                        last_best_loss_update += 1
+            # Callbacks
+            self._callback_epoch_end(callbacks)
 
-                    if last_best_loss_update >= patience:
-                        print("breaking at %i" % (patience,))
-                        print("Early Stopping.")
-                        break
-                elif valid is not None:
-                    if best_loss - validation[-1]["valid_loss"] > tolerance:
-                        best_loss = validation[-1]["valid_loss"]
-                        torch.save(self.state_dict(), id + "_checkpoint.pt")
-                        # save states
-                        last_best_loss_update = 0
-                    else:
-                        last_best_loss_update += 1
-
-                    if last_best_loss_update >= patience:
-                        print("Early Stopping.")
-                        break
-
-            train_history["loss"].append(average.compute().item())
+        self._callback_train_end(callbacks)
         if patience > -1:
             self.load_state_dict(torch.load(id + "_checkpoint.pt"))
         # Load best
-        return {"train": train_history, "valid": validation}
+        from copy import copy
+        return_copy = {"train": copy(self.train_history), "valid": copy(self.validation)}
+        return return_copy
 
     def _loss(self, x, y):
         """
@@ -297,27 +275,7 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
                       zip(self.classes_rev, predictions)]
         return list(zip(*labels))
 
-    def predict_dataset(self, data, batch_size=50, tr=0.5, method="hard"):
-        """
-        Predict all labels for a dataset int the mlmc.data.MultilabelDataset format.
 
-        For detailed information on the arcuments see `mlmc.models.TextclassificationAbstract.predict`
-
-        Args:
-            data: A MultilabelDataset
-            batch_size: Batch size
-            tr: Threshold
-            method: mcut or hard
-
-        Returns:
-            A list of labels
-
-        """
-        train_loader = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=False)
-        predictions = []
-        for b in tqdm(train_loader, ncols=100):
-            predictions.extend(self.predict(b["text"]))
-        return predictions
 
     def rebuild(self):
         """
