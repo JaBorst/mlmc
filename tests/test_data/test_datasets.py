@@ -152,12 +152,12 @@ def test_multioutputmultilabeldataset():
         y=[[["a", "b"], ["b"]], [["b", "d"], ["c"]], [["d", "e"], ["e"]]],
         classes={"a": 0, "b": 1, "c": 3, "d": 2, "e": 4})
     assert d1[0]["text"] == "1", "order of examples changed."
-    assert (d1[0]["labels_0"] == torch.tensor([1, 1, 0, 0, 0])).all()
-    assert (d1[0]["labels_1"] == torch.tensor([0, 1, 0, 0, 0])).all()
-    assert d1[0]["labels_0"].shape == torch.Size([len(d1.classes[0])])
-    assert d1[0]["labels_1"].shape == torch.Size([len(d1.classes[1])])
+    assert (d1[0]["labels"][0] == torch.tensor([1, 1, 0, 0, 0])).all()
+    assert (d1[0]["labels"][1] == torch.tensor([0, 1, 0, 0, 0])).all()
+    assert d1[0]["labels"][0].shape == torch.Size([len(d1.classes[0])])
+    assert d1[0]["labels"][1].shape == torch.Size([len(d1.classes[1])])
 
     for b in torch.utils.data.DataLoader(d1, 10): break
-    assert (b["labels_0"] == torch.tensor([[1, 1, 0, 0, 0],
+    assert (b["labels"][0] == torch.tensor([[1, 1, 0, 0, 0],
                                            [0, 1, 1, 0, 0],
                                            [0, 0, 1, 0, 1]])).all()
