@@ -13,6 +13,12 @@ import mlmc
 
 formatter = lambda x: f"The topic of this is {x}"
 
+# These and the label mappings for datasets in mlmc can also be found in:
+mlmc.data.SFORMATTER
+
+# For instance:
+print(mlmc.data.SFORMATTER["trec6"]("DESC"))
+
 # Instantiation of the smallest possible model. This should work for any computer.
 m = mlmc.models.zeroshot.EmbeddingBasedWeighted(
     classes={},
