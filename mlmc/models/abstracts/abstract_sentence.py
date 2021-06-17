@@ -379,7 +379,7 @@ class SentenceTextClassificationAbstract(TextClassificationAbstract):
         evaluation["loss"] = loss
         return history, evaluation
 
-    def pretrain_sts(self,batch_size=48, datasets=None, steps=1000, eval_every=100, log_mlflow=False):
+    def pretrain_sts(self,batch_size=12, datasets=None, steps=600, eval_every=100, log_mlflow=False):
         c = 0
         from ...data.data_loaders_similarity import load_sts
         from tqdm import tqdm
