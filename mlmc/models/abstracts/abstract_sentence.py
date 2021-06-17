@@ -1,4 +1,6 @@
 import torch
+
+import mlmc.data.datasets
 from mlmc.models.abstracts.abstracts import TextClassificationAbstract
 import mlmc
 from ignite.metrics import Average
@@ -93,17 +95,6 @@ class SentenceTextClassificationAbstract(TextClassificationAbstract):
             self.label_dict = self.label_embed(self.classes)
             # self.label_dict["token_type_ids"][:] = self.label_dict["attention_mask"]
 
-    def single(self):
-        """Helper function to set model into default single label mode"""
-        self._config["target"] = "single"
-        self.set_threshold("max")
-        self.set_activation( lambda x: x)
-
-    def multi(self):
-        """Helper function to set model into default multi label mode"""
-        self._config["target"] = "multi"
-        self.set_threshold("mcut")
-        self.set_activation(lambda x: x)
 
     def _metric_sim(self, x, y, m=None):
         """
@@ -361,11 +352,11 @@ class SentenceTextClassificationAbstract(TextClassificationAbstract):
         from mlmc_lab.mlmc_experimental.data.data_loaders import load_mnli
         data, classes = load_mnli(binary)
         classes["contradiction"] = contradiction
-        train = mlmc.data.EntailmentDataset(x1=data["train_x1"], x2=data["train_x2"], labels=data["train_y"],
-                                            classes=classes)
+        train = mlmc.data.datasets.EntailmentDataset(x1=data["train_x1"], x2=data["train_x2"], labels=data["train_y"],
+                                                     classes=classes)
         classes["contradiction"] = contradiction
-        test = mlmc.data.EntailmentDataset(x1=data["test_x1"], x2=data["test_x2"], labels=data["test_y"],
-                                           classes=classes)
+        test = mlmc.data.datasets.EntailmentDataset(x1=data["test_x1"], x2=data["test_x2"], labels=data["test_y"],
+                                                    classes=classes)
         history = self.pretrain_entailment(train, valid=test, *args, **kwargs)
         self._all_compare = True
 
@@ -375,15 +366,91 @@ class SentenceTextClassificationAbstract(TextClassificationAbstract):
         from mlmc_lab.mlmc_experimental.data.data_loaders import load_snli
         data, classes = load_snli(binary)
         classes["contradiction"]=contradiction
-        train = mlmc.data.EntailmentDataset(x1=data["train_x1"],
-                                            x2=data["train_x2"],
-                                            labels=data["train_y"],
-                                            classes=classes)
-        valid = mlmc.data.EntailmentDataset(x1=data["valid_x1"], x2=data["valid_x2"], labels=data["valid_y"],
-                                           classes=classes)
-        test = mlmc.data.EntailmentDataset(x1=data["test_x1"], x2=data["test_x2"], labels=data["test_y"],
-                                           classes=classes)
+        train = mlmc.data.datasets.EntailmentDataset(x1=data["train_x1"],
+                                                     x2=data["train_x2"],
+                                                     labels=data["train_y"],
+                                                     classes=classes)
+        valid = mlmc.data.datasets.EntailmentDataset(x1=data["valid_x1"], x2=data["valid_x2"], labels=data["valid_y"],
+                                                     classes=classes)
+        test = mlmc.data.datasets.EntailmentDataset(x1=data["test_x1"], x2=data["test_x2"], labels=data["test_y"],
+                                                    classes=classes)
         history = self.pretrain_entailment(train, valid=valid, *args, **kwargs)
         loss, evaluation = self._entailment_evaluate(test)
         evaluation["loss"] = loss
         return history, evaluation
+
+    def pretrain_sts(self,batch_size=48, datasets=None, steps=1000, eval_every=100, log_mlflow=False):
+        c = 0
+        from ...data.data_loaders_similarity import load_sts
+        from tqdm import tqdm
+        data = load_sts()
+        epochs = int(steps/len(data))+1
+
+        for e in range(epochs):
+            train_loader = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=True)
+            with tqdm(postfix=[{}], desc="STS", ncols=100, total=steps) as pbar:
+                average = Average()
+                for i, b in enumerate(train_loader):
+
+                    if c % eval_every == 0:
+                        if datasets is not None:
+                            for d in datasets:
+                                test_data = mlmc.data.get(d)
+                                if d == "rcv1" or d == "amazonfull":
+                                    test_data["test"] = mlmc.data.sampler(test_data["test"], absolute=15000)
+                                if mlmc.data.is_multilabel(test_data["train"]):
+                                    self.multi()
+                                    # self.set_sformatter(SFORMATTER[d])
+                                    self.create_labels(test_data["test"].classes)
+                                    _, ev = self.evaluate(test_data["test"], _fit=True, batch_size=32)
+                                    if log_mlflow: ev.log_mlflow(c, prefix=d)
+                                    print(f"{d}:\n", ev.print())
+                                else:
+                                    self.single()
+                                    # self.set_sformatter(SFORMATTER[d])
+                                    self.create_labels(test_data["test"].classes)
+                                    _, ev = self.evaluate(test_data["test"], _fit=True, batch_size=32)
+                                    if log_mlflow: ev.log_mlflow(c, prefix=d)
+                                    print(f"{d}:\n", ev.print())
+
+                        # reset
+                        self.sts()
+
+                    self.optimizer.zero_grad()
+                    self.create_labels(b["x2"])
+                    o = self(x=self.transform(b["x1"])).diag()  # ,
+                    y = b["labels"].to(self.device)# / 5 * 2 - 1
+                    l = self._loss(o, y=y)
+                    l.backward()
+                    self.optimizer.step()
+                    average.update(l.item())
+
+                    c += 1
+                    if pbar is not None:
+                        pbar.postfix[0]["loss"] = round(average.compute().item(), 8)
+                        pbar.update()
+                    if c==steps:
+                        break
+
+                if c == steps:
+                    break
+    def single(self):
+        """Helper function to set model into default single label mode"""
+        self._config["target"] = "single"
+        self.set_threshold("max")
+        self.set_activation( lambda x: x)
+
+    def multi(self):
+        """Helper function to set model into default multi label mode"""
+        self._config["target"] = "multi"
+        self.set_threshold("mcut")
+        self.set_activation(lambda x: x)
+
+    def sts(self):
+        """Helper function to set model into default multi label mode"""
+        self._config["target"] = None
+        self.set_threshold("mcut")
+        self.set_activation(lambda x: x)
+        from ...loss import RelativeRankingLoss
+        # self.set_loss(RelativeRankingLoss(0.5))
+        self.set_loss(RelativeRankingLoss(0.5))
