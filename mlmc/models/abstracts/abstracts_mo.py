@@ -7,7 +7,8 @@ from mlmc.models.abstracts import TextClassificationAbstract
 from mlmc.thresholds import get as  thresholdget
 from ...metrics import MetricsDict
 from ...representation.character import  makemultilabels
-from mlmc.data import MultiOutputMultiLabelDataset, MultiOutputSingleLabelDataset
+from mlmc.data import MultiOutputMultiLabelDataset, SingleLabelDataset
+from ...data.datasets import MultiOutputSingleLabelDataset
 import re
 
 
@@ -166,7 +167,6 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
             callbacks = []
         import datetime
         id = str(hash(datetime.datetime.now()))[1:7]
-        from ...data import SingleLabelDataset
         if isinstance(train, SingleLabelDataset) and self.target != "single":
             print("You are using the model in multi mode but input is SingeleLabelDataset.")
             return 0

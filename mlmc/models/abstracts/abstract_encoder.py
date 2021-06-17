@@ -2,7 +2,7 @@ import torch
 from .abstracts import TextClassificationAbstract
 from ignite.metrics import Average
 from mlmc.metrics.precisionk import Accuracy
-from ...data import EntailmentDataset
+from ...data.datasets import EntailmentDataset
 
 
 class EncoderAbstract(TextClassificationAbstract):

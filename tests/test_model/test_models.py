@@ -1,13 +1,14 @@
 import mlmc
 import torch
 
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def assertion_function(model_type, **kwargs):
 
     mlmc.representation.representations.add_test_example()
     classes = {"label_%i" % (i,): i for i in range(5)}
-    data = mlmc.data.MultiLabelDataset(
+    data = mlmc.data.datasets.MultiLabelDataset(
         x = ["Text 1 example", "text 2 example 2", "text 2 example 2", "text 2 example 2", "text 2 example 2"],
         y = [["label_0", "label_4"], ["label_0", "label_2"], ["label_2", "label_3"], ["label_1", "label_4"], ["label_1", "label_4"]],
         classes = classes

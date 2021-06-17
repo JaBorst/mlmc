@@ -10,7 +10,7 @@ from rdflib import Graph as RDFGraph
 from rdflib.extras.external_graph_libs import rdflib_to_networkx_graph
 from tqdm import tqdm
 
-from ..data.data_loaders import _save_to_tmp, _load_from_tmp
+from ..data.data_loaders_classification import _save_to_tmp, _load_from_tmp
 
 
 def transform(x, rg, lang="en"):

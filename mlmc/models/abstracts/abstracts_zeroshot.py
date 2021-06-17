@@ -1,7 +1,8 @@
 import torch
 from tqdm import tqdm
 from abc import abstractmethod
-from ...data import MultiLabelDataset, SingleLabelDataset, EntailmentDataset
+from ...data import MultiLabelDataset, SingleLabelDataset
+from ...data.datasets import EntailmentDataset
 
 from copy import deepcopy
 from tqdm import tqdm
