@@ -1,4 +1,4 @@
-from .data_loaders import _load_from_tmp,_save_to_tmp
+from .data_loaders_classification import _load_from_tmp,_save_to_tmp
 from urllib import error
 from urllib.request import urlopen
 from zipfile import ZipFile
@@ -247,3 +247,34 @@ def load_sick():
                 "test_y": test["relatedness_score"]
             }
     return data
+
+def load_sts():
+    train_dataset = load_stsb()
+    from .datasets import RegressionDataset
+    train = RegressionDataset(x1=train_dataset["train_x1"], x2=train_dataset["train_x2"],
+                                         labels=train_dataset["train_y"], )
+    valid = RegressionDataset(x1=train_dataset["valid_x1"], x2=train_dataset["valid_x2"],
+                                         labels=train_dataset["valid_y"], )
+    test = RegressionDataset(x1=train_dataset["test_x1"], x2=train_dataset["test_x2"],
+                                        labels=train_dataset["test_y"], )
+
+    train_dataset = load_sts12()
+    train12 = RegressionDataset(x1=train_dataset["train_x1"], x2=train_dataset["train_x2"],
+                                           labels=train_dataset["train_y"], )
+    test12 = RegressionDataset(x1=train_dataset["test_x1"], x2=train_dataset["test_x2"],
+                                          labels=train_dataset["test_y"], )
+
+    train_dataset = load_sts14()
+    train14 = RegressionDataset(x1=train_dataset["train_x1"], x2=train_dataset["train_x2"],
+                                           labels=train_dataset["train_y"], )
+
+    train_dataset = load_sts13()
+    train13 = RegressionDataset(x1=train_dataset["train_x1"], x2=train_dataset["train_x2"],
+                                           labels=train_dataset["train_y"], )
+
+    train_dataset = load_sts16()
+    train16 = RegressionDataset(x1=train_dataset["train_x1"], x2=train_dataset["train_x2"],
+                                           labels=train_dataset["train_y"], )
+
+    complete  = train + valid +test + train12 + test12 + train14 + train13 + train16
+    return complete
