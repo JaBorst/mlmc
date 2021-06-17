@@ -47,7 +47,7 @@ class TextClassificationAbstract(torch.nn.Module):
 
 
         if optimizer_params is None:
-            optimizer_params = {"lr": 5e-5}
+            optimizer_params = {"lr": 5e-5, "betas": (0.9, 0.99)}
 
         self.classes = classes
         self.n_classes = len(classes)
