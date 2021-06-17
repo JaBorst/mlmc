@@ -404,14 +404,14 @@ class SentenceTextClassificationAbstract(TextClassificationAbstract):
                                     self.create_labels(test_data["test"].classes)
                                     _, ev = self.evaluate(test_data["test"], _fit=True, batch_size=32)
                                     if log_mlflow: ev.log_mlflow(c, prefix=d)
-                                    print(f"{d}:\n", ev.print())
+                                    print(f"\n{d}:\n", ev.print())
                                 else:
                                     self.single()
                                     # self.set_sformatter(SFORMATTER[d])
                                     self.create_labels(test_data["test"].classes)
                                     _, ev = self.evaluate(test_data["test"], _fit=True, batch_size=32)
                                     if log_mlflow: ev.log_mlflow(c, prefix=d)
-                                    print(f"{d}:\n", ev.print())
+                                    print(f"\n{d}:\n", ev.print())
 
                         # reset
                         self.sts()
