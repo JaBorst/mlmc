@@ -20,7 +20,7 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract,TextClassificati
             kwargs["activation"] = lambda x: x
         super(EmbeddingBasedWeighted, self).__init__(*args, **kwargs)
         self.modes = ("vanilla","max","mean","max_mean", "attention","attention_max_mean")
-        assert mode in self.modes, f"Unknown mode: '{self.mode}'!"
+        assert mode in self.modes, f"Unknown mode: '{mode}'!"
         self.set_mode(mode=mode)
 
         self.create_labels(self.classes)
@@ -68,7 +68,7 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract,TextClassificati
         if "max" in self.mode:
             word_maxs = word_scores.reshape((input_embedding.shape[0], label_embedding.shape[0],-1)).max(-1)[0]
             r = r * word_maxs
-        return 0.5*(r+1)
+        return r# 0.5*(r+1)
 
     def single(self):
         """Helper function to set the model into single label mode"""
@@ -92,10 +92,9 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract,TextClassificati
         """Helper function to set the model into multi label mode"""
         from ....loss import RelativeRankingLoss
         self._config["target"] = "multi"
-        self.set_threshold("mcut")
+        self.set_threshold("hard")
         self.set_activation(lambda x: x)
         self.set_loss(RelativeRankingLoss(0.5))
-        self._all_compare = True
         self.build()
 
     def entailment(self):
