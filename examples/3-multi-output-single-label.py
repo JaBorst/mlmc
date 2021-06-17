@@ -38,7 +38,12 @@ y = [
 d = mlmc.data.datasets.MultiOutputSingleLabelDataset(x=x, y=y, classes=classes)
 
 # The target is single. Models with multiple outputs are prefixed with `Mo-`.
-m = mlmc.models.MoKimCNN(classes=classes,target="single",finetune=True)
+m = mlmc.models.MoKimCNN(
+    classes=classes,
+    target="single",
+    finetune=True,
+    # device="cuda:0" # uncomment if gpu
+)
 
 m.fit(d, epochs=1)
 

@@ -29,7 +29,8 @@ dataset = mlmc.data.datasets.MultiLabelDataset(x=x, y=y, classes=classes)
 m = mlmc.models.KimCNN(
     classes=classes,
     target="multi",
-    finetune=True
+    finetune=True,
+    # device="cuda:0" # uncomment if gpu
 )
 
 # Use the fit method to train the model
