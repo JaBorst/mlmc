@@ -2,7 +2,8 @@ import torch
 from ignite.metrics import Average
 from tqdm import tqdm
 
-from ...data import SingleLabelDataset, MultiLabelDataset, PredictionDataset
+from ...data import SingleLabelDataset, MultiLabelDataset
+from ...data.datasets import PredictionDataset
 from ...metrics import MetricsDict
 from ...representation import is_transformer, get
 from ...thresholds import get as thresholdget
