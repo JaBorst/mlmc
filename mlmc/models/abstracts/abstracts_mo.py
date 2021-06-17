@@ -228,7 +228,7 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
         Returns:
             loss tensor
         """
-        l = torch.stack([l(o, t) for l, o, t in zip(self.loss, x, y.transpose(0, 1))])
+        l = torch.stack([l(o, t) for l, o, t in zip(self.loss, x, y)])
         if self.aggregation == "sum":
             l = l.sum()
         if self.aggregation == "mean":
@@ -248,13 +248,23 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
                     confidence between two labels following each other and will return everything above)
 
         Returns:
-            A list of the labels
+            A list of the labels or a tuple of (labels, scores, mask) if return_scores is True
 
         """
 
+        output = self.scores(x)
+        with torch.no_grad():
+            predictions = [self._threshold_fct(o) for o in output]
+        labels = [[[d[i.item()] for i in torch.where(p == 1)[0]] for p in prediction] for d, prediction in
+                      zip(self.classes_rev, predictions)]
+        labels = list(zip(*labels))
+
+        if return_scores:
+            return labels, output, predictions
+        return labels
+
+    def scores(self, x):
         self.eval()
-        if self.target == "single":
-            method = "max"
 
         if not hasattr(self, "classes_rev"):
             self.classes_rev = [{v: k for k, v in classes.items()} for classes in self.classes]
@@ -262,20 +272,8 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
         if len(x.shape) == 1: x[None]
         with torch.no_grad():
             output = self.act(self(x))
-
-        predictions = [self._threshold_fct(o) for o in output]
         self.train()
-        if return_scores:
-            labels = [[[(d[i.item()], s[i].item())
-                        for i in torch.where(p == 1)[0]]
-                       for s, p in zip(o1, prediction)]
-                      for d, prediction, o1 in zip(self.classes_rev, predictions, output)]
-        else:
-            labels = [[[d[i.item()] for i in torch.where(p == 1)[0]] for p in prediction] for d, prediction in
-                      zip(self.classes_rev, predictions)]
-        return list(zip(*labels))
-
-
+        return output
 
     def rebuild(self):
         """
@@ -285,3 +283,23 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
         self.optimizer = type(self.optimizer)(
             filter(lambda p: p.requires_grad, self.parameters()), **self.optimizer_params)
         self.to(self.device)
+
+    def _epoch(self, train, pbar=None):
+        """Combining into training loop"""
+        from ignite.metrics import Average
+        average = Average()
+        for i, b in enumerate(train):
+            self.optimizer.zero_grad()
+            if isinstance(b["labels"], list):
+                y = [y.to(self.device) for y in b["labels"]]
+            else:
+                y = b["labels"].to(self.device).t()
+            l, _ = self._step(x=self.transform(b["text"]), y=y)
+            l.backward()
+            self.optimizer.step()
+            average.update(l.item())
+
+            if pbar is not None:
+                pbar.postfix[0]["loss"] = round(average.compute().item(), 8)
+                pbar.update()
+        return average.compute().item()
