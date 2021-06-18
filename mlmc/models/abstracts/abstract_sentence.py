@@ -87,6 +87,7 @@ class SentenceTextClassificationAbstract(TextClassificationAbstract):
         self.n_classes = len(classes)
         self._config["classes"] = classes
         self._config["n_classes"] = self.n_classes
+        self.classes_rev = {v: k for k, v in self.classes.items()}
 
         if self.n_classes != 0: # To ensure we can initialize the model without specifying classes
             # r = self.label_embed(self.classes)

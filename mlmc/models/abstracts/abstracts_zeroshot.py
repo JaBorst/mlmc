@@ -159,6 +159,9 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
     def create_labels(self, classes, mode="glove"):
         self.classes = classes
         self.n_classes = len(classes)
+        self._config["classes"] = classes
+        self._config["n_classes"] = self.n_classes
+        self.classes_rev = {v: k for k, v in self.classes.items()}
 
         if not hasattr(self, "label_dict"):
             self.create_label_dict()

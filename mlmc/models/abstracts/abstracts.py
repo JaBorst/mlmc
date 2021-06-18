@@ -383,7 +383,7 @@ class TextClassificationAbstract(torch.nn.Module):
                         # save states
                         last_best_loss_update = 0
                     else:
-                        print("increment no epochs")
+                        print("increment number of epochs")
                         last_best_loss_update += 1
 
                     if last_best_loss_update >= patience:
@@ -446,7 +446,7 @@ class TextClassificationAbstract(torch.nn.Module):
         assert not (self._config["target"] == "single" and   self._config["threshold"] != "max"), \
             "You are running single target mode and predicting not in max mode."
 
-        if not hasattr(self, "classes_rev") or (list(self.classes_rev.values())[0] not in self.classes.keys()):
+        if not hasattr(self, "classes_rev"):
             self.classes_rev = {v: k for k, v in self.classes.items()}
         x = self.transform(x)
         with torch.no_grad():
