@@ -48,5 +48,8 @@ m = mlmc.models.MoKimCNN(
 # you can fit the data
 m.fit(d, epochs=1)
 
+# Evaluate
+m.evaluate(d, metrics="multilabel_report")
+
 # Use the predict function to predict other examples
 m.predict(d.x)

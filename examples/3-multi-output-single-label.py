@@ -45,7 +45,11 @@ m = mlmc.models.MoKimCNN(
     # device="cuda:0" # uncomment if gpu
 )
 
+# Train
 m.fit(d, epochs=1)
+
+# Evaluate
+m.evaluate(d)
 
 # Use the predict function to predict other examples
 m.predict(d.x)

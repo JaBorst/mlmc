@@ -127,13 +127,16 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
         data_loader = torch.utils.data.DataLoader(data, batch_size=batch_size)
         with torch.no_grad():
             for i, b in enumerate(data_loader):
-                y = b["labels"]
-                l, output = self._step(x=self.transform(b["text"]).to(self.device), y=y.to(self.device))
+                if isinstance(b["labels"], list):
+                    y = [y.to(self.device) for y in b["labels"]]
+                else:
+                    y = b["labels"].to(self.device).t()
+                l, output = self._step(x=self.transform(b["text"]).to(self.device), y=y)
                 output = self.act(output)
                 pred = [self._threshold_fct(o) for o in output]
 
                 average.update(l.item())
-                for p, o, t, m in zip(pred, output, y.transpose(0, 1), initialized_metrics):
+                for p, o, t, m in zip(pred, output, y, initialized_metrics):
                     m.update_metrics((o.cpu(), t.cpu(), p.cpu()))
 
         self.train()
