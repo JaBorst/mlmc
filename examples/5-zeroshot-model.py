@@ -83,10 +83,13 @@ print(train.count())
 
 
 # Use the fit method to train the model
-m.loss = mlmc.loss.RelativeRankingLoss(0.5)
+# m.loss = mlmc.loss.RelativeRankingLoss(0.5)
+m.single(loss="ranking") # anything else as argument will result in crossentropyloss
+
 m.fit(train, epochs=50)    # RelativeRankingLoss might go to zero. This is not bad thing but you can interrupt
-                            # the training at this point or set the number of epochs accodingly
+                            # the training at this point or set the number of epochs accordingly
 
 
-# For the large model this should achieve around 84 % accuracy, for the smaller instantiation around 70% accuracy.
+# For the large model this should achieve for the larger model over 80 % accuracy, for the smaller instantiation around 70% accuracy.
+# depending on the information contained in the sampled examples
 print("Accuracy after seeing few examples:", m.evaluate(data["test"])[1]["accuracy"])
