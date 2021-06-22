@@ -120,7 +120,7 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract,TextClassificati
         if loss == "ranking":
             self.set_loss(RelativeRankingLoss(0.5))
         else:
-            self.set_loss(torch.nn.CrossEntropyLoss())
+            self.set_loss(torch.nn.BCELoss)
         self._all_compare=True
         self.build()
 
