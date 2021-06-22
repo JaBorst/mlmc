@@ -387,6 +387,7 @@ class SentenceTextClassificationAbstract(TextClassificationAbstract):
     def pretrain_sts(self,batch_size=12, datasets=None, steps=600, eval_every=100, log_mlflow=False):
         c = 0
         from ...data.data_loaders_similarity import load_sts
+        from ...data import SFORMATTER
         from tqdm import tqdm
         data = load_sts()
         epochs = int(steps/len(data))+1
@@ -405,14 +406,14 @@ class SentenceTextClassificationAbstract(TextClassificationAbstract):
                                     test_data["test"] = mlmc.data.sampler(test_data["test"], absolute=15000)
                                 if mlmc.data.is_multilabel(test_data["train"]):
                                     self.multi()
-                                    # self.set_sformatter(SFORMATTER[d])
+                                    self.set_sformatter(SFORMATTER[d])
                                     self.create_labels(test_data["test"].classes)
                                     _, ev = self.evaluate(test_data["test"], _fit=True, batch_size=32)
                                     if log_mlflow: ev.log_mlflow(c, prefix=d)
                                     print(f"\n{d}:\n", ev.print())
                                 else:
                                     self.single()
-                                    # self.set_sformatter(SFORMATTER[d])
+                                    self.set_sformatter(SFORMATTER[d])
                                     self.create_labels(test_data["test"].classes)
                                     _, ev = self.evaluate(test_data["test"], _fit=True, batch_size=32)
                                     if log_mlflow: ev.log_mlflow(c, prefix=d)
@@ -454,8 +455,7 @@ class SentenceTextClassificationAbstract(TextClassificationAbstract):
     def sts(self):
         """Helper function to set model into default multi label mode"""
         self._config["target"] = None
-        self.set_threshold("mcut")
+        self.set_threshold("hard")
         self.set_activation(lambda x: x)
-        from ...loss import RelativeRankingLoss
+        # from ...loss import RelativeRankingLoss
         # self.set_loss(RelativeRankingLoss(0.5))
-        self.set_loss(RelativeRankingLoss(0.5))

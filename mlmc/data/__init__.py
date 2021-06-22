@@ -9,8 +9,11 @@ from .data_loaders_classification import load_eurlex, load_wiki30k, load_huffpos
     load_agnews, load_dbpedia, load_ohsumed, load_yahoo_answers, load_movie_reviews, load_amazonfull, load_trec6, \
     load_trec50, load_yelpfull
 
+from .data_loaders_similarity import load_sts, load_stsb, load_sts12, load_sts13, load_sts14, load_sts16, load_sick
+
 # String Mappings
-from .datasets import MultiLabelDataset, SingleLabelDataset, MultiOutputMultiLabelDataset
+from .datasets import MultiLabelDataset, SingleLabelDataset, MultiOutputSingleLabelDataset, \
+    MultiOutputMultiLabelDataset, RegressionDataset, PredictionDataset
 
 register = {
     "aapd": load_aapd,
