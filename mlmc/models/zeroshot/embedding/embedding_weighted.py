@@ -68,23 +68,59 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract,TextClassificati
         if "max" in self.mode:
             word_maxs = word_scores.reshape((input_embedding.shape[0], label_embedding.shape[0],-1)).max(-1)[0]
             r = r * word_maxs
-        return r# 0.5*(r+1)
+        if self._loss_name=="ranking":
+            return r
+        else:
+            return 0.5*(r+1)
 
-    def single(self):
+    def scores(self, x):
+        """
+        Returns 2D tensor with length of x and number of labels as shape: (N, L)
+        Args:
+            x:
+
+        Returns:
+
+        """
+        self.eval()
+        assert not (self._config["target"] == "single" and   self._config["threshold"] != "max"), \
+            "You are running single target mode and predicting not in max mode."
+
+        if not hasattr(self, "classes_rev"):
+            self.classes_rev = {v: k for k, v in self.classes.items()}
+        x = self.transform(x)
+        with torch.no_grad():
+            output = self.act(self(x))
+            if self._loss_name == "ranking":
+                output = 0.5*(output+1)
+        self.train()
+        return output
+
+    def single(self, loss="ranking"):
         """Helper function to set the model into single label mode"""
+        from ....loss import RelativeRankingLoss
         self._config["target"] = "single"
         self.set_threshold("max")
         self.set_activation(lambda x: x)
-        self.set_loss(torch.nn.CrossEntropyLoss())
+        self._loss_name = loss
+        if loss == "ranking":
+            self.set_loss(RelativeRankingLoss(0.5))
+        else:
+            self.set_loss(torch.nn.CrossEntropyLoss())
         self._all_compare=True
         self.build()
 
-    def multi(self):
+    def multi(self, loss="ranking"):
         """Helper function to set the model into multi label mode"""
+        from ....loss import RelativeRankingLoss
         self._config["target"] = "multi"
         self.set_threshold("mcut")
         self.set_activation(lambda x: x)
-        self.set_loss(torch.nn.BCELoss())
+        self._loss_name = loss
+        if loss == "ranking":
+            self.set_loss(RelativeRankingLoss(0.5))
+        else:
+            self.set_loss(torch.nn.CrossEntropyLoss())
         self._all_compare=True
         self.build()
 
