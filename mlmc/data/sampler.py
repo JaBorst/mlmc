@@ -201,14 +201,24 @@ def fewshot_sampler(dataset, k):
         sample_x = []
         sample_y = []
         counter = {k: 0 for k in dataset.classes}
-        for i in index:
-            r = sum([counter[l] < k for l in dataset.y[i]]) / len(dataset.y[i])
-            if r == 1:#random.uniform(0, 1) < r:
-                sample_x.append(dataset.x[i])
-                sample_y.append(dataset.y[i])
-                for l in dataset.y[i]:
-                    counter[l] = counter[l] + 1
 
+        freq = dataset.count()
+        dist = sorted(freq.items(), key=lambda x: x[1])
+
+        for l, f in dist:
+            if f == 0:
+                continue
+            # else:  break
+            e = [(x,y) for (x,y) in zip(dataset.x,dataset.y) if l in y]
+            w = [1/sum([freq[l] for l in y]) for x,y in e]
+            e = random.choices(e,weights=w, k=min(len(e),k),)
+
+            sample_x.extend([x[0] for x in e])
+            sample_y.extend([x[1] for x in e])
+
+            for lset in [x[1] for x in e]:
+                for l in lset:
+                    counter[l] = counter[l] + 1
             if all([k <= v for v in counter.values()]):
                 break
 
@@ -224,7 +234,7 @@ def fewshot_sampler(dataset, k):
                             break
         data = type(dataset)(x=sample_x, y=sample_y, classes=dataset.classes)
         data.count(list(data.classes.keys()))
-        return type(dataset)(x = sample_x, y = sample_y, classes = dataset.classes)
+        return data
     else:
         index = list(range(len(dataset)))
         random.shuffle(index)
