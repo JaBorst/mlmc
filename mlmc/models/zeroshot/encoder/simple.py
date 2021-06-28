@@ -8,14 +8,20 @@ class SimpleEncoder(EncoderAbstract):
     """
     def __init__(self, *args, **kwargs):
         """Only there to initialize a projection for binary classification"""
-        super(EncoderAbstract, self).__init__(*args, **kwargs)
-        self.decision = torch.nn.Linear(self.embeddings_dim, 1)
+        super(SimpleEncoder, self).__init__(*args, **kwargs)
         self._all_compare = True
         self.build()
 
     def forward(self, x):
-        e = self.embedding(**x)[1]
-        if self._all_compare:
-            return self.decision(e).squeeze(-1).reshape((int(x["input_ids"].shape[0]/len(self.classes)), len(self.classes)))
+        e = self.embedding(**x)["logits"]
+
+        if self._config["target"] == "single":
+            e = torch.log(e[:,-1].softmax(-1))
         else:
-            return self.decision(e).squeeze(-1)
+            e = torch.log(e[:, [0, 2]].softmax(-1)[:, -1])
+
+
+        if self._all_compare:
+            return e.reshape((int(x["input_ids"].shape[0]/self._config["n_classes"]), self._config["n_classes"]))
+        else:
+            return e.squeeze(-1)

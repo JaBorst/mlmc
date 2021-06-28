@@ -11,30 +11,36 @@ class EncoderAbstract(TextClassificationAbstract):
         self._config["sformatter"] = sformatter
         self._config["label_length"] = label_length
         self._all_compare = True
+
     def create_labels(self, classes):
         self.classes = classes
         self.n_classes = len(classes)
+        self._config["classes"] = classes
+        self._config["n_classes"] = len(classes)
+        if hasattr(self, "classes_rev"):
+            del self.classes_rev
 
-    def set_sformat(self, c):
+    def set_sformatter(self, c):
         assert callable(c)
         self._config["sformatter"] = c
 
     def transform(self,x, max_length=400, reshape=False, device=None):
+        x = [x] if isinstance(x, str) else x
         if device is None:
             device=self.device
 
         if self._all_compare:
-            label = list([self._config["sformatter"](x) for x in self.classes]) * len(x)
-            text = [s for s in x for _ in range(len(self.classes))]
+            label = list([self._config["sformatter"](x) for x in self._config["classes"]]) * len(x)
+            text = [s for s in x for _ in range(len(self._config["classes"]))]
         else:
-            label = list([self._config["sformatter"](x) for x in self.classes])
+            label = list([self._config["sformatter"](x) for x in self._config["classes"]])
             text = x
-        tok = self.tokenizer.tokenizer(text, label, return_tensors="pt", add_special_tokens=True, padding=True,
+        tok = self.tokenizer(text, label, return_tensors="pt", add_special_tokens=True, padding=True,
                                        truncation=True,
                                        max_length=self.max_len)
 
         if reshape:
-            tok = {k:v.reshape((len(x), len(self.classes), -1)).to(device) for k,v in tok.items()}
+            tok = {k:v.reshape((len(x), len(self._config["classes"]), -1)).to(device) for k,v in tok.items()}
         else:
             tok = {k: v.to(device) for k, v in tok.items()}
 
@@ -72,6 +78,21 @@ class EncoderAbstract(TextClassificationAbstract):
         l = self._loss(output, y)
         l = self._regularize(l)
         return l, output
+
+
+    def _init_input_representations(self):
+        from transformers import AutoModelForSequenceClassification, AutoTokenizer
+        self.embedding = AutoModelForSequenceClassification.from_pretrained(self.representation)
+        self.tokenizer = AutoTokenizer.from_pretrained(self.representation)
+
+        test = {'input_ids': torch.tensor([[0, 21959, 2, 2, 10554, 2],
+                                           [0, 21959, 2, 2, 36260, 2]]),
+                'attention_mask': torch.tensor([[1, 1, 1, 1, 1, 1],
+                                                [1, 1, 1, 1, 1, 1]])}
+
+        # self.embeddings_dim = self.embedding(**test)["logits"].shape[-1]
+        for param in self.embedding.parameters(): param.requires_grad = self.finetune
+
 
     # def _epoch(self, train, sub_batch_size=32, pbar=None):
     #     """Implementing a subbatching loop"""
@@ -253,7 +274,7 @@ class EncoderAbstract(TextClassificationAbstract):
         return history, None
 
     def pretrain_snli(self, *args, **kwargs):
-        from mlmc_lab.mlmc_experimental.data.data_loaders import load_snli
+        from mlmc.data.data_loaders_nli import load_snli
         data, classes = load_snli()
         classes["contradiction"]=0
         train = EntailmentDataset(x1=data["train_x1"],
