@@ -42,7 +42,6 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract,TextClassificati
             label_embedding = label_embedding - label_embedding.mean(0)
             # print("mean added")
 
-
         if "attention" in self.mode or "max" in self.mode:
             input_embedding2 = input_embedding / input_embedding.norm(p=2, dim=-1, keepdim=True)
             label_embedding2 = label_embedding / label_embedding.norm(p=2, dim=-1, keepdim=True)
@@ -66,12 +65,50 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract,TextClassificati
             r = torch.matmul((input_embedding), (label_embedding).t())
 
         if "max" in self.mode:
-            word_maxs = word_scores.reshape((input_embedding.shape[0], label_embedding.shape[0],-1)).max(-1)[0]
+            word_maxs = word_scores.reshape((input_embedding.shape[0], label_embedding.shape[0], -1)).max(-1)[0]
             r = r * word_maxs
-        if self._loss_name=="ranking":
+        if self._loss_name == "ranking":
             return r
         else:
-            return 0.5*(r+1)
+            return 0.5 * (r + 1)
+
+    def embed(self, x):
+        """
+        Method to return input embeddings.
+        ToDo: Modularize the forward to avoid code copying.
+        Args:
+            x: list of input texts
+
+        Returns: a tuple of:
+            A tensor of embeddings shape (b, e), where b is the number of input texts and e the embedding dimension
+            A tensor of embeddings shape (l, e), where l is the number of labels and e the embedding dimension
+
+        """
+        x = self.transform(x)
+        input_embedding = self.embedding(**x)[0]
+        label_embedding = self.embedding(**self.label_dict)[0]
+
+        if "mean" in self.mode:
+            label_embedding = label_embedding - label_embedding.mean(0)
+
+        if "attention" in self.mode or "max" in self.mode:
+            input_embedding2 = input_embedding / input_embedding.norm(p=2, dim=-1, keepdim=True)
+            label_embedding2 = label_embedding / label_embedding.norm(p=2, dim=-1, keepdim=True)
+            word_scores = torch.einsum("ijk,lnk->iljn", input_embedding2, label_embedding2)
+
+        if "attention" in self.mode:
+            attentions = torch.relu(word_scores.mean(-1))
+            input_embedding = self._mean_pooling((attentions[..., None] * input_embedding[:, None]).transpose(1, 2),
+                                                 x["attention_mask"][:, :, None])
+            label_embedding = self._mean_pooling(label_embedding, self.label_dict["attention_mask"])
+            input_embedding = input_embedding / (input_embedding.norm(p=2, dim=-1, keepdim=True) + 1e-25)
+            label_embedding = label_embedding / (label_embedding.norm(p=2, dim=-1, keepdim=True) + 1e-25)
+        else:
+            input_embedding = self._mean_pooling(input_embedding, x["attention_mask"])
+            label_embedding = self._mean_pooling(label_embedding, self.label_dict["attention_mask"])
+            input_embedding = input_embedding / (input_embedding.norm(p=2, dim=-1, keepdim=True) + 1e-25)
+            label_embedding = label_embedding / (label_embedding.norm(p=2, dim=-1, keepdim=True) + 1e-25)
+        return input_embedding, label_embedding
 
     def scores(self, x):
         """
@@ -128,6 +165,7 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract,TextClassificati
         """Helper function to set the model into multi label mode"""
         from ....loss import RelativeRankingLoss
         self._config["target"] = "multi"
+        self._loss_name="ranking"
         self.set_threshold("hard")
         self.set_activation(lambda x: x)
         self.set_loss(RelativeRankingLoss(0.5))
