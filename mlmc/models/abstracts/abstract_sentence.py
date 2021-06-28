@@ -5,7 +5,7 @@ from mlmc.models.abstracts.abstracts import TextClassificationAbstract
 import mlmc
 from ignite.metrics import Average
 from mlmc.metrics.precisionk import Accuracy
-
+from ...data.dataset_formatter import SFORMATTER
 
 
 class SentenceTextClassificationAbstract(TextClassificationAbstract):
@@ -124,7 +124,7 @@ class SentenceTextClassificationAbstract(TextClassificationAbstract):
             return (torch.matmul(x, m.t()) * y).sum(-1)
 
     def pretrain_entailment(self, train,
-            valid=None, epochs=1, batch_size=16, valid_batch_size=50, callbacks=None, lr_schedule=None, lr_param={}, warmup=None):
+            valid=None, epochs=1, batch_size=16, valid_batch_size=50, datasets = [], callbacks=None,log_mlflow=False, lr_schedule=None, lr_param={}, warmup=None):
         """
         Training function
 
@@ -143,83 +143,7 @@ class SentenceTextClassificationAbstract(TextClassificationAbstract):
             A history dictionary with the loss and the validation evaluation measurements.
 
         """
-
-        from tqdm import tqdm
-        if callbacks is None:
-            callbacks = []
-        import datetime
-        id = str(hash(datetime.datetime.now()))[1:7]
-
-        self._config["entailment_classes"] = train.classes
-        self.validation = []
-        self.train_history = {"loss": []}
-        import pytorch_warmup as pwarmup
-        if lr_schedule is not None:
-            scheduler = lr_schedule(self.optimizer, **lr_param)
-        warmup_schedule=None
-        if warmup is not None:
-            warmup_schedule = pwarmup.LinearWarmup(self.optimizer, warmup_period=int(len(train)*warmup / batch_size))
-
-        for e in range(epochs):
-            self._callback_epoch_start(callbacks)
-
-            # An epoch
-            losses = {"loss": str(0.)}
-            train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size, shuffle=True)
-            with tqdm(train_loader,
-                      postfix=[losses], desc="Epoch %i/%i" % (e + 1, epochs), ncols=100) as pbar:
-                loss = self._entailment_epoch(train_loader, pbar=pbar, schedule=warmup_schedule)
-                if lr_schedule is not None: scheduler.step()
-                self.train_history["loss"].append(loss)
-
-                # Validation if available
-                if valid is not None:
-                    valid_loss, result_metrics = self._entailment_evaluate(
-                        data=valid,
-                        batch_size=valid_batch_size,
-                        metrics=[Accuracy()],
-                        _fit=True)
-
-                    valid_loss_dict = {"valid_loss": valid_loss}
-                    valid_loss_dict.update(result_metrics.compute())
-                    self.validation.append(valid_loss_dict)
-
-                    printables = {"valid_loss": valid_loss}
-                    printables.update(result_metrics.print())
-                    pbar.postfix[0].update(printables)
-                    pbar.update()
-
-            # Callbacks
-            self._callback_epoch_end(callbacks)
-
-        self._callback_train_end(callbacks)
-
-        from copy import copy
-        return_copy = {"train": copy(self.train_history), "valid": copy(self.validation)}
-        return return_copy
-
-
-    def pretrain_entailment(self, train,
-            valid=None, epochs=1, batch_size=16, valid_batch_size=50, callbacks=None, lr_schedule=None, lr_param={}, warmup=None):
-        """
-        Training function
-
-        Args:
-            train: MultilabelDataset used as training data
-            valid: MultilabelDataset to keep track of generalization
-            epochs: Number of epochs (times to iterate the train data)
-            batch_size: Number of instances in one batch.
-            valid_batch_size: Number of instances in one batch  of validation.
-            patience: (default -1) Early Stopping Arguments.
-            Number of epochs to wait for performance improvements before exiting the training loop.
-            tolerance: (default 1e-2) Early Stopping Arguments.
-            Minimum improvement of an epoch over the best validation loss so far.
-
-        Returns:
-            A history dictionary with the loss and the validation evaluation measurements.
-
-        """
-
+        self.entailment()
         from tqdm import tqdm
         if callbacks is None:
             callbacks = []
@@ -264,7 +188,8 @@ class SentenceTextClassificationAbstract(TextClassificationAbstract):
                     printables.update(result_metrics.print())
                     pbar.postfix[0].update(printables)
                     pbar.update()
-
+            if datasets is not None:
+                self._eval_data_list(datasets, log_mlflow=log_mlflow, c=e)
             # Callbacks
             self._callback_epoch_end(callbacks)
 
@@ -353,22 +278,42 @@ class SentenceTextClassificationAbstract(TextClassificationAbstract):
         else:
             return average.compute().item(), initialized_metrics.compute()
 
-    def pretrain_mnli(self, contradiction = -1,binary=True, *args, **kwargs):
-        from mlmc_lab.mlmc_experimental.data.data_loaders import load_mnli
-        data, classes = load_mnli(binary)
-        classes["contradiction"] = contradiction
+    def _eval_data_list(self, datasets, log_mlflow=False, c=0):
+        for d in datasets:
+            test_data = mlmc.data.get(d)
+            if d == "rcv1" or d == "amazonfull":
+                test_data["test"] = mlmc.data.sampler(test_data["test"], absolute=15000)
+            if mlmc.data.is_multilabel(test_data["train"]):
+                self.multi()
+                self.set_sformatter(SFORMATTER[d])
+                self.create_labels(test_data["test"].classes)
+                _, ev = self.evaluate(test_data["test"], _fit=True, batch_size=32)
+                if log_mlflow: ev.log_mlflow(c, prefix=d)
+                print(f"\n{d}:\n", ev.print())
+            else:
+                self.single()
+                self.set_sformatter(SFORMATTER[d])
+                self.create_labels(test_data["test"].classes)
+                _, ev = self.evaluate(test_data["test"], _fit=True, batch_size=32)
+                if log_mlflow: ev.log_mlflow(c, prefix=d)
+                print(f"\n{d}:\n", ev.print())
+
+    def pretrain_mnli(self, datasets = [], *args, **kwargs):
+        from mlmc.data.data_loaders_nli import load_mnli
+        data, classes = load_mnli(False)
+        classes = {'entailment': 2, 'neutral': 1, 'contradiction': 0}
+
         train = mlmc.data.datasets.EntailmentDataset(x1=data["train_x1"], x2=data["train_x2"], labels=data["train_y"],
                                                      classes=classes)
-        classes["contradiction"] = contradiction
         test = mlmc.data.datasets.EntailmentDataset(x1=data["test_x1"], x2=data["test_x2"], labels=data["test_y"],
                                                     classes=classes)
-        history = self.pretrain_entailment(train, valid=test, *args, **kwargs)
+        history = self.pretrain_entailment(train, valid=test, datasets = datasets, *args, **kwargs)
         self._all_compare = True
 
         return history, None
 
     def pretrain_snli(self, contradiction=-1, binary=True, *args, **kwargs):
-        from mlmc_lab.mlmc_experimental.data.data_loaders import load_snli
+        from mlmc.data.data_loaders_nli import load_snli
         data, classes = load_snli(binary)
         classes["contradiction"]=contradiction
         train = mlmc.data.datasets.EntailmentDataset(x1=data["train_x1"],
@@ -390,35 +335,16 @@ class SentenceTextClassificationAbstract(TextClassificationAbstract):
         from ...data import SFORMATTER
         from tqdm import tqdm
         data = load_sts()
-        epochs = int(steps/len(data))+1
+        epochs = int(steps*batch_size/len(data))+1
 
-        for e in range(epochs):
-            train_loader = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=True)
-            with tqdm(postfix=[{}], desc="STS", ncols=100, total=steps) as pbar:
-                average = Average()
+        with tqdm(postfix=[{}], desc="STS", ncols=100, total=steps) as pbar:
+            average = Average()
+            for e in range(epochs):
+                train_loader = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=True)
                 for i, b in enumerate(train_loader):
-
                     if c % eval_every == 0:
                         if datasets is not None:
-                            for d in datasets:
-                                test_data = mlmc.data.get(d)
-                                if d == "rcv1" or d == "amazonfull":
-                                    test_data["test"] = mlmc.data.sampler(test_data["test"], absolute=15000)
-                                if mlmc.data.is_multilabel(test_data["train"]):
-                                    self.multi()
-                                    self.set_sformatter(SFORMATTER[d])
-                                    self.create_labels(test_data["test"].classes)
-                                    _, ev = self.evaluate(test_data["test"], _fit=True, batch_size=32)
-                                    if log_mlflow: ev.log_mlflow(c, prefix=d)
-                                    print(f"\n{d}:\n", ev.print())
-                                else:
-                                    self.single()
-                                    self.set_sformatter(SFORMATTER[d])
-                                    self.create_labels(test_data["test"].classes)
-                                    _, ev = self.evaluate(test_data["test"], _fit=True, batch_size=32)
-                                    if log_mlflow: ev.log_mlflow(c, prefix=d)
-                                    print(f"\n{d}:\n", ev.print())
-
+                            self._eval_data_list(datasets, log_mlflow=log_mlflow, c=c)
                         # reset
                         self.sts()
 
@@ -454,7 +380,15 @@ class SentenceTextClassificationAbstract(TextClassificationAbstract):
 
     def sts(self):
         """Helper function to set model into default multi label mode"""
-        self._config["target"] = None
+        self._config["target"] = "sts"
+        self.set_threshold("hard")
+        self.set_activation(lambda x: x)
+        # from ...loss import RelativeRankingLoss
+        # self.set_loss(RelativeRankingLoss(0.5))
+
+    def entailment(self):
+        """Helper function to set model into default multi label mode"""
+        self._config["target"] = "entailment"
         self.set_threshold("hard")
         self.set_activation(lambda x: x)
         # from ...loss import RelativeRankingLoss
