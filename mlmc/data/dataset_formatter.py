@@ -63,7 +63,7 @@ label_dicts = {"trec6": {"ABBR": "question about abbreviation",
                 "OfficeHolder": "Office Holder",
                 "MeanOfTransportation": "Mean Of Transportation",
                 "NaturalPlace":"Natural Place",
-                "WrittenWork": "WrittenWork"
+                "WrittenWork": "Written Work"
             },
                "agnews":{
                    "Sci/Tech": "Science Technology"
