@@ -447,7 +447,7 @@ class TextClassificationAbstract(torch.nn.Module):
             "You are running single target mode and predicting not in max mode."
 
         if not hasattr(self, "classes_rev"):
-            self.classes_rev = {v: k for k, v in self.classes.items()}
+            self.classes_rev = {v: k for k, v in self._config["classes"].items()}
         x = self.transform(x)
         with torch.no_grad():
             output = self.act(self(x))
