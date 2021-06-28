@@ -1,1 +1,2 @@
 from .embedding_weighted import EmbeddingBasedWeighted
+from .embedding_entailment import EmbeddingBasedEntailment
