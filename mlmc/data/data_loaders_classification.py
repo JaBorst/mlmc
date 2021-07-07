@@ -785,6 +785,7 @@ def load_yelpfull():
                 "test": (test["text"], [[str(x+1)] for x in test["label"]]),
             }
     return data, dict((str(i+1),i) for i in range(5))
+
 import tempfile
 import tarfile
 import csv
