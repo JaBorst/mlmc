@@ -15,13 +15,15 @@ class SimpleEncoder(EncoderAbstract):
     def forward(self, x):
         e = self.embedding(**x)["logits"]
 
-        if self._config["target"] == "single":
+        if self._config["target"] == "entailment":
+            pass
+        elif self._config["target"] == "single":
             e = torch.log(e[:,-1].softmax(-1))
-        else:
+            e = e.reshape((int(x["input_ids"].shape[0] / self._config["n_classes"]), self._config["n_classes"]))
+        elif self._config["target"] == "multi":
             e = torch.log(e[:, [0, 2]].softmax(-1)[:, -1])
-
-
-        if self._all_compare:
-            return e.reshape((int(x["input_ids"].shape[0]/self._config["n_classes"]), self._config["n_classes"]))
+            e = e.squeeze(.1)
         else:
-            return e.squeeze(-1)
+            assert not self._config["target"], f"Target {self._config['target']} not defined"
+
+        return e
