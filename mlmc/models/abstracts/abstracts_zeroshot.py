@@ -6,6 +6,9 @@ from ...data.datasets import EntailmentDataset
 
 from copy import deepcopy
 from tqdm import tqdm
+from ignite.metrics import Average
+from mlmc.metrics.precisionk import Accuracy
+from ...data.datasets import EntailmentDataset
 
 try:
     from apex import amp
@@ -185,53 +188,182 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
 
 
 
-    def _entail_forward(self, x1, x2):
-        self.label_embedding = x2
-        return self.forward(x1).diag()
 
-    def entailment_pretrain(self, data, valid = None, epochs=10, batch_size=16):
-        train_history = {"loss": []}
-        for e in range(epochs):
-            # An epoch
-            losses = {"loss": str(0.)}
-            dl = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=True)
-            with tqdm(dl,
-                      postfix=[losses], desc="Epoch %i/%i" % (e + 1, epochs), ncols=100) as pbar:
+    def _eval_data_list(self, datasets, log_mlflow=False, c=0):
+        from ...data import get, is_multilabel, sampler, SFORMATTER
+        for d in datasets:
+            test_data = get(d)
+            if d == "rcv1" or d == "amazonfull":
+                test_data["test"] = sampler(test_data["test"], absolute=15000)
+            if is_multilabel(test_data["train"]):
+                self.multi()
+                self.set_sformatter(SFORMATTER[d])
+                self.create_labels(test_data["test"].classes)
+                _, ev = self.evaluate(test_data["test"], _fit=True, batch_size=32)
+                if log_mlflow: ev.log_mlflow(c, prefix=d)
+                print(f"\n{d}:\n", ev.print())
+            else:
+                self.single()
+                self.set_sformatter(SFORMATTER[d])
+                self.create_labels(test_data["test"].classes)
+                _, ev = self.evaluate(test_data["test"], _fit=True, batch_size=32)
+                if log_mlflow: ev.log_mlflow(c, prefix=d)
+                print(f"\n{d}:\n", ev.print())
 
+    def pretrain_entailment(self, train,
+            valid=None, steps=1000, eval_every=100, datasets = None, epochs=1, batch_size=16, valid_batch_size=32, callbacks=None, lr_schedule=None, lr_param={}, log_mlflow=False):
+        """
+        Training function
 
-                from ignite.metrics import Average
-                average = Average()
-                for b in dl:
-                    self.zero_grad()
-                    scores = self._entail_forward(self.transform(b["x1"]).to(self.device),
-                                                  self.transform(b["x2"]).to(self.device))
-                    l = self.loss(scores, b["labels"].to(self.device).float())
+        Args:
+            train: MultilabelDataset used as training data
+            valid: MultilabelDataset to keep track of generalization
+            epochs: Number of epochs (times to iterate the train data)
+            batch_size: Number of instances in one batch.
+            valid_batch_size: Number of instances in one batch  of validation.
+            patience: (default -1) Early Stopping Arguments.
+            Number of epochs to wait for performance improvements before exiting the training loop.
+            tolerance: (default 1e-2) Early Stopping Arguments.
+            Minimum improvement of an epoch over the best validation loss so far.
+
+        Returns:
+            A history dictionary with the loss and the validation evaluation measurements.
+
+        """
+
+        from tqdm import tqdm
+        if callbacks is None:
+            callbacks = []
+
+        self.validation = []
+        self.train_history = {"loss": []}
+
+        if lr_schedule is not None:
+            scheduler = lr_schedule(self.optimizer, **lr_param)
+        epochs = int(steps * batch_size / len(train)) + 1
+        c = 0
+        with tqdm(postfix=[{}], desc="Entailment", ncols=100, total=steps) as pbar:
+            average = Average()
+            for e in range(epochs):
+                train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size, shuffle=True)
+                for i, b in enumerate(train_loader):
+                    if c % eval_every == 0:
+                        # Validation if available
+                        if valid is not None:
+                            self.entailment()
+                            valid_loss, result_metrics = self._entailment_evaluate(
+                                data=valid,
+                                batch_size=valid_batch_size,
+                                metrics=[Accuracy()],
+                                _fit=True)
+
+                            valid_loss_dict = {"valid_loss": valid_loss}
+                            valid_loss_dict.update(result_metrics.compute())
+                            self.validation.append(valid_loss_dict)
+
+                            printables = {"valid_loss": valid_loss}
+                            printables.update(result_metrics.print())
+                            print("valid: ", printables)
+
+                        if datasets is not None:
+                            self._eval_data_list(datasets, log_mlflow=log_mlflow, c=c)
+
+                    self.entailment()
+
+                    self.optimizer.zero_grad()
+                    self.create_labels(b["x2"])
+                    l, _ = self._step(x=self.transform(b["x1"]), y=b["labels"].to(self.device))
                     l.backward()
                     self.optimizer.step()
-                    average.update(l.detach().item())
-                    pbar.postfix[0]["loss"] = round(average.compute().item(), 8)
-                    pbar.update()
-                if valid is not None:
-                    validation_result = self.entailment_eval(valid,batch_size=batch_size*2)
-                    pbar.postfix[0]["valid_loss"] = round(validation_result["loss"], 8)
-                    pbar.postfix[0]["valid_accuracy"] = round(validation_result["accuracy"], 8)
-                    pbar.update()
+                    average.update(l.item())
 
-                train_history["loss"].append(average.compute().item())
-        return {"train": train_history, "valid": validation_result}
+                    if pbar is not None:
+                        pbar.postfix[0]["loss"] = round(average.compute().item(), 8)
+                        pbar.update()
+                    c+=1
+                    if c == steps:
+                        break
+                if c == steps:
+                    break
 
-    def entailment_eval(self, data, batch_size=16):
-        self.eval()
-        dl = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=True)
-        from ignite.metrics import Average
+        from copy import copy
+        return_copy = {"train": copy(self.train_history), "valid": copy(self.validation)}
+        return return_copy
+
+
+    def _entailment_evaluate(self, data, batch_size=50,  metrics=[Accuracy()], _fit=False):
+        """
+        Evaluation, return accuracy and loss and some multilabel measure
+
+        Returns p@1, p@3, p@5, AUC, loss, Accuracy@0.5, Accuracy@mcut, ROC Values, class-wise F1, Precision and Recall.
+        Args:
+            data: A MultilabelDataset with the data for evaluation
+            batch_size: The batch size of the evaluation loop. (Larger is often faster, but it should be small enough
+            to fit into GPU memory. In general it can be larger than batch_size in training.
+            return_roc: If True, the return dictionary contains the ROC values.
+            return_report: If True, the return dictionary will contain a class wise report of F1, Precision and Recall.
+            metrics: Additional metrics
+        Returns:
+            A dictionary with the evaluation measurements.
+        """
+        self.eval()  # set mode to evaluation to disable dropout
+        initialized_metrics = self._init_metrics(metrics)
         average = Average()
-        accuracy = Average()
-        for b in dl:
-            with torch.no_grad():
-                scores = self._entail_forward(self.transform(b["x1"]).to(self.device),
-                                              self.transform(b["x2"]).to(self.device))
-                l = self.loss(scores, b["labels"].to(self.device).float())
 
-                for i in (b["labels"].to(self.device)==(scores>0.5)): accuracy.update(i.item())
-                average.update(l.detach().item())
-        return { "loss": average.compute().item(), "accuracy": accuracy.compute().item()}
+
+        data_loader = torch.utils.data.DataLoader(data, batch_size=batch_size)
+        with torch.no_grad():
+            for i, b in enumerate(data_loader):
+                y = b["labels"]
+                self.create_labels(b["x2"])
+                l, output = self._step(x=self.transform(b["x1"]), y=b["labels"].to(self.device))
+                output = self.act(output).cpu()
+                pred = self._threshold_fct(output)
+                average.update(l.item())
+                initialized_metrics.update_metrics((output, y, pred))
+
+        self.train()
+
+        if _fit:
+            return average.compute().item(), initialized_metrics
+        else:
+            return average.compute().item(), initialized_metrics.compute()
+
+
+    def pretrain_sts(self,batch_size=12, datasets=None, steps=600, eval_every=100, log_mlflow=False):
+        c = 0
+        from ...data.data_loaders_similarity import load_sts
+        from ...data import SFORMATTER
+        from tqdm import tqdm
+        data = load_sts()
+        epochs = int(steps*batch_size/len(data))+1
+
+        with tqdm(postfix=[{}], desc="STS", ncols=100, total=steps) as pbar:
+            average = Average()
+            for e in range(epochs):
+                train_loader = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=True)
+                for i, b in enumerate(train_loader):
+                    if c % eval_every == 0:
+                        if datasets is not None:
+                            self._eval_data_list(datasets, log_mlflow=log_mlflow, c=c)
+                        # reset
+                        self.sts()
+
+                    self.optimizer.zero_grad()
+                    self.create_labels(b["x2"])
+                    o = self(x=self.transform(b["x1"])).diag()  # ,
+                    y = b["labels"].to(self.device)# / 5 * 2 - 1
+                    l = self._loss(o, y=y)
+                    l.backward()
+                    self.optimizer.step()
+                    average.update(l.item())
+
+                    c += 1
+                    if pbar is not None:
+                        pbar.postfix[0]["loss"] = round(average.compute().item(), 8)
+                        pbar.update()
+                    if c==steps:
+                        break
+
+                if c == steps:
+                    break
