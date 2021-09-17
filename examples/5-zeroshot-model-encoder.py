@@ -3,6 +3,7 @@
 # Example for  using a zero shot model (experimental feature)
 #
 ##########################################################################
+import torch
 
 import mlmc
 
@@ -20,25 +21,28 @@ mlmc.data.SFORMATTER
 print(mlmc.data.SFORMATTER["trec6"]("DESC"))
 
 # Instantiation of the smallest possible model. This should work for any computer.
+m = mlmc.models.zeroshot.SimpleEncoder(
+    classes={},
+    target="single",
+    # representation="facebook/bart-large-mnli",
+    finetune=True,
+    optimizer_params={"lr":1e-5},
+    device="cuda:0"
+)
+m.pretrain_mnli()
+# If you have a more capable computer and even a GPU, you can use this instantiation to load a larger model
+# and put it on the GPU.
 # m = mlmc.models.zeroshot.EmbeddingBasedWeighted(
 #     classes={},
 #     target="single",
-#     mode="vanilla",
+#     mode="max",
 #     finetune=True,
-#     optimizer_params={"lr":1e-3},
+#     sformatter=formatter,
+#     optimizer_params={"lr": 1e-5},
+#     device="cuda:3",  # If you have a GPU uncomment this
+#     representation="google/bert_uncased_L-12_H-768_A-12"
+#
 # )
-# If you have a more capable computer and even a GPU, you can use this instantiation to load a larger model
-# and put it on the GPU.
-m = mlmc.models.zeroshot.EmbeddingBasedWeighted(
-    classes={},
-    target="single",
-    mode="max",
-    finetune=True,
-    sformatter=formatter,
-    optimizer_params={"lr": 1e-5},
-    device="cuda:1",  # If you have a GPU uncomment this
-    # representation="bert-base-uncased"
-)
 
 # Zeroshot models have a method to switch and create new target classes
 classes1 = {"Sports":0, "Science":1}
@@ -70,7 +74,6 @@ print("Accuracy without training:", m.evaluate(data["test"])[1]["accuracy"])
 # this should increase to  51% for the smaller model and about 60 % for the larger model.
 m.set_sformatter(mlmc.data.SFORMATTER["agnews"])
 m.create_labels(data["classes"])
-m = m.eval()
 print("Accuracy without training with formatter:", m.evaluate(data["test"])[1]["accuracy"])
 
 
@@ -83,9 +86,13 @@ print(train.count())
 
 # Use the fit method to train the model
 # m.loss = mlmc.loss.RelativeRankingLoss(0.5)
-m.single(loss="cross") # anything else as argument will result in crossentropyloss
-m.fit(train, train, epochs=50, patience=3)    # RelativeRankingLoss might go to zero. This is not bad thing but you can interrupt
+m.single() # anything else as argument will result in crossentropyloss
+import torch
+m.set_activation(torch.softmax)
+m.set_loss(mlmc.loss.RelativeRankingLoss())
+m.fit(train, epochs=50)    # RelativeRankingLoss might go to zero. This is not bad thing but you can interrupt
                             # the training at this point or set the number of epochs accordingly
+
 
 # For the large model this should achieve for the larger model over 80 % accuracy, for the smaller instantiation around 70% accuracy.
 # depending on the information contained in the sampled examples

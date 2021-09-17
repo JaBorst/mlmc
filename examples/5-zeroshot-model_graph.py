@@ -37,7 +37,7 @@ m = mlmc.models.zeroshot.EmbeddingBasedWeighted(
     sformatter=formatter,
     optimizer_params={"lr": 1e-5},
     device="cuda:1",  # If you have a GPU uncomment this
-    # representation="bert-base-uncased"
+    representation="google/bert_uncased_L-6_H-768_A-12"
 )
 
 # Zeroshot models have a method to switch and create new target classes
@@ -73,6 +73,19 @@ m.create_labels(data["classes"])
 m = m.eval()
 print("Accuracy without training with formatter:", m.evaluate(data["test"])[1]["accuracy"])
 
+g = mlmc.graph.get("conceptnet")
+
+def format(x):
+    x = {"Sci/Tech": ["Science", "Tech"]}.get(x,[x])
+    import random
+    l = sum([list(g.neighbors(c.lower())) for c in x],[])
+    random.shuffle(l)
+    return f"The topic is {', '.join(x)}. this includes: {', '.join(l)}"
+
+m.set_sformatter(format)
+m.create_labels(data["classes"])
+m = m.eval()
+print("Accuracy without training with formatter:", m.evaluate(data["test"])[1]["accuracy"])
 
 
 # This Performance can still be improved of course by showing some of the training data.
@@ -84,7 +97,7 @@ print(train.count())
 # Use the fit method to train the model
 # m.loss = mlmc.loss.RelativeRankingLoss(0.5)
 m.single(loss="cross") # anything else as argument will result in crossentropyloss
-m.fit(train, train, epochs=50, patience=3)    # RelativeRankingLoss might go to zero. This is not bad thing but you can interrupt
+m.fit(train, mlmc.data.sampler(data["test"], absolute=1000), epochs=50, patience=3)    # RelativeRankingLoss might go to zero. This is not bad thing but you can interrupt
                             # the training at this point or set the number of epochs accordingly
 
 # For the large model this should achieve for the larger model over 80 % accuracy, for the smaller instantiation around 70% accuracy.

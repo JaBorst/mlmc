@@ -2,7 +2,46 @@ import torch
 from ...abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
 from ...abstracts.abstract_sentence import SentenceTextClassificationAbstract
 
-class EmbeddingBasedEntailment(SentenceTextClassificationAbstract,TextClassificationAbstractZeroShot):
+class FeedForward(torch.nn.Module):
+    def __init__(self, dim, hidden_dim, dropout = 0.):
+        super().__init__()
+        self.net = torch.nn.Sequential(
+            torch.nn.Linear(dim, hidden_dim),
+            torch.nn.GELU(),
+            torch.nn.Dropout(dropout),
+            torch.nn.Linear(hidden_dim, dim),
+            torch.nn.Dropout(dropout)
+        )
+    def forward(self, x):
+        return self.net(x)
+
+class FNetTransformer(torch.nn.Module):
+    def __init__(self, dim, dropout=0.5,*args, **kwargs):
+        super(FNetTransformer, self).__init__()
+        self.embedding_dim = dim
+        self.normalize = False
+        self.norm = torch.nn.LayerNorm(self.embedding_dim)
+        self.ff = FeedForward(self.embedding_dim,self.embedding_dim, dropout=dropout)
+    def forward(self, x, mask=None):
+        t = torch.stack([x, torch.zeros_like(x)],-1)
+        ft = torch.fft(torch.fft(t, signal_ndim=1, normalized=self.normalize),signal_ndim=2,normalized=self.normalize)[...,0]
+        t = self.norm(x + ft)
+        t = self.ff(t)
+        if mask is not None:
+            added = t * mask
+        return added
+
+class FNetEncoder(torch.nn.Module):
+    def __init__(self, dim, num_layers):
+        super(FNetEncoder, self).__init__()
+        self.encoder = torch.nn.ModuleList([FNetTransformer(dim) for _ in range(num_layers)])
+
+    def forward(self, x, **kwargs):
+        for l in self.encoder:
+            x = l(x, **kwargs)
+        return x
+
+class EmbeddingBasedEntailmentFFT(SentenceTextClassificationAbstract,TextClassificationAbstractZeroShot):
     """
      Zeroshot model based on cosine distance of embedding vectors.
     """
@@ -18,20 +57,23 @@ class EmbeddingBasedEntailment(SentenceTextClassificationAbstract,TextClassifica
         """
         if "act" not in kwargs:
             kwargs["activation"] = lambda x: x
-        super(EmbeddingBasedEntailment, self).__init__(*args, **kwargs)
+        super(EmbeddingBasedEntailmentFFT, self).__init__(*args, **kwargs)
         self.modes = ("vanilla","max","mean","max_mean", "attention","attention_max_mean")
         assert mode in self.modes, f"Unknown mode: '{mode}'!"
         self.set_mode(mode=mode)
 
         self.create_labels(self.classes)
-        self.bottle_neck = 384
+        self.bottle_neck = 1024
+
         self.parameter = torch.nn.Linear(self.embeddings_dim,self.bottle_neck)
         self.parameter2 = torch.nn.Linear(self.bottle_neck,self.embeddings_dim)
-        self.att = torch.nn.TransformerEncoder(torch.nn.TransformerEncoderLayer(d_model=self.bottle_neck, nhead=8),num_layers=8)
-        # self.att = torch.nn.MultiheadAttention(self.bottle_neck+self.embeddings_dim, num_heads=8)
+
         self.entailment_projection = torch.nn.Linear(5*self.embeddings_dim, self.bottle_neck)
         self.entailment_projection2 = torch.nn.Linear(self.bottle_neck, 3)
         self.hypothesis = torch.nn.Parameter(torch.tensor(torch.rand((1,self.bottle_neck))))
+
+        self.encoder=FNetEncoder(self.bottle_neck,num_layers=8)
+
         self.build()
 
 
@@ -44,57 +86,48 @@ class EmbeddingBasedEntailment(SentenceTextClassificationAbstract,TextClassifica
         input_embedding = self.embedding(**x)[0]
         label_embedding = self.embedding(**self.label_dict)[0]
 
-
+        le_proj = self.parameter(label_embedding)
+        ie_proj = self.parameter(input_embedding)
 
         if self._config["target"] == "entailment":
-            le = self.parameter(label_embedding)
-            word_scores = torch.softmax(torch.einsum("ijk,ink->ijn", input_embedding, label_embedding),-1)
-            interaction = torch.einsum("bmn,bne->bme", word_scores, le)
-            # interaction = self.parameter(input_embedding)+ interaction
-            interaction = self.att(interaction)
-            # word_scores = torch.softmax(torch.einsum("ijk,ink->ijn", interaction, le),-1)
-            # interaction = torch.einsum("bmn,bne->bme", word_scores, le)
-            interaction = self._mean_pooling(interaction, x["attention_mask"])
-            interaction = self.parameter2(interaction)
+            comb = torch.cat([le_proj, ie_proj],1)
+            comb_mask = torch.cat([self.label_dict["attention_mask"], x["attention_mask"]],1)
+            comb = self.encoder(comb, mask=comb_mask[...,None])
+            comb_pool = (comb*comb_mask[...,None]).sum(1)/comb_mask.sum(1,keepdims=True)
 
-
+            comb_pool = self.parameter2(comb_pool)
             input_embedding = self._mean_pooling(input_embedding, x["attention_mask"])
             label_embedding = self._mean_pooling(label_embedding, self.label_dict["attention_mask"])
             e = torch.cat([input_embedding,
                            label_embedding,
                            torch.abs(input_embedding - label_embedding),
-                           torch.abs(input_embedding + label_embedding),
-                interaction],-1)
-            # e = interaction
+                           input_embedding + label_embedding,
+                comb_pool],-1)
+            # e=comb_pool
         else:
-            le = self.parameter(label_embedding)
-            word_scores = torch.softmax(torch.einsum("ijk,lnk->iljn", input_embedding, label_embedding),-1)
-            interaction = torch.einsum("blmn,lne->blme", word_scores, le)
-            # interaction = self.parameter(input_embedding[:,None].repeat(1,interaction.shape[1],1,1))+interaction
-            b,l,m,e = interaction.shape
-            interaction = self.att(interaction.reshape((b*l,m,e))).reshape((b,l,m,e))
-            # interaction,_ = self.att(interaction.reshape((b*l,m,e)),interaction.reshape((b*l,m,e)),interaction.reshape((b*l,m,e)))
-            interaction = interaction.reshape((b,l,m,e))
-            # word_scores = torch.softmax(torch.einsum("ijk,lnk->iljn", interaction, le), -1)
-            # interaction = torch.einsum("blmn,lne->blme", word_scores, le)
-            interaction = self.parameter2(interaction)
+            comb = torch.cat([le_proj[None].repeat(input_embedding.shape[0],1,1,1),
+                              ie_proj[:,None].repeat(1,label_embedding.shape[0],1,1)], 2)
 
+            comb_mask = torch.cat([self.label_dict["attention_mask"][None].repeat(input_embedding.shape[0],1,1),
+                                   x["attention_mask"][:,None].repeat(1,label_embedding.shape[0],1)], 2)
+            b,l,m,e = comb.shape
+            comb = self.encoder(comb.reshape((b*l,m,e)), mask=comb_mask.reshape((b*l,m))[...,None])
+            comb = comb.reshape((b, l, m, e))
+            comb_pool = (comb*comb_mask[...,None]).sum(2)/comb_mask.sum(2,keepdims=True)
 
-            input_mask_expanded = x["attention_mask"].unsqueeze(1).unsqueeze(-1).float()
-            sum_mask = torch.clamp(input_mask_expanded.sum(2), min=1e-9)
-            interaction = torch.sum(interaction * input_mask_expanded, 2)/sum_mask
+            comb_pool = self.parameter2(comb_pool)
+
             input_embedding = self._mean_pooling(input_embedding, x["attention_mask"])
             label_embedding = self._mean_pooling(label_embedding, self.label_dict["attention_mask"])
 
             e = torch.cat([input_embedding[:,None].repeat((1,label_embedding.shape[0],1)),
                            label_embedding[None].repeat((input_embedding.shape[0],1,1)),
                             torch.abs(input_embedding[:, None] - label_embedding[None]),
-                            torch.abs(input_embedding[:, None] + label_embedding[None]),
-                           interaction],-1)
-            #
-            # e = interaction
+                            input_embedding[:, None] + label_embedding[None],
+                           comb_pool],-1)
+            # e = comb_pool
 
-        logits = self.entailment_projection2(torch.tanh(self.entailment_projection(e)))
+        logits = self.entailment_projection2(torch.nn.GELU()(self.entailment_projection(e)))
 
         if self._config["target"] == "entailment":
             pass

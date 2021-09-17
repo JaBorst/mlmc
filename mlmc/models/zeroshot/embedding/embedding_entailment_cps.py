@@ -1,8 +1,60 @@
 import torch
+
+import mlmc.modules
 from ...abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
 from ...abstracts.abstract_sentence import SentenceTextClassificationAbstract
 
-class EmbeddingBasedEntailment(SentenceTextClassificationAbstract,TextClassificationAbstractZeroShot):
+class Caps(torch.nn.Module):
+    def __init__(self, dim =128, n = 128):
+        super(Caps, self).__init__()
+        self.linear = torch.nn.Linear(dim,dim)
+        self.linear2 = torch.nn.Linear(dim,dim)
+
+        self.class1 = torch.nn.Linear(n,n)
+        self.class2 = torch.nn.Linear(n,n)
+
+        self.act = torch.nn.GELU()
+    def forward(self, x, y, m, mask_x, mask_y):
+        # x_ = mlmc.modules.squash(self.linear(x))
+        # y_ = mlmc.modules.squash(self.linear(y))
+        # m_ = mlmc.modules.squash(self.linear(m))
+        x_ = self.linear(x)*mask_x[...,None]
+        y_ = self.linear(y)*mask_y[...,None]
+        m_ = self.linear(m)
+
+        pij = torch.sigmoid(self.class2(self.act(self.class1(torch.matmul(x_, m_.t())))))
+        qij = torch.sigmoid(self.class2(self.act(self.class1(torch.matmul(y_, m_.t())))))
+
+        pij = mlmc.modules.norm(pij)
+        qij = mlmc.modules.norm(qij)
+
+        x__ = (x + self.linear2(torch.matmul(pij,m))*mask_x[...,None])/2
+        y__ = (y + self.linear2(torch.matmul(qij,m))*mask_y[...,None])/2
+
+        return x__, y__
+
+
+class CapsMemory(torch.nn.Module):
+    def __init__(self, l=16, m=128, d=768, dim=128):
+        super(CapsMemory, self).__init__()
+        self.d = d
+        self.dim = dim
+        self.l = l
+        self.m = m
+        self.input_projection = torch.nn.Linear(self.d,self.dim)
+        self.input_projection2 = torch.nn.Linear(self.d,self.dim)
+        self.memory = torch.nn.Parameter(torch.rand((self.m,self.dim)))
+        self.cap = torch.nn.ModuleList([Caps(dim = self.dim) for _ in range(self.l)])
+
+    def forward(self,x, y, mask_x, mask_y):
+        x_ = x + self.input_projection(x)*mask_x[...,None]
+        y_ = y + self.input_projection2(y)*mask_y[...,None]
+        # for cap in self.cap:
+        #     x_, y_ = cap(x_, y_, self.memory,mask_x, mask_y)
+        return x_, y_
+
+
+class EmbeddingBasedEntailmentCPS(SentenceTextClassificationAbstract,TextClassificationAbstractZeroShot):
     """
      Zeroshot model based on cosine distance of embedding vectors.
     """
@@ -18,20 +70,22 @@ class EmbeddingBasedEntailment(SentenceTextClassificationAbstract,TextClassifica
         """
         if "act" not in kwargs:
             kwargs["activation"] = lambda x: x
-        super(EmbeddingBasedEntailment, self).__init__(*args, **kwargs)
+        super(EmbeddingBasedEntailmentCPS, self).__init__(*args, **kwargs)
         self.modes = ("vanilla","max","mean","max_mean", "attention","attention_max_mean")
         assert mode in self.modes, f"Unknown mode: '{mode}'!"
         self.set_mode(mode=mode)
 
         self.create_labels(self.classes)
-        self.bottle_neck = 384
-        self.parameter = torch.nn.Linear(self.embeddings_dim,self.bottle_neck)
-        self.parameter2 = torch.nn.Linear(self.bottle_neck,self.embeddings_dim)
-        self.att = torch.nn.TransformerEncoder(torch.nn.TransformerEncoderLayer(d_model=self.bottle_neck, nhead=8),num_layers=8)
-        # self.att = torch.nn.MultiheadAttention(self.bottle_neck+self.embeddings_dim, num_heads=8)
-        self.entailment_projection = torch.nn.Linear(5*self.embeddings_dim, self.bottle_neck)
+        self.bottle_neck = 768
+
+        self.parameter = torch.nn.Linear(self.embeddings_dim, self.bottle_neck)
+        self.parameter2 = torch.nn.Linear(self.bottle_neck, self.embeddings_dim)
+
+        self.entailment_projection = torch.nn.Linear(3*self.bottle_neck, self.bottle_neck)
         self.entailment_projection2 = torch.nn.Linear(self.bottle_neck, 3)
-        self.hypothesis = torch.nn.Parameter(torch.tensor(torch.rand((1,self.bottle_neck))))
+
+        self.encoder = CapsMemory(dim=self.bottle_neck)
+
         self.build()
 
 
@@ -45,56 +99,22 @@ class EmbeddingBasedEntailment(SentenceTextClassificationAbstract,TextClassifica
         label_embedding = self.embedding(**self.label_dict)[0]
 
 
+        # input_embedding,label_embedding = self.encoder(input_embedding, label_embedding, x["attention_mask"],  self.label_dict["attention_mask"])
+
+        input_embedding = self._mean_pooling(input_embedding, x["attention_mask"])
+        label_embedding = self._mean_pooling(label_embedding, self.label_dict["attention_mask"])
 
         if self._config["target"] == "entailment":
-            le = self.parameter(label_embedding)
-            word_scores = torch.softmax(torch.einsum("ijk,ink->ijn", input_embedding, label_embedding),-1)
-            interaction = torch.einsum("bmn,bne->bme", word_scores, le)
-            # interaction = self.parameter(input_embedding)+ interaction
-            interaction = self.att(interaction)
-            # word_scores = torch.softmax(torch.einsum("ijk,ink->ijn", interaction, le),-1)
-            # interaction = torch.einsum("bmn,bne->bme", word_scores, le)
-            interaction = self._mean_pooling(interaction, x["attention_mask"])
-            interaction = self.parameter2(interaction)
-
-
-            input_embedding = self._mean_pooling(input_embedding, x["attention_mask"])
-            label_embedding = self._mean_pooling(label_embedding, self.label_dict["attention_mask"])
-            e = torch.cat([input_embedding,
-                           label_embedding,
-                           torch.abs(input_embedding - label_embedding),
-                           torch.abs(input_embedding + label_embedding),
-                interaction],-1)
-            # e = interaction
+            e = torch.cat([input_embedding,label_embedding, torch.abs(input_embedding-label_embedding)],-1)
         else:
-            le = self.parameter(label_embedding)
-            word_scores = torch.softmax(torch.einsum("ijk,lnk->iljn", input_embedding, label_embedding),-1)
-            interaction = torch.einsum("blmn,lne->blme", word_scores, le)
-            # interaction = self.parameter(input_embedding[:,None].repeat(1,interaction.shape[1],1,1))+interaction
-            b,l,m,e = interaction.shape
-            interaction = self.att(interaction.reshape((b*l,m,e))).reshape((b,l,m,e))
-            # interaction,_ = self.att(interaction.reshape((b*l,m,e)),interaction.reshape((b*l,m,e)),interaction.reshape((b*l,m,e)))
-            interaction = interaction.reshape((b,l,m,e))
-            # word_scores = torch.softmax(torch.einsum("ijk,lnk->iljn", interaction, le), -1)
-            # interaction = torch.einsum("blmn,lne->blme", word_scores, le)
-            interaction = self.parameter2(interaction)
+            e = torch.cat([
+                input_embedding[:,None].repeat((1,label_embedding.shape[0],1)),
+                label_embedding[None].repeat((input_embedding.shape[0],1,1)),
+                torch.abs(input_embedding[:, None]-label_embedding[None])
+            ],-1)
 
 
-            input_mask_expanded = x["attention_mask"].unsqueeze(1).unsqueeze(-1).float()
-            sum_mask = torch.clamp(input_mask_expanded.sum(2), min=1e-9)
-            interaction = torch.sum(interaction * input_mask_expanded, 2)/sum_mask
-            input_embedding = self._mean_pooling(input_embedding, x["attention_mask"])
-            label_embedding = self._mean_pooling(label_embedding, self.label_dict["attention_mask"])
-
-            e = torch.cat([input_embedding[:,None].repeat((1,label_embedding.shape[0],1)),
-                           label_embedding[None].repeat((input_embedding.shape[0],1,1)),
-                            torch.abs(input_embedding[:, None] - label_embedding[None]),
-                            torch.abs(input_embedding[:, None] + label_embedding[None]),
-                           interaction],-1)
-            #
-            # e = interaction
-
-        logits = self.entailment_projection2(torch.tanh(self.entailment_projection(e)))
+        logits = self.entailment_projection2(torch.relu(self.entailment_projection(e)))
 
         if self._config["target"] == "entailment":
             pass

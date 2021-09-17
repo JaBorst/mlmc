@@ -29,7 +29,7 @@ class EmbeddingBasedEntailment(SentenceTextClassificationAbstract,TextClassifica
         self.parameter2 = torch.nn.Linear(self.bottle_neck,self.embeddings_dim)
         self.att = torch.nn.TransformerEncoder(torch.nn.TransformerEncoderLayer(d_model=self.bottle_neck, nhead=8),num_layers=8)
         # self.att = torch.nn.MultiheadAttention(self.bottle_neck+self.embeddings_dim, num_heads=8)
-        self.entailment_projection = torch.nn.Linear(5*self.embeddings_dim, self.bottle_neck)
+        self.entailment_projection = torch.nn.Linear(3*self.embeddings_dim, self.bottle_neck)
         self.entailment_projection2 = torch.nn.Linear(self.bottle_neck, 3)
         self.hypothesis = torch.nn.Parameter(torch.tensor(torch.rand((1,self.bottle_neck))))
         self.build()
@@ -60,8 +60,8 @@ class EmbeddingBasedEntailment(SentenceTextClassificationAbstract,TextClassifica
 
             input_embedding = self._mean_pooling(input_embedding, x["attention_mask"])
             label_embedding = self._mean_pooling(label_embedding, self.label_dict["attention_mask"])
-            e = torch.cat([input_embedding,
-                           label_embedding,
+            e = torch.cat([#input_embedding,
+                           #label_embedding,
                            torch.abs(input_embedding - label_embedding),
                            torch.abs(input_embedding + label_embedding),
                 interaction],-1)
@@ -86,8 +86,8 @@ class EmbeddingBasedEntailment(SentenceTextClassificationAbstract,TextClassifica
             input_embedding = self._mean_pooling(input_embedding, x["attention_mask"])
             label_embedding = self._mean_pooling(label_embedding, self.label_dict["attention_mask"])
 
-            e = torch.cat([input_embedding[:,None].repeat((1,label_embedding.shape[0],1)),
-                           label_embedding[None].repeat((input_embedding.shape[0],1,1)),
+            e = torch.cat([#input_embedding[:,None].repeat((1,label_embedding.shape[0],1)),
+                           # label_embedding[None].repeat((input_embedding.shape[0],1,1)),
                             torch.abs(input_embedding[:, None] - label_embedding[None]),
                             torch.abs(input_embedding[:, None] + label_embedding[None]),
                            interaction],-1)

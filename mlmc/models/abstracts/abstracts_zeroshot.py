@@ -250,6 +250,7 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
                     if c % eval_every == 0:
                         # Validation if available
                         if valid is not None:
+                            average = Average()
                             self.entailment()
                             valid_loss, result_metrics = self._entailment_evaluate(
                                 data=valid,

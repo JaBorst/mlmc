@@ -7,3 +7,5 @@ try:
     from .module_ZAGCNN import ZAGCNNModule
 except:
     print("torch_geometric not installed")
+
+from .capsule import squash, norm, Squash
