@@ -487,6 +487,24 @@ class EntailmentDataset(Dataset):
     def __getitem__(self, item):
         return {"x1": self.x1[item], "x2": self.x2[item], "labels": self.classes[self.labels[item]]}
 
+class ExplanationDataset(Dataset):
+    def __init__(self, x1, x2, e1, e2, e3, labels, classes):
+
+        e = e1 + e2 + e3
+        ind = [i for i,s in enumerate(e) if s!=""]
+
+        self.x1 = [x1[i % 3] for i in ind]
+        self.x2 = [x2[i % 3] for i in ind]
+        self.ex = [e[i] for i in ind]
+        self.labels = [labels[i % 3] for i in ind]
+        self.classes = classes
+
+    def __len__(self):
+        return len(self.x1)
+
+    def __getitem__(self, item):
+        return {"x1": self.x1[item], "x2": self.x2[item], "labels": self.classes[self.labels[item]],
+                "e": self.ex[item]}
 
 class PredictionDataset(MultiLabelDataset):
     def __init__(self, x, **kwargs):
