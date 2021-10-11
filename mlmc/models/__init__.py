@@ -25,20 +25,8 @@ except:
     print("pytorch_geometric not installed.")
     pass
 
-def finetune_mixed_precision_model(model, finetune=True):
-    """
-    Sets a model to use FP16 where appropriate to save memory and speed up training.
 
-    :param model: A model instance
-    :return: A model with initialized Automatic Mixed Precision
-    """
-    try:
-        from apex import amp
-        model.use_amp=True
-        opt = model.optimizer.__class__(filter(lambda p: p.requires_grad, model.parameters()), **model.optimizer_params)
-        model, opt = amp.initialize(model, opt,opt_level="O2",
-   keep_batchnorm_fp32=True, loss_scale="dynamic")
-        model.optimizer = opt
-    except ModuleNotFoundError:
-        model.use_amp = False
-    return model
+def get(name: str):
+    import mlmc.models as mm
+    fct = getattr(mm, name.capitalize())
+    return fct

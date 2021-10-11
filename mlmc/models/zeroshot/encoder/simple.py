@@ -1,7 +1,8 @@
 from mlmc.models.abstracts.abstract_encoder import EncoderAbstract
+from ...abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
 import torch
 
-class SimpleEncoder(EncoderAbstract):
+class SimpleEncoder(EncoderAbstract, TextClassificationAbstractZeroShot):
     """
     Trainin a model by entailing text and label into an entailment task. Offers good zeroshot capacities when pretrained
     on an NLI task. (you can pretrain (almost) any  transformer model with model.pretrain_snli() or model.pretrain_mnli().

@@ -42,7 +42,8 @@ class LabelEmbeddingAbstract(TextClassificationAbstract):
 
         """
         self._config["classes"] = classes
-        self._config["n_classes"] = self.n_classes
+        self.classes = classes
+        self._config["n_classes"] = len(self._config["classes"])
 
         if isinstance(self._config["classes"], dict):
             self.classes_rev = {v: k for k, v in  self._config["classes"].items()}

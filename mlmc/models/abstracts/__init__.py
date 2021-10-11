@@ -1,1 +1,6 @@
 from .abstract_textclassification import TextClassificationAbstract
+from .abstract_label import LabelEmbeddingAbstract
+from .abstract_encoder import EncoderAbstract
+from .abstracts_zeroshot import TextClassificationAbstractZeroShot
+from .abstracts_graph import TextClassificationAbstractGraph
+from .abstract_sentence import SentenceTextClassificationAbstract

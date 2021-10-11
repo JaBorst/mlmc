@@ -95,10 +95,10 @@ class TextClassificationAbstract(torch.nn.Module):
         if threshold is not None:
             self.set_threshold(threshold)
 
-        assert not (self.loss is torch.nn.BCEWithLogitsLoss and target == "single"), \
+        assert not (self._config["loss"] is torch.nn.BCEWithLogitsLoss and self._config["target"] == "single"), \
             "You are using BCE with a single label target. " \
             "Not possible, please use torch.nn.CrossEntropy with a single label target."
-        assert not (self.loss is torch.nn.CrossEntropyLoss and target == "multi"), \
+        assert not (self._config["loss"] is torch.nn.CrossEntropyLoss and self._config["target"] == "multi"), \
             "You are using CrossEntropy with a multi label target. " \
             "Not possible, please use torch.nn.BCELossWithLogits with a multi label target."
 
@@ -120,10 +120,9 @@ class TextClassificationAbstract(torch.nn.Module):
 
         :param name: Name of the threshold (see mlmc.thresholds.threshold_dict.keys())
         """
-        self.threshold = name
         self._config["threshold"] = name
         if isinstance(name, str):
-            self._threshold_fct = thresholdget(name)
+            self._threshold_fct = thresholdget(self._config["threshold"])
         elif callable(name):
             self._threshold_fct = name
         else:
@@ -135,18 +134,23 @@ class TextClassificationAbstract(torch.nn.Module):
 
     def set_loss(self, loss):
         self._config["loss"] = loss
-        self.loss = loss
+        if isinstance(self._config["loss"], type) and self._config["loss"] is not None:
+            self.loss = self._config["loss"]().to(self.device)
+        else:
+            self.loss = self._config["loss"].to(self.device)
 
     def build(self):
         """
         Internal build method.
         """
-        if isinstance(self.loss, type) and self.loss is not None:
-            self.loss = self.loss().to(self.device)
+        if isinstance(self._config["loss"], type) and self._config["loss"] is not None:
+            self.loss = self._config["loss"]().to(self.device)
+        else:
+            self.loss = self._config["loss"].to(self.device)
         if isinstance(self.optimizer, type) and self.optimizer is not None:
-            self.optimizer = self.optimizer(filter(lambda p: p.requires_grad, self.parameters()),
-                                            **self.optimizer_params)
-
+            self.optimizer = self._config["optimizer"](filter(lambda p: p.requires_grad, self.parameters()), **self.optimizer_params)
+        else:
+            self.optimizer = self._config["optimizer"]
         self.to(self.device)
 
     def _init_metrics(self, metrics=None):
