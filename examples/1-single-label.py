@@ -7,7 +7,7 @@
 import mlmc
 
 # Classes have to  be a mapping from strings to ascending indices
-import mlmc.data.datasets
+import mlmc.data.dataset_classes
 
 classes = {"class1":0, "class2":1, "class3":2}
 
@@ -22,7 +22,7 @@ x = [
 y = [["class1"], ["class3"], ["class2"]]
 
 # With data in this format you can instanciate a single label data set.
-dataset = mlmc.data.datasets.SingleLabelDataset(x=x, y=y, classes=classes)
+dataset = mlmc.data.dataset_classes.SingleLabelDataset(x=x, y=y, classes=classes)
 
 # .. and a model. make sure in this case to set the target to 'single' to load default parameters for single label
 # classification

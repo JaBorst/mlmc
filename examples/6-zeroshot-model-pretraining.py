@@ -30,7 +30,7 @@ m = mlmc.models.zeroshot.graph.GraphBased(
 # This should land around 68 % for max_mean model
 # m.pretrain_mnli(datasets=["trec6","agnews"],batch_size=64, steps=1000, eval_every=50)
 from mlmc.data.data_loaders_nli import load_mnli
-from mlmc.data.datasets import EntailmentDataset
+from mlmc.data.dataset_classes import EntailmentDataset
 
 data, classes = load_mnli()
 classes = {'entailment': 2, 'neutral': 1, 'contradiction': 0}
