@@ -8,7 +8,7 @@ class TokenizerWrapper():
     mapping back to the original words.
     """
 
-    def __init__(self, tokenizer_class, path, cased=False):
+    def __init__(self, tok, cased=False):
         """
         Initializes a tokenizer instance.
 
@@ -16,7 +16,7 @@ class TokenizerWrapper():
         :param path: A model identifier (see https://huggingface.co/models) or path to config.json file
         :param cased: If True, the case of all words will be kept, else the case will be converted to lowercase
         """
-        self.tokenizer = tokenizer_class.from_pretrained(path)
+        self.tokenizer = tok
 
         tmp = self.tokenizer.encode("a")
         if len(tmp) == 3:

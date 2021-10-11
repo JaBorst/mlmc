@@ -3,7 +3,7 @@ import networkx as nx
 import mlmc.modules
 from ...abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
 from ...abstracts.abstract_sentence import SentenceTextClassificationAbstract
-from ...abstracts.abstracts import TextClassificationAbstract
+from ...abstracts.abstract_textclassification import TextClassificationAbstract
 import random
 import re
 

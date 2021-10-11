@@ -250,7 +250,7 @@ def load_sick():
 
 def load_sts():
     train_dataset = load_stsb()
-    from .datasets import RegressionDataset
+    from .dataset_classes import RegressionDataset
     train = RegressionDataset(x1=train_dataset["train_x1"], x2=train_dataset["train_x2"],
                                          labels=train_dataset["train_y"], )
     valid = RegressionDataset(x1=train_dataset["valid_x1"], x2=train_dataset["valid_x2"],

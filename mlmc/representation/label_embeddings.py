@@ -13,7 +13,7 @@ def get_word_embedding_mean(words, model):
         Tensor of shape (1, embedding_dim)
     """
     emb, tok = get(model)
-    transformed = tok(words)
+    transformed = tok(words)["input"]
     mask = (transformed!=0).int()
     embeddings = emb(transformed)
     return embeddings.sum(-2)/mask.sum(-1, keepdim=True)

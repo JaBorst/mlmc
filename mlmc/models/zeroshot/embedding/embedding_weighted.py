@@ -2,7 +2,7 @@ import torch
 from ...abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
 from ...abstracts.abstract_sentence import SentenceTextClassificationAbstract
 
-class EmbeddingBasedWeighted(SentenceTextClassificationAbstract,TextClassificationAbstractZeroShot):
+class EmbeddingBasedWeighted(SentenceTextClassificationAbstract, TextClassificationAbstractZeroShot):
     """
      Zeroshot model based on cosine distance of embedding vectors.
     """
@@ -67,10 +67,7 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract,TextClassificati
         if "max" in self.mode:
             word_maxs = word_scores.reshape((input_embedding.shape[0], label_embedding.shape[0], -1)).max(-1)[0]
             r = r * word_maxs
-        if self._loss_name == "ranking":
-            return r
-        else:
-            return 0.5 * (r + 1)
+        return r
 
     def embed(self, x):
         """
@@ -128,56 +125,6 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract,TextClassificati
         x = self.transform(x)
         with torch.no_grad():
             output = self.act(self(x))
-            if self._loss_name == "ranking":
-                output = 0.5*(output+1)
+            output = 0.5*(output+1)
         self.train()
         return output
-
-    def single(self, loss="ranking"):
-        """Helper function to set the model into single label mode"""
-        from ....loss import RelativeRankingLoss
-        self._config["target"] = "single"
-        self.set_threshold("max")
-        self.set_activation(lambda x: x)
-        self._loss_name = loss
-        if loss == "ranking":
-            self.set_loss(RelativeRankingLoss(0.5))
-        else:
-            self.set_loss(torch.nn.CrossEntropyLoss())
-        self._all_compare=True
-        self.build()
-
-    def multi(self, loss="ranking"):
-        """Helper function to set the model into multi label mode"""
-        from ....loss import RelativeRankingLoss
-        self._config["target"] = "multi"
-        self.set_threshold("mcut")
-        self.set_activation(lambda x: x)
-        self._loss_name = loss
-        if loss == "ranking":
-            self.set_loss(RelativeRankingLoss(0.5))
-        else:
-            self.set_loss(torch.nn.BCELoss())
-        self._all_compare=True
-        self.build()
-
-    def sts(self):
-        """Helper function to set the model into multi label mode"""
-        from ....loss import RelativeRankingLoss
-        self._config["target"] = "multi"
-        self._loss_name="ranking"
-        self.set_threshold("hard")
-        self.set_activation(lambda x: x)
-        self.set_loss(RelativeRankingLoss(0.5))
-        self.build()
-
-    def entailment(self):
-        self._config["target"] = "single"
-        self._config["entailment_output"] = 3
-        self.target = "single"
-        self.set_sformatter(lambda x: x)
-        self.set_threshold("max")
-        self.set_activation(torch.softmax)
-        self.set_loss = torch.nn.CrossEntropyLoss()
-        self._all_compare = False
-        self.build()

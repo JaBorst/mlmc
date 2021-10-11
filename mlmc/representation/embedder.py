@@ -4,6 +4,7 @@ from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
 from ..representation import get, is_transformer
+from .tokenizer_wrapper import TokenizerWrapper
 import torch
 
 class _temporal_dataset(Dataset):
@@ -37,6 +38,7 @@ class Embedder:
         """
         self.representation = representation
         self.emb, self.tok = get(self.representation)
+        self.tok = TokenizerWrapper(self.tok)
         self.device = device
         self.emb = self.emb.to(self.device)
         self.return_device = return_device

@@ -9,7 +9,7 @@ class MultiLabelReport():
         self.is_multilabel = is_multilabel
         self.reset()
 
-    def init(self, classes, target, **kwargs):
+    def init(self, classes, **kwargs):
         "an extra function for model specific parameters of the metric"
         self.classes = classes
 

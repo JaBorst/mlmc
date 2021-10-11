@@ -13,7 +13,7 @@ from .data_loaders_similarity import load_sts, load_stsb, load_sts12, load_sts13
 from .data_loaders_nli import load_mnli, load_snli
 
 # String Mappings
-from .datasets import MultiLabelDataset, SingleLabelDataset, MultiOutputSingleLabelDataset, \
+from .dataset_classes import MultiLabelDataset, SingleLabelDataset, MultiOutputSingleLabelDataset, \
     MultiOutputMultiLabelDataset, RegressionDataset, PredictionDataset, EntailmentDataset,ExplanationDataset
 
 register = {
