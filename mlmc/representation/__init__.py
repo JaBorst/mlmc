@@ -31,5 +31,4 @@ from .representations import load_static, get_transformer, map_vocab,get_embeddi
 from .character import charindex
 from .embedder import Embedder
 from .label_embeddings import get_word_embedding_mean
-
 from .tokenizer_wrapper import TokenizerWrapper

@@ -182,7 +182,7 @@ def get_white_space_tokenizer(v):
     :param v: A mapping from tokens to indices
     :return: A callable tokenizer function
     """
-    def tokenizer(x, maxlen=500, pad=True):
+    def tokenizer(x, maxlen=500, pad=True, **kwargs):
         """
         Splits the input using whitespaces and maps the tokens to their indices.
 
@@ -192,7 +192,7 @@ def get_white_space_tokenizer(v):
         """
         x = [x] if isinstance(x, str) else x
         x = [s.lower().split() for s in x]
-        return map_vocab(x, v, maxlen).long()
+        return {"input": map_vocab(x, v, maxlen).long()}
     return tokenizer
 
 def get_embedding(name, **kwargs):
@@ -236,8 +236,7 @@ def get_transformer(model="bert", **kwargs):
     model_class, tokenizer_class, pretrained_weights = AutoModel, AutoTokenizer, model
 
     # Load pretrained model/tokenizer
-    from .tokenizer_wrapper import TokenizerWrapper
-    tokenizer = TokenizerWrapper(tokenizer_class, pretrained_weights)
+    tokenizer = tokenizer_class.from_pretrained(pretrained_weights)
     model = model_class.from_pretrained(pretrained_weights, **kwargs)
     return model, tokenizer
 
