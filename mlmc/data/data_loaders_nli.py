@@ -3,11 +3,12 @@ import json
 from urllib import error
 from urllib.request import urlopen
 from zipfile import ZipFile
+import datasets
 
 from io import BytesIO
 
 
-def load_mnli(binary=True):
+def load_mnli(binary=False):
 
     url = "https://cims.nyu.edu/~sbowman/multinli/multinli_1.0.zip"
     data = _load_from_tmp(f"mnli-{binary}")
@@ -51,9 +52,9 @@ def load_mnli(binary=True):
                 valid_2.append(d["sentence2"])
                 valid_labels.append(d["gold_label"])
             valid_labels = [x if x != "-" else "contradiction" for x in valid_labels]
-        classes ={"entailment":1, "neutral": 0, "contradiction":-1}
+        classes ={"entailment":2, "neutral": 1, "contradiction":0}
         if binary:
-            classes = {"entailment": 1, "contradiction": -1}
+            classes = {"entailment": 1, "contradiction": 0}
             train_labels = [x if x == "entailment" else "contradiction" for x in train_labels]
             valid_labels = [x if x == "entailment" else "contradiction" for x in valid_labels]
 
@@ -70,7 +71,7 @@ def load_mnli(binary=True):
 
 
 
-def load_snli(binary=True):
+def load_snli(binary=False):
 
     url = "https://nlp.stanford.edu/projects/snli/snli_1.0.zip"
     data = _load_from_tmp(f"snli-{binary}")
@@ -128,9 +129,9 @@ def load_snli(binary=True):
                 test_labels.append(d["gold_label"])
             test_labels = [x if x != "-" else "contradiction" for x in test_labels]
 
-        classes ={"entailment":1, "neutral": 0, "contradiction":-1}
+        classes ={"entailment":2, "neutral": 1, "contradiction":0}
         if binary:
-            classes = {"entailment": 1, "contradiction": -1}
+            classes = {"entailment": 1, "contradiction": 0}
             train_labels = [x if x == "entailment" else "contradiction" for x in train_labels]
             valid_labels = [x if x == "entailment" else "contradiction" for x in valid_labels]
             test_labels = [x if x == "entailment" else "contradiction" for x in test_labels]
@@ -148,4 +149,3 @@ def load_snli(binary=True):
                 }
         _save_to_tmp(f"snli-{binary}", (data, classes))
         return data, classes
-
