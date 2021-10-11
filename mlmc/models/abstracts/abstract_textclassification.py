@@ -2,8 +2,9 @@ import torch
 from ignite.metrics import Average
 from tqdm import tqdm
 
+import mlmc.loss
 from ...data import SingleLabelDataset, MultiLabelDataset
-from ...data.datasets import PredictionDataset
+from ...data.dataset_classes import PredictionDataset
 from ...metrics import MetricsDict
 from ...representation import is_transformer, get
 from ...thresholds import get as thresholdget
@@ -60,7 +61,6 @@ class TextClassificationAbstract(torch.nn.Module):
         self.representation = representation
         self._init_input_representations()
         self.max_len = max_len
-        self.target = target
 
         self._config = {
             "classes": classes,
@@ -549,7 +549,7 @@ class TextClassificationAbstract(torch.nn.Module):
             self.train()
             return scores
 
-    def transform(self, x):
+    def transform(self, x, max_length=None) -> dict:
         """
         A standard transformation function from text to network input format
 
@@ -567,7 +567,11 @@ class TextClassificationAbstract(torch.nn.Module):
                                            "transform(self, x)  method yourself. TOkenizer can be allocated with " \
                                            "embedder, tokenizer = mlmc.helpers.get_embedding() or " \
                                            "embedder, tokenizer = mlmc.helpers.get_transformer()"
-        return self.tokenizer(x, maxlen=self.max_len).to(self.device)
+        if max_length is None:
+            max_length = self._config["max_len"]
+        return {k: v.to(self.device) for k, v in
+                self.tokenizer(x, padding=True, max_length=max_length, truncation=True,
+                               add_special_tokens=True, return_tensors='pt').items()}
 
     def _init_input_representations(self):
         # TODO: Documentation
@@ -619,22 +623,40 @@ class TextClassificationAbstract(torch.nn.Module):
         if is_transformer(self.representation):
             if self.finetune:
                 if self.n_layers == 1:
-                    embeddings = self.embedding(x)[0]
+                    embeddings = self.embedding(**x)[0]
                 else:
-                    embeddings = torch.cat(self.embedding(x)[2][-self.n_layers:], -1)
+                    embeddings = torch.cat(self.embedding(**x)[2][-self.n_layers:], -1)
             else:
                 with torch.no_grad():
                     if self.n_layers == 1:
-                        embeddings = self.embedding(x)[0]
+                        embeddings = self.embedding(**x)[0]
                     else:
-                        embeddings = torch.cat(self.embedding(x)[2][-self.n_layers:], -1)
+                        embeddings = torch.cat(self.embedding(**x)[2][-self.n_layers:], -1)
         else:
             if self.finetune:
-                embeddings = self.embedding(x)
+                embeddings = self.embedding(**x)
             else:
                 with torch.no_grad():
-                    embeddings = self.embedding(x)
+                    embeddings = self.embedding(**x)
         return embeddings
+
+
+
+    def _mean_pooling(self, token_embeddings, attention_mask):
+        """
+        Mean Pooling for sequence of embeddings, taking attention mask into account for correct averaging.
+        Using the output of the language models
+        Args:
+            token_embeddings:
+            attention_mask:
+
+        Returns:
+
+        """
+        input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+        sum_embeddings = torch.sum(token_embeddings * input_mask_expanded, 1)
+        sum_mask = torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+        return sum_embeddings / sum_mask
 
     def rebuild(self):
         """
@@ -647,18 +669,35 @@ class TextClassificationAbstract(torch.nn.Module):
                                               **self.optimizer_params)
         self.to(self.device)
 
-    def single(self):
+    def single(self, threshold="max", activation=torch.softmax, loss=torch.nn.CrossEntropyLoss, **kwargs):
         """Setting the default single label mode"""
         self._config["target"] = "single"
-        self.target = "single"
-        self.set_threshold("max")
-        self.activation = torch.softmax
-        self.set_loss(torch.nn.CrossEntropyLoss)
+        self.set_threshold(threshold)
+        self.set_activation(activation)
+        self.set_loss(loss)
+        self._config.update(**kwargs)
 
-    def multi(self):
+    def multi(self, threshold="mcut", activation=torch.sigmoid, loss=torch.nn.BCEWithLogitsLoss, **kwargs):
         """Setting the defaults for multi label mode"""
         self._config["target"] = "multi"
-        self.target = "multi"
-        self.set_threshold("mcut")
-        self.activation = torch.sigmoid
-        self.set_loss(torch.nn.BCEWithLogitsLoss)
+        self.set_threshold(threshold)
+        self.set_activation(activation)
+        self.set_loss(loss)
+        self._config.update(**kwargs)
+
+    def sts(self, threshold="mcut", activation=lambda x:x, loss=mlmc.loss.RelativeRankingLoss, **kwargs):
+        """Helper function to set model into default sts mode"""
+        self._config["target"] = "sts"
+        self.set_threshold(threshold)
+        self.set_activation(activation)
+        self.set_loss(loss)
+        self._config.update(**kwargs)
+
+    def entailment(self, threshold="max", activation=torch.softmax, loss=torch.nn.CrossEntropyLoss, **kwargs):
+        """Helper function to set model into default multi label mode"""
+        self._config["target"] = "entailment"
+        self.set_threshold(threshold)
+        self.set_activation(activation)
+        self.set_loss(loss)
+        self._config.update(**kwargs)
+

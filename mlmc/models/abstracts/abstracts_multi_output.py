@@ -8,7 +8,7 @@ from mlmc.thresholds import get as  thresholdget
 from ...metrics import MetricsDict
 from ...representation.character import  makemultilabels
 from mlmc.data import MultiOutputMultiLabelDataset, SingleLabelDataset
-from ...data.datasets import MultiOutputSingleLabelDataset
+from ...data.dataset_classes import MultiOutputSingleLabelDataset
 import re
 
 
@@ -293,11 +293,7 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
         average = Average()
         for i, b in enumerate(train):
             self.optimizer.zero_grad()
-            if isinstance(b["labels"], list):
-                y = [y.to(self.device) for y in b["labels"]]
-            else:
-                y = b["labels"].to(self.device).t()
-            l, _ = self._step(x=self.transform(b["text"]), y=y)
+            l, _ = self._step(b)
             l.backward()
             self.optimizer.step()
             average.update(l.item())
@@ -306,3 +302,23 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
                 pbar.postfix[0]["loss"] = round(average.compute().item(), 8)
                 pbar.update()
         return average.compute().item()
+
+    def _step(self, b):
+        """
+        This method gets input and output for of one batch and calculates output and predictions
+        Args:
+            x: input tensor
+            y: tensor of truth indices
+
+        Returns:
+            loss, output: loss tensor, and the raw prediction output of the network
+        """
+        x = self.transform(b["text"])
+        if isinstance(b["labels"], list):
+            y = [y.to(self.device) for y in b["labels"]]
+        else:
+            y = b["labels"].to(self.device).t()
+        output = self(x)
+        l = self._loss(output, y)
+        l = self._regularize(l)
+        return l, output

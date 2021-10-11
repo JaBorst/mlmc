@@ -1,6 +1,6 @@
 import torch
 
-from mlmc.models.abstracts.abstracts import TextClassificationAbstract
+from mlmc.models.abstracts.abstract_textclassification import TextClassificationAbstract
 from mlmc.models.abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
 from mlmc.graph import get as graph_get
 import networkx as nx

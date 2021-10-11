@@ -1,1 +1,1 @@
-from .abstracts import TextClassificationAbstract
+from .abstract_textclassification import TextClassificationAbstract
