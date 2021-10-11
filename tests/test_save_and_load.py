@@ -29,13 +29,13 @@ def save_and_load(model):
 
 def assertion_function(model_type, **kwargs):
 
-    data = mlmc.data.datasets.MultiLabelDataset(
+    data = mlmc.data.dataset_classes.MultiLabelDataset(
         x = ["Sample 1", "Sample 2", "Sample 3", "Sample 4", "Sample 5"],
         y = [["label_0", "label_4"], ["label_0", "label_2"], ["label_2", "label_3"], ["label_1", "label_4"], ["label_1", "label_4"]],
         classes = {"label_%i" % (i,): i for i in range(5)}
     )
 
-    mo_data = mlmc.data.datasets.MultiOutputSingleLabelDataset(
+    mo_data = mlmc.data.dataset_classes.MultiOutputSingleLabelDataset(
         x=["Sample 1", "Sample 2", "Sample 3", "Sample 4", "Sample 5"],
         y=[[["label_0"], ["label_2"]], [["label_3"], ["label_1"]], [["label_4"], ["label_2"]], [["label_1"], ["label_2"]], [["label_3"], ["label_0"]]],
         classes= {"label_0": 0, "label_1": 1, "label_2": 3, "label_3": 2, "label_4": 4})
@@ -61,7 +61,7 @@ def assertion_function(model_type, **kwargs):
     save_and_load(model)
 
 def test_KimCNN():
-    assertion_function(model_type=mlmc.models.KimCNN,target="multi", representation="google/bert_uncased_L-2_H-128_A-2")
+    assertion_function(model_type=mlmc.models.KimCNN, target="multi", representation="google/bert_uncased_L-2_H-128_A-2", kernel_sizes=(2,3))
 
 def test_LSAN():
     assertion_function(model_type=mlmc.models.LSAN, target="multi",representation="google/bert_uncased_L-2_H-128_A-2", hidden_representations=10, d_a=10)
@@ -70,7 +70,7 @@ def test_LSANNC():
     assertion_function(model_type=mlmc.models.LSANNC, target="multi",representation="google/bert_uncased_L-2_H-128_A-2", label_model="test", hidden_representations=10, d_a=10)
 
 def test_MoKimCNN():
-    assertion_function(model_type=mlmc.models.MoKimCNN, representation="google/bert_uncased_L-2_H-128_A-2", target="single")
+    assertion_function(model_type=mlmc.models.MoKimCNN, representation="google/bert_uncased_L-2_H-128_A-2", target="single", kernel_sizes=(2,3))
 
 def test_MoLSANNC():
     assertion_function(model_type=mlmc.models.MoLSANNC, representation="google/bert_uncased_L-2_H-128_A-2",label_model="test", target="single", hidden_representations=10, d_a=10)
@@ -82,7 +82,7 @@ def test_Transformer():
     assertion_function(model_type=mlmc.models.Transformer, target="multi", representation="google/bert_uncased_L-2_H-128_A-2")
 
 def test_XMLCNN():
-    assertion_function(model_type=mlmc.models.XMLCNN, target="multi", representation="google/bert_uncased_L-2_H-128_A-2")
+    assertion_function(model_type=mlmc.models.XMLCNN, target="multi", representation="google/bert_uncased_L-2_H-128_A-2", kernel_sizes=(2,3))
 
 #Geometric Models:
 # def test_SKGLM():
@@ -90,4 +90,3 @@ def test_XMLCNN():
 #
 # def test_ZAGCNNLM():
 #     assertion_function(model_type=mlmc.models.ZAGCNNLM, representation="google/bert_uncased_L-2_H-128_A-2", n_layers=1)
-test_MoKimCNN()

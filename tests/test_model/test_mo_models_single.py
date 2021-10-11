@@ -28,7 +28,7 @@ def assertion_function(model_type, **kwargs):
     ]
 
     # Now we can instantiate a multi output single label dataset.
-    data = mlmc.data.datasets.MultiOutputSingleLabelDataset(x=x, y=y, classes=classes)
+    data = mlmc.data.dataset_classes.MultiOutputSingleLabelDataset(x=x, y=y, classes=classes)
     model = model_type(classes=classes, **kwargs, target="single", optimizer_params={"lr": 0.001})
     history = model.fit(train=data, epochs=5, batch_size=3)
     assert len(history["train"]["loss"]) == 5, "Number of Epochs not reached"
