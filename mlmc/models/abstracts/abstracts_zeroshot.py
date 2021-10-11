@@ -189,12 +189,14 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
 
 
 
-    def _eval_data_list(self, datasets, log_mlflow=False, c=0):
+    def _eval_data_list(self, datasets, log_mlflow=False, c=0, s=-1):
         from ...data import get, is_multilabel, sampler, SFORMATTER
         for d in datasets:
             test_data = get(d)
             if d == "rcv1" or d == "amazonfull":
                 test_data["test"] = sampler(test_data["test"], absolute=15000)
+            if s>0:
+                test_data["test"] = sampler(test_data["test"], absolute=s)
             if is_multilabel(test_data["train"]):
                 self.multi()
                 self.set_sformatter(SFORMATTER[d])
@@ -211,7 +213,9 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
                 print(f"\n{d}:\n", ev.print())
 
     def pretrain_entailment(self, train,
-            valid=None, steps=1000, eval_every=100, datasets = None, epochs=1, batch_size=16, valid_batch_size=32, callbacks=None, lr_schedule=None, lr_param={}, log_mlflow=False):
+            valid=None, steps=1000, eval_every=100, datasets = None, epochs=1,
+                            batch_size=16, valid_batch_size=32, callbacks=None, lr_schedule=None, lr_param={}, log_mlflow=False,
+                            sample_size=-1):
         """
         Training function
 
@@ -267,8 +271,8 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
                             print("valid: ", printables)
 
                         if datasets is not None:
-                            self._eval_data_list(datasets, log_mlflow=log_mlflow, c=c)
-
+                            self._eval_data_list(datasets, log_mlflow=log_mlflow, c=c, s=sample_size)
+                            self.set_sformatter(lambda x:x)
                     self.entailment()
 
                     self.optimizer.zero_grad()
