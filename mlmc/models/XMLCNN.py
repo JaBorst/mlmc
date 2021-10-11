@@ -1,5 +1,5 @@
 import torch
-from .abstracts.abstracts import TextClassificationAbstract
+from .abstracts.abstract_textclassification import TextClassificationAbstract
 from ..representation import get
 from ..modules.module_KimCNN import KimCNNModule
 from ..representation import is_transformer

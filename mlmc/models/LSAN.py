@@ -3,7 +3,7 @@ https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
 """
 import torch
 import torch.nn.functional as F
-from mlmc.models.abstracts.abstracts import TextClassificationAbstract
+from mlmc.models.abstracts.abstract_textclassification import TextClassificationAbstract
 from ..representation import is_transformer
 
 class LSAN(TextClassificationAbstract):
@@ -91,8 +91,8 @@ class LSAN(TextClassificationAbstract):
         h2 = outputs[:, :, self._config["lstm_hid_dim"]:]
 
         label = self.embedding_dropout(self.label_embed.weight.data)
-        m1 = torch.bmm(label.expand(x.shape[0], self.n_classes, self._config["lstm_hid_dim"]), h1.transpose(1, 2))
-        m2 = torch.bmm(label.expand(x.shape[0], self.n_classes, self._config["lstm_hid_dim"]), h2.transpose(1, 2))
+        m1 = torch.bmm(label.expand(embeddings.shape[0], self.n_classes, self._config["lstm_hid_dim"]), h1.transpose(1, 2))
+        m2 = torch.bmm(label.expand(embeddings.shape[0], self.n_classes, self._config["lstm_hid_dim"]), h2.transpose(1, 2))
         label_att = torch.cat((torch.bmm(m1, h1), torch.bmm(m2, h2)), 2)
         # label_att = F.normalize(label_att, p=2, dim=-1)
         # self_att = F.normalize(self_att, p=2, dim=-1) #all can

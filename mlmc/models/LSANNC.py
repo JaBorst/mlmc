@@ -1,13 +1,13 @@
 """
 https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
 """
-from mlmc.models.abstracts.abstracts import TextClassificationAbstract
+from mlmc.models.abstracts.abstract_label import LabelEmbeddingAbstract
 from mlmc.models.abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
 from ..representation import is_transformer
 import re
 from ..modules import *
 
-class LSANNC(TextClassificationAbstract,TextClassificationAbstractZeroShot):
+class LSANNC(LabelEmbeddingAbstract,TextClassificationAbstractZeroShot):
     """
     https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
     """
@@ -50,6 +50,7 @@ class LSANNC(TextClassificationAbstract,TextClassificationAbstractZeroShot):
         # self.projection_labels = torch.nn.Linear(self.label_embedding_dim, self.hidden_representations)
 
         from ..modules import LSANNCModule
+
         self.lsannc = LSANNCModule(self._config["hidden_representations"]*2,
                                    self.label_embedding_dim ,
                                    hidden_features=self._config["d_a"] )
@@ -70,7 +71,7 @@ class LSANNC(TextClassificationAbstract,TextClassificationAbstractZeroShot):
             outputs = outputs[0]
         # outputs = self.dropout_layer(outputs)
         # label_embed = self.dropout_layer(self.label_embedding)
-        doc, weights = self.lsannc(outputs, self.label_embedding, return_weights=True)
+        doc, weights = self.lsannc(outputs, self.label_dict, return_weights=True)
 
         pred = self.output_layer(doc).squeeze(-1)
         if return_weights:
@@ -99,6 +100,7 @@ class LSANNC(TextClassificationAbstract,TextClassificationAbstractZeroShot):
             l = get_word_embedding_mean(
                 [" ".join(re.split("[/ _-]", x.lower())) for x in self.classes.keys()],
                 self._config["label_model"])
+            self.label_embedding_dim = l.shape[-1]
         return l
 
 
