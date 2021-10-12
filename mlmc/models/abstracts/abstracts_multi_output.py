@@ -52,21 +52,16 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
 
     def set_loss(self, loss):
         self._config["loss"] = loss
-        if isinstance(self._config["loss"], type) and self._config["loss"] is not None:
-            if self.class_weights is not None:
-                self.loss = [self._config["loss"](torch.FloatTensor(w).to(self.device)) for w in self.class_weights]
-            else:
-                self.loss = [self._config["loss"]() for _ in range(self.n_outputs)]
 
     def build(self):
         """
-        Internal build method.
+            Internal build method.
         """
-        if isinstance(self.loss, type) and self.loss is not None:
-            if self.class_weights is not None:
-                self.loss = [self.loss(torch.FloatTensor(w).to(self.device)) for w in self.class_weights]
+        if isinstance(self._config["loss"], type) and self._config["loss"] is not None:
+            if self._config.get("class_weights", None) is not None:
+                self.loss = [self._config["loss"](torch.FloatTensor(w).to(self.device)) for w in self.class_weights]
             else:
-                self.loss = [self.loss() for _ in range(self.n_outputs)]
+                self.loss = [self._config["loss"]() for _ in range(self.n_outputs)]
         if isinstance(self.optimizer, type) and self.optimizer is not None:
             self.optimizer = self.optimizer(
                 filter(lambda p: p.requires_grad, self.parameters()), **self.optimizer_params)

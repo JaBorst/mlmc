@@ -34,7 +34,7 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         return printable
 
 
-    def _eval_data_list(self, datasets, log_mlflow=False, c=0, s=-1):
+    def _eval_data_list(self, datasets, batch_size=50, log_mlflow=False, c=0, s=-1):
         """
         Evaluate a list of datasets (either single or multilabel)
         :param datasets: List of dataset names
@@ -54,14 +54,14 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
                 self.multi()
                 self.set_sformatter(SFORMATTER[d])
                 self.create_labels(test_data["test"].classes)
-                _, ev = self.evaluate(test_data["test"], _fit=True, batch_size=32)
+                _, ev = self.evaluate(test_data["test"], _fit=True, batch_size=batch_size)
                 if log_mlflow: ev.log_mlflow(c, prefix=d)
                 print(f"\n{d}:\n", ev.print())
             else:
                 self.single()
                 self.set_sformatter(SFORMATTER[d])
                 self.create_labels(test_data["test"].classes)
-                _, ev = self.evaluate(test_data["test"], _fit=True, batch_size=32)
+                _, ev = self.evaluate(test_data["test"], _fit=True, batch_size=batch_size)
                 if log_mlflow: ev.log_mlflow(c, prefix=d)
                 print(f"\n{d}:\n", ev.print())
 
