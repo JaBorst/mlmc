@@ -59,7 +59,7 @@ class TextClassificationAbstract(torch.nn.Module):
         self.optimizer_params = optimizer_params
         self.PRECISION_DIGITS = 4
         self.representation = representation
-        self._init_input_representations()
+
         self.max_len = max_len
 
         self._config = {
@@ -72,7 +72,7 @@ class TextClassificationAbstract(torch.nn.Module):
             "finetune": finetune, "threshold": threshold,
             "label_len": label_len,}
 
-
+        self._init_input_representations()
 
         # Setting default values for learning mode
         if self._config["target"] is None:
