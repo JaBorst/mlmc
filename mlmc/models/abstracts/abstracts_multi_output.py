@@ -50,6 +50,14 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
         self._config["n_classes"] = self.n_classes
         self._config["n_outputs"] = self.n_outputs
 
+    def set_loss(self, loss):
+        self._config["loss"] = loss
+        if isinstance(self._config["loss"], type) and self._config["loss"] is not None:
+            if self.class_weights is not None:
+                self.loss = [self._config["loss"](torch.FloatTensor(w).to(self.device)) for w in self.class_weights]
+            else:
+                self.loss = [self._config["loss"]() for _ in range(self.n_outputs)]
+
     def build(self):
         """
         Internal build method.
