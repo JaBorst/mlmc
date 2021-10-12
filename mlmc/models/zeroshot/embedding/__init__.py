@@ -2,3 +2,4 @@ from .embedding_weighted import EmbeddingBasedWeighted
 from .embedding_entailment import EmbeddingBasedEntailment
 from .embedding_entailment_fft import EmbeddingBasedEntailmentFFT
 from .embedding_entailment_cps import EmbeddingBasedEntailmentCPS
+from .embedding_weighted_euclidean import EmbeddingBasedWeightedEuclidean

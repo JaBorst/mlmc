@@ -8,3 +8,7 @@ class Callback:
         pass
     def on_epoch_start(self, model):
         pass
+    def on_batch_start(self, model):
+        pass
+    def on_batch_end(self, model):
+        pass

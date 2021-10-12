@@ -100,3 +100,16 @@ SFORMATTER = {"agnews": lambda x: f"The topic of this is {label_dicts['agnews'].
               "yelpfull":  lambda x: f"This is a {label_dicts['yelpfull'][x]}",
               "amazonfull": lambda x: f"This is a {label_dicts['amazonfull'][x]}",
               }
+
+SFORMATTER_TARS = {"agnews": lambda x: f"label topic {label_dicts['agnews'].get(x,x)}",
+               "yahoo_answers": lambda x: f"label topic {x}",
+               "rcv1": lambda x: f"label topics {x}",
+               "blurbgenrecollection": lambda x: f"label topics {x}",
+               "movies_summaries": lambda x: f"label genre {x}",
+               "movie_reviews": lambda x: f"{x} sentiment",
+               "dbpedia": lambda x: f"label topic {label_dicts['dbpedia'].get(x,x)}",
+              "trec6": lambda x: f"question {label_dicts['trec6'][x]}",
+              "trec50": lambda x: f"question {label_dicts['trec50'][x]}",
+              "yelpfull":  lambda x: f"sentiment {label_dicts['yelpfull'][x]}",
+              "amazonfull": lambda x: f"sentiment {label_dicts['amazonfull'][x]}",
+              }

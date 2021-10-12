@@ -1,1 +1,2 @@
 from .loss_labelwise_ranking import RelativeRankingLoss
+from .loss_mask_noise_wrapper import MaskNoiseWrapper
