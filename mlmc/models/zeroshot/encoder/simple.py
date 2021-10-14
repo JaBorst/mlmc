@@ -14,7 +14,7 @@ class SimpleEncoder(EncoderAbstract, TextClassificationAbstractZeroShot):
         self.build()
 
     def forward(self, x):
-        e = self.embedding(**x)["logits"]
+        e = self.embedding(**x)[0]
 
         if self._config["target"] == "entailment":
             pass
