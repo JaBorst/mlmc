@@ -292,8 +292,14 @@ class SingleLabelDataset(MultiLabelDataset):
         :param idx: Index of the entry
         :return: Dictionary containing the text and labels of the entry
         """
-        return {'text': self.x[idx], 'labels': torch.tensor(self.classes[self.y[idx][0]])}
+        try:
+            return {'text': self.x[idx], 'labels': torch.tensor(self.classes[self.y[idx][0]])}
+        except:
+            print("shit")
 
+    def to_csv(self, filename):
+        with open(filename, "w") as f:
+            f.write("\n".join([v[0] + "|" + k.replace("\n", "").replace("\\", " ").replace("\"", " ") for k, v in zip(self.x, self.y)]))
 
 class MultiOutputMultiLabelDataset(Dataset):
     def __init__(self, classes, x, y, target_dtype=torch._cast_Float, **kwargs):
