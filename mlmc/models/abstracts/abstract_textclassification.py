@@ -306,7 +306,7 @@ class TextClassificationAbstract(torch.nn.Module):
 
     def fit(self, train,
             valid=None, epochs=1, batch_size=16, valid_batch_size=50, patience=-1, tolerance=1e-2,
-            return_roc=False, return_report=False, callbacks=None, metrics=None, lr_schedule=None, lr_param={}):
+            return_roc=False, return_report=False, callbacks=None, metrics=None, lr_schedule=None, lr_param={}, log_mlflow=False):
         """
         Training function
 
@@ -357,6 +357,9 @@ class TextClassificationAbstract(torch.nn.Module):
                 loss = self._epoch(train_loader, pbar=pbar)
                 if lr_schedule is not None: scheduler.step()
                 self.train_history["loss"].append(loss)
+                if log_mlflow:
+                    import mlflow
+                    mlflow.log_metric("loss", loss, step=e)
 
                 # Validation if available
                 if valid is not None:
@@ -365,6 +368,11 @@ class TextClassificationAbstract(torch.nn.Module):
                         batch_size=valid_batch_size,
                         metrics=metrics,
                         _fit=True)
+
+                    if log_mlflow:
+                        import mlflow
+                        mlflow.log_metric("valid_loss" ,valid_loss, step=e)
+                        result_metrics.log_mlflow(step=e, prefix="valid")
 
                     valid_loss_dict = {"valid_loss": valid_loss}
                     valid_loss_dict.update(result_metrics.compute())
