@@ -19,7 +19,7 @@ class EncoderAbstract(LabelEmbeddingAbstract):
         else:
             label = list([self._config["sformatter"](x) for x in self._config["classes"]])
             text = x
-        tok = self.tokenizer(text, label, return_tensors="pt", add_special_tokens=True, padding=True,
+        tok = self.tokenizer(label, text, return_tensors="pt", add_special_tokens=True, padding=True,
                                        truncation=True,
                                        max_length=self.max_len)
 
