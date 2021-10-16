@@ -1,4 +1,5 @@
 import torch
+import transformers
 from ignite.metrics import Average
 from tqdm import tqdm
 
@@ -713,3 +714,15 @@ class TextClassificationAbstract(torch.nn.Module):
         self.set_loss(loss)
         self._config.update(**kwargs)
 
+    def finetune_lm(self, file, epochs=1, batch_size=8 , valid = 0.1):
+        import subprocess, pathlib, tempfile, os, sys
+        my_env = os.environ.copy()
+        my_env["CUDA_VISIBLE_DEVICES"] = "" if self.device =="cpu" else str(self.device).split(":")[-1]
+        cmd = pathlib.Path(__file__).parents[0] / "pretrain-language-model.py"
+        with tempfile.TemporaryDirectory() as f:
+            subprocess.call(
+                [sys.executable, cmd, "--model", self.representation, "--file", str(file), "--output", str(f),
+                 "--epochs", str(epochs), "--batch_size", str(batch_size), "--valid_frac", str(valid)],
+                env=my_env
+            )
+            self.embedding = transformers.AutoModel.from_pretrained(f + "/model")
