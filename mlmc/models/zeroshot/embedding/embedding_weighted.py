@@ -67,7 +67,7 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract, TextClassificat
         if "max" in self.mode:
             word_maxs = word_scores.reshape((input_embedding.shape[0], label_embedding.shape[0], -1)).max(-1)[0]
             r = r * word_maxs
-        return r
+        return torch.log(0.5 * (r +1))
 
     def embed(self, x):
         """
@@ -125,6 +125,6 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract, TextClassificat
         x = self.transform(x)
         with torch.no_grad():
             output = self.act(self(x))
-            output = 0.5*(output+1)
+            #output = 0.5*(output+1)
         self.train()
         return output
