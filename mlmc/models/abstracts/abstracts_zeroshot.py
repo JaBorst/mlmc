@@ -34,7 +34,7 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         return printable
 
 
-    def _eval_data_list(self, datasets, batch_size=50, log_mlflow=False, c=0, s=-1):
+    def _eval_data_list(self, datasets, formatters=None,  batch_size=50, log_mlflow=False, c=0, s=-1):
         """
         Evaluate a list of datasets (either single or multilabel)
         :param datasets: List of dataset names
@@ -44,29 +44,40 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         :return:
         """
         from ...data import get, is_multilabel, sampler, SFORMATTER
-        for d in datasets:
-            test_data = get(d)
-            if d == "rcv1" or d == "amazonfull":
-                test_data["test"] = sampler(test_data["test"], absolute=15000)
-            if s>0:
-                test_data["test"] = sampler(test_data["test"], absolute=s)
-            if is_multilabel(test_data["train"]):
-                self.multi()
+
+        if formatters is not None:
+            formatters = formatters if isinstance(formatters,list) else [formatters]
+            formatters = formatters if len(formatters) == len(datasets) else formatters * len(datasets)
+        for i,d in  enumerate(datasets):
+            if isinstance(d, str):
+                test_data = get(d)["test"]
+                if d == "rcv1" or d == "amazonfull":
+                    test_data = sampler(test_data, absolute=15000)
+                if s > 0:
+                    test_data = sampler(test_data, absolute=s)
+                prefix = d
+            else:
+                test_data = d
+                prefix = f"set_{i}"
+            if formatters is not None:
+                self.set_sformatter(formatters[i])
+            else:
                 self.set_sformatter(SFORMATTER[d])
-                self.create_labels(test_data["test"].classes)
-                _, ev = self.evaluate(test_data["test"], _fit=True, batch_size=batch_size)
-                if log_mlflow: ev.log_mlflow(c, prefix=d)
+            self.create_labels(test_data.classes)
+
+            if is_multilabel(test_data):
+                self.multi()
+                _, ev = self.evaluate(test_data, _fit=True, batch_size=batch_size)
+                if log_mlflow: ev.log_mlflow(c, prefix=prefix)
                 print(f"\n{d}:\n", ev.print())
             else:
                 self.single()
-                self.set_sformatter(SFORMATTER[d])
-                self.create_labels(test_data["test"].classes)
-                _, ev = self.evaluate(test_data["test"], _fit=True, batch_size=batch_size)
-                if log_mlflow: ev.log_mlflow(c, prefix=d)
+                _, ev = self.evaluate(test_data, _fit=True, batch_size=batch_size)
+                if log_mlflow: ev.log_mlflow(c, prefix=prefix)
                 print(f"\n{d}:\n", ev.print())
 
     def pretrain_entailment(self, train,
-            valid=None, steps=1000, eval_every=100, datasets = None, epochs=1,
+            valid=None, steps=1000, eval_every=100, datasets = None, formatters=None,
                             batch_size=16, valid_batch_size=32, callbacks=None, lr_schedule=None, lr_param={}, log_mlflow=False,
                             sample_size=-1):
         """
@@ -124,13 +135,12 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
                             print("valid: ", printables)
 
                         if datasets is not None:
-                            self._eval_data_list(datasets, log_mlflow=log_mlflow, c=c, s=sample_size)
+                            self._eval_data_list(datasets, formatters, log_mlflow=log_mlflow, c=c, s=sample_size)
                             self.set_sformatter(lambda x:x)
                     self.entailment()
 
                     self.optimizer.zero_grad()
-                    self.create_labels(b["x2"])
-                    l, _ = self._step(x=self.transform(b["x1"]), y=b["labels"].to(self.device))
+                    l, _ = self._entailment_step(b)
                     l.backward()
                     self.optimizer.step()
                     average.update(l.item())
@@ -148,6 +158,25 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         return_copy = {"train": copy(self.train_history), "valid": copy(self.validation)}
         return return_copy
 
+    def _entailment_step(self, b):
+        """
+        This method gets input and output for of one batch and calculates output and predictions
+        Args:
+            x: input tensor
+            y: tensor of truth indices
+
+        Returns:
+            loss, output: loss tensor, and the raw prediction output of the network
+        """
+        self.create_labels(b["x2"])
+        x = self.transform(b["x1"])
+        y = b["labels"].to(self.device)
+        output = self(x)
+        # if x.shape[0] == 1 and output.shape[0] != 1:
+        #     output = output[None]
+        l = self._loss(output, y)
+        l = self._regularize(l)
+        return l, output
 
     def _entailment_evaluate(self, data, batch_size=50,  metrics=[Accuracy()], _fit=False):
         """
@@ -173,8 +202,7 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         with torch.no_grad():
             for i, b in enumerate(data_loader):
                 y = b["labels"]
-                self.create_labels(b["x2"])
-                l, output = self._step(x=self.transform(b["x1"]), y=b["labels"].to(self.device))
+                l, output = self._entailment_step(b)
                 output = self.act(output).cpu()
                 pred = self._threshold_fct(output)
                 average.update(l.item())

@@ -481,7 +481,7 @@ class MultiOutputSingleLabelDataset(Dataset):
 
 
 class EntailmentDataset(Dataset):
-    def __init__(self, x1, x2, labels, classes):
+    def __init__(self, x1, x2, labels, classes={"entailment":2, "neutral": 1, "contradiction":0}):
         self.x1 = x1
         self.x2 = x2
         self.labels = labels

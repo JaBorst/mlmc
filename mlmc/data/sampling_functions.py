@@ -250,3 +250,30 @@ def fewshot_sampler(dataset, k):
             if all([k <= v for v in counter.values()]):
                 break
         return type(dataset)(x = sample_x, y = sample_y, classes = dataset.classes)
+
+def entailment_split(dataset, fraction=None, absolute=None):
+    """
+    Split a dataset into two separate splits (validation split)
+
+    Args:
+        dataset: data set to split
+        fraction: The fraction of the data that should be returned (0<fraction<1)
+        absolute: The absolute size of the sampled dataset
+    Returns:
+         A tuple of randomly subsampled MultilabelDatasets of the desired size.
+    """
+    # assert fraction is None != absolute is None, "Exactly one of fraction or absolute has to be set."
+    if fraction is not None:
+        assert fraction < 1 and fraction > 0, "The fraction argument has to be between 0 and 1."
+    ind = list(range(len(dataset)))
+    np.random.shuffle(ind)
+    n_samples = (len(dataset)-absolute) if absolute is not None else int((1-fraction) * len(dataset))
+    return type(dataset)(x1=[dataset.x1[i] for i in ind[:n_samples]],
+                         x2=[dataset.x2[i] for i in ind[:n_samples]],
+                         labels=[dataset.labels[i] for i in ind[:n_samples]],
+                         classes=dataset.classes), \
+           type(dataset)(x1=[dataset.x1[i] for i in ind[n_samples:]],
+                         x2=[dataset.x2[i] for i in ind[n_samples:]],
+                         labels=[dataset.labels[i] for i in ind[n_samples:]],
+                         classes=dataset.classes)
+
