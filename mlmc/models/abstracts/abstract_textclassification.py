@@ -66,6 +66,7 @@ class TextClassificationAbstract(torch.nn.Module):
 
         self._config = {
             "classes": classes,
+            "n_classes": len(classes),
             "target": target,
             "representation": representation,
             "activation": activation, "loss": loss,

@@ -23,7 +23,7 @@ class SimpleEncoder(EncoderAbstract, TextClassificationAbstractZeroShot):
             e = e.reshape((int(x["input_ids"].shape[0] / self._config["n_classes"]), self._config["n_classes"]))
         elif self._config["target"] == "multi":
             e = torch.log(e[:, [0, 2]].softmax(-1)[:, -1])
-            e = e.squeeze(.1)
+            e = e.reshape((int(x["input_ids"].shape[0] / len(self._config["classes"])), len(self._config["classes"])))
         else:
             assert not self._config["target"], f"Target {self._config['target']} not defined"
 

@@ -251,6 +251,21 @@ class MultiLabelDataset(Dataset):
         """
         return sum([len(x) for x in self.y]) / len(self.y)
 
+    @staticmethod
+    def from_pandas(df, x, y, sep=" ", classes=None):
+        y = y if isinstance(y, str) else y[0]
+        label = [l for l in df[y].to_list()]
+        cls_list = list(set(sum(label,[])))
+        return MultiLabelDataset(
+            x = df[x].applymap(str).agg(sep.join, axis=1).to_list(),
+            y = label,
+            classes=classes if classes is not None else {cls:i for i, cls in enumerate(sorted(cls_list))}
+        )
+
+    def to_pandas(self):
+        import pandas as pd
+        return pd.DataFrame.from_dict({"x": self.x, "y": self.y})
+
 
 class SingleLabelDataset(MultiLabelDataset):
     def __init__(self, *args, **kwargs):
@@ -285,6 +300,19 @@ class SingleLabelDataset(MultiLabelDataset):
         assert all(
             [len(x) == 1 for x in self.y]), "This is not a single label dataset. Some labels contain multiple labels."
 
+    @staticmethod
+    def from_pandas(df, x, y, sep=" ", classes=None):
+        y = y if isinstance(y, str) else y[0]
+        return SingleLabelDataset(
+            x = df[x].applymap(str).agg(sep.join, axis=1).to_list(),
+            y = [[str(l)] for l in df[y].tolist()],
+            classes=classes if classes is not None else {cls:i for i, cls in enumerate(sorted(df[y].map(str).unique()))}
+        )
+
+    def to_pandas(self):
+        import pandas as pd
+        return pd.DataFrame.from_dict({"x": self.x, "y": self.y})
+
     def __getitem__(self, idx):
         """
         Retrieves a single entry from the dataset.
@@ -292,10 +320,7 @@ class SingleLabelDataset(MultiLabelDataset):
         :param idx: Index of the entry
         :return: Dictionary containing the text and labels of the entry
         """
-        try:
-            return {'text': self.x[idx], 'labels': torch.tensor(self.classes[self.y[idx][0]])}
-        except:
-            print("shit")
+        return {'text': self.x[idx], 'labels': torch.tensor(self.classes[self.y[idx][0]])}
 
     def to_csv(self, filename):
         with open(filename, "w") as f:
