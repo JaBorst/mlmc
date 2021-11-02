@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import Dataset
-
+from warnings import warn
 
 class RegressionDataset(Dataset):
     def __init__(self, x1, x2, labels):
@@ -143,9 +143,14 @@ class MultiLabelDataset(Dataset):
         :param o: Another dataset
         :return: MultiLabelDataset containing x, y and classes of both datasets
         """
-        new_classes = list(set(list(self.classes.keys()) + list(o.classes.keys())))
-        new_classes.sort()
-        new_classes = dict(zip(new_classes, range(len(new_classes))))
+        from collections import OrderedDict
+        if OrderedDict(self.classes) == OrderedDict(o.classes):
+            new_classes = self.classes
+        else:
+            warn("Adding two datasets with unequal class dictionaries alters the sorting order to create a new union mapping")
+            new_classes = list(set(list(self.classes.keys()) + list(o.classes.keys())))
+            new_classes.sort()
+            new_classes = dict(zip(new_classes, range(len(new_classes))))
 
         new_data = dict(zip(self.x, self.y))
 
@@ -255,11 +260,13 @@ class MultiLabelDataset(Dataset):
     def from_pandas(df, x, y, sep=" ", classes=None):
         y = y if isinstance(y, str) else y[0]
         label = [l for l in df[y].to_list()]
-        cls_list = list(set(sum(label,[])))
+        if classes is None:
+            cls_list = list(set(sum(label,[])))
+            classes =  {cls:i for i, cls in enumerate(sorted(cls_list))}
         return MultiLabelDataset(
-            x = df[x].applymap(str).agg(sep.join, axis=1).to_list(),
-            y = label,
-            classes=classes if classes is not None else {cls:i for i, cls in enumerate(sorted(cls_list))}
+            x=df[x].applymap(str).agg(sep.join, axis=1).to_list(),
+            y=label,
+            classes=classes
         )
 
     def to_pandas(self):

@@ -6,3 +6,5 @@ from .embedding.embedding_entailment_fft import EmbeddingBasedEntailmentFFT
 from .embedding.embedding_entailment_cps import EmbeddingBasedEntailmentCPS
 from .embedding.embedding_weighted_euclidean import EmbeddingBasedWeightedEuclidean
 from .graph.graph import GraphBased
+from .embedding.embedding_based_ml import EmbeddingBasedML
+from .encoder.simpleclassifier import SimpleEncoderClassifier

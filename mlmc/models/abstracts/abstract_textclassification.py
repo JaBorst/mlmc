@@ -448,6 +448,8 @@ class TextClassificationAbstract(torch.nn.Module):
         prediction = self._threshold_fct(output).cpu()
         self.train()
 
+        if not hasattr(self, "classes_rev"):
+            self.classes_rev = {v: k for k, v in self._config["classes"].items()}
         labels = [[self.classes_rev[i.item()] for i in torch.where(p == 1)[0]] for p in prediction]
 
         if return_scores:
@@ -464,11 +466,6 @@ class TextClassificationAbstract(torch.nn.Module):
 
         """
         self.eval()
-        assert not (self._config["target"] == "single" and   self._config["threshold"] != "max"), \
-            "You are running single target mode and predicting not in max mode."
-
-        if not hasattr(self, "classes_rev"):
-            self.classes_rev = {v: k for k, v in self._config["classes"].items()}
         x = self.transform(x)
         with torch.no_grad():
             output = self.act(self(x))

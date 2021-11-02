@@ -15,7 +15,6 @@ class SimpleEncoder(EncoderAbstract, TextClassificationAbstractZeroShot):
 
     def forward(self, x):
         e = self.embedding(**x)[0]
-
         if self._config["target"] == "entailment":
             pass
         elif self._config["target"] == "single":
