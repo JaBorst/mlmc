@@ -312,7 +312,7 @@ class SingleLabelDataset(MultiLabelDataset):
         y = y if isinstance(y, str) else y[0]
         return SingleLabelDataset(
             x = df[x].applymap(str).agg(sep.join, axis=1).to_list(),
-            y = [[str(l)] for l in df[y].tolist()],
+            y = df[y].tolist(),
             classes=classes if classes is not None else {cls:i for i, cls in enumerate(sorted(df[y].map(str).unique()))}
         )
 
