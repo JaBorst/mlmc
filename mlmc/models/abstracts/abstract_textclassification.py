@@ -453,7 +453,7 @@ class TextClassificationAbstract(torch.nn.Module):
         labels = [[self.classes_rev[i.item()] for i in torch.where(p == 1)[0]] for p in prediction]
 
         if return_scores:
-            return labels, output, prediction==1
+            return labels, output.cpu(), prediction.cpu()==1
         return labels
 
     def scores(self, x):
@@ -515,8 +515,12 @@ class TextClassificationAbstract(torch.nn.Module):
             self.classes_rev = {v: k for k, v in self.classes.items()}
         for b in tqdm(train_loader, ncols=100):
             predictions.extend(self.predict(b["text"], return_scores=return_scores))
+
+        labels = sum([predictions[x] for x in list(range(0, len(predictions), 3))],[])
+        scores = torch.cat([predictions[x] for x in list(range(1, len(predictions) + 1, 3))], dim=0)
+        bools = torch.cat([predictions[x] for x in list(range(2, len(predictions), 3))], dim=0)
         del self.classes_rev
-        return predictions
+        return labels, scores, bools
 
     def run(self, x):
         """
