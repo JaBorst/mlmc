@@ -7,8 +7,7 @@ from copy import deepcopy
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Basic Version of finetuning a language on domain specific data.')
-    parser.add_argument('--model', metavar='model', type=str,
-                        help='Model name')
+    parser.add_argument('--model', metavar='model', type=str, help='Model name')
     parser.add_argument('--file', dest='file', help='Raw text input file')
     parser.add_argument('--output', dest='output',  help='Raw text input file')
     parser.add_argument('--epochs', dest='epochs', type=int,help='Raw text input file')
@@ -18,6 +17,7 @@ if __name__ == "__main__":
 
     repr=args.model
     print("Language Model Pretraining.")
+    print(f"{repr}")
 
     model = AutoModelForMaskedLM.from_pretrained(repr)
     tok = AutoTokenizer.from_pretrained(repr)
@@ -46,7 +46,7 @@ if __name__ == "__main__":
         overwrite_output_dir=True,
         num_train_epochs=args.epochs,
         per_gpu_train_batch_size=args.batch_size,
-        save_steps=10_000,
+        save_steps=10000,
         save_total_limit=2,
     )
 
@@ -57,5 +57,6 @@ if __name__ == "__main__":
         train_dataset=train,
         eval_dataset=test
     )
+    tok.save_pretrained(str(pathlib.Path(args.output)) ) # So you can use the tokenizer with a checkpoint
     trainer.train()
-    trainer.save_model(str(pathlib.Path(args.output) / "model") )
+    trainer.save_model(str(pathlib.Path(args.output)) )
