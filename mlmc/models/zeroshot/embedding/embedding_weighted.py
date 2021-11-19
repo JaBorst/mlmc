@@ -6,7 +6,7 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract, TextClassificat
     """
      Zeroshot model based on cosine distance of embedding vectors.
     """
-    def __init__(self, mode="vanilla", entailment_output=3, *args, **kwargs):
+    def __init__(self, mode="vanilla", entailment_output=3, dropout=0.5,  *args, **kwargs):
         """
          Zeroshot model based on cosine distance of embedding vectors.
         This changes the default activation to identity function (lambda x:x)
@@ -24,6 +24,7 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract, TextClassificat
         self.set_mode(mode=mode)
 
         self.create_labels(self.classes)
+        self.dropout = torch.nn.Dropout(dropout)
         self.parameter = torch.nn.Linear(self.embeddings_dim,256)
         self.entailment_projection = torch.nn.Linear(3 * self.embeddings_dim, entailment_output)
         self.build()
@@ -35,8 +36,8 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract, TextClassificat
         self._config["mode"] = mode
 
     def forward(self, x, *args, **kwargs):
-        input_embedding = self.embedding(**x)[0]
-        label_embedding = self.embedding(**self.label_dict)[0]
+        input_embedding = self.dropout(self.embedding(**x)[0])
+        label_embedding = self.dropout(self.embedding(**self.label_dict)[0])
 
         if "mean" in self.mode:
             label_embedding = label_embedding - label_embedding.mean(0)

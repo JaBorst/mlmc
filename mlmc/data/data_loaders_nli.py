@@ -149,3 +149,9 @@ def load_snli(binary=False):
                 }
         _save_to_tmp(f"snli-{binary}", (data, classes))
         return data, classes
+
+
+# from datasets import load_dataset
+# dataset = load_dataset("xnli","all_languages")
+#
+# dataset.get("validation")

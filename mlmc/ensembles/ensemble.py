@@ -1,42 +1,15 @@
 import torch
 import mlmc
 from mlmc.data import SingleLabelDataset, MultiLabelDataset
-
+from mlmc.ensembles.descision_criteria import *
 d = mlmc.data.get("agnews")
-device="cuda:3"
+device="cuda:1"
 # m = [mlmc.models.Transformer(classes=d["classes"], target="single", device=device),
 #      mlmc.models.Transformer(classes=d["classes"], target="single", device=device),
 #      mlmc.models.Transformer(classes=d["classes"], target="single", device=device),
 #      mlmc.models.Transformer(classes=d["classes"], target="single", device=device),
 #      mlmc.models.Transformer(classes=d["classes"], target="single", device=device)]
 
-m = [mlmc.models.EmbeddingBasedWeighted(mode="vanilla", finetune=True, classes=d["classes"], target="single", device=device),
-     mlmc.models.EmbeddingBasedWeighted(mode="max", finetune=True, classes=d["classes"], target="single", device=device),
-     mlmc.models.EmbeddingBasedWeighted(mode="mean", finetune=True, classes=d["classes"], target="single", device=device),
-     mlmc.models.EmbeddingBasedWeighted(mode="max_mean", finetune=True, classes=d["classes"], target="single", device=device),
-     mlmc.models.EmbeddingBasedWeighted(mode="attention_max_mean", finetune=True, classes=d["classes"], target="single", device=device)]
-
-
-m = m+[mlmc.models.SimpleEncoder(representation="roberta-large-mnli", sformatter=mlmc.data.SFORMATTER["agnews"], finetune=True, classes=d["classes"], target="single", device=device)]
-
-class Decision(torch.nn.Module):
-    def forward(self, scores):
-        pass
-
-class MajorityDecision(torch.nn.Module):
-    def forward(self, scores):
-        scores_stack = torch.stack(scores, -1)
-        return scores_stack.argmax(-2).mode().indices
-
-class ConfidenceDecision(torch.nn.Module):
-    def forward(self, scores):
-        scores_stack = torch.stack(scores,-1)
-        return scores_stack.max(-2)[0].argmax(-1)
-
-class EntropyDecision(torch.nn.Module):
-    def forward(self, scores):
-        scores_stack = torch.stack(scores,-1)
-        return (-(scores_stack.softmax(-2)*scores_stack.log_softmax(-2)).sum(-2)).argmin(-1)
 
 
 class Ensemble:
@@ -127,10 +100,20 @@ class Ensemble:
     def entailment(self, *args, **kwargs):
         [m.entailment(*args,**kwargs) for m in self.m]
 
+r = "google/bert_uncased_L-4_H-256_A-4"
+from mlmc_lab import mlmc_experimental as mlmce
+m = [mlmc.models.EmbeddingBasedWeighted(mode="vanilla", representation=r, sformatter=mlmc.data.SFORMATTER["agnews"], finetune=True, classes=d["classes"], target="single", loss=mlmce.loss.EncourageLoss(0.75), device=device),
+     mlmc.models.EmbeddingBasedWeighted(mode="max", representation=r, sformatter=mlmc.data.SFORMATTER["agnews"],  finetune=True, classes=d["classes"], target="single",loss=mlmce.loss.EncourageLoss(0.75), device=device),
+     mlmc.models.EmbeddingBasedWeighted(mode="mean", representation=r, sformatter=mlmc.data.SFORMATTER["agnews"], finetune=True, classes=d["classes"], target="single",loss=mlmce.loss.EncourageLoss(0.75),device=device),
+     mlmc.models.EmbeddingBasedWeighted(mode="max_mean",representation=r,  sformatter=mlmc.data.SFORMATTER["agnews"], finetune=True, classes=d["classes"], target="single", loss=mlmce.loss.EncourageLoss(0.75),device=device),
+     mlmc.models.EmbeddingBasedWeighted(mode="attention_max_mean", representation=r, sformatter=mlmc.data.SFORMATTER["agnews"], finetune=True, classes=d["classes"], target="single", loss=mlmce.loss.EncourageLoss(0.75),device=device)]
+m = m+[mlmc.models.SimpleEncoder(representation="roberta-large-mnli", sformatter=mlmc.data.SFORMATTER["agnews"], finetune=True, classes=d["classes"], target="single", device=device)]
+
 e = Ensemble(m)
 e.t[-1] = False
-e.fit(mlmc.data.sampler(d["train"], absolute=1000), epochs=5)
-e.evaluate(mlmc.data.sampler(d["test"], absolute=1000))
-e.evaluate_ensemble(mlmc.data.sampler(d["test"], absolute=1000))
-    
+e.fit(mlmc.data.sampler(d["train"], absolute=100), epochs=50)
+test=mlmc.data.sampler(d["test"], absolute=1000)
+print(e.evaluate(test))
+e.evaluate_ensemble(test)
+
 

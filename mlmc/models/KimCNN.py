@@ -36,7 +36,7 @@ class KimCNN(TextClassificationAbstract):
         if is_transformer(self._config["representation"]):
             print("Setting mode to transformer")
             self._config["mode"] = "transformer"
-        assert mode in self.modes, f"{self.mode} not in ({self.modes})"
+        assert mode in self.modes, f"{mode} not in ({self.modes})"
         self._config["mode"] = mode
 
         self.l = 2 if  self._config["mode"] ==  "multichannel" else 1
