@@ -1,12 +1,13 @@
 import torch
 from ...abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
 from ...abstracts.abstract_sentence import SentenceTextClassificationAbstract
+from ....modules.dropout import VerticalDropout
 
 class EmbeddingBasedWeighted(SentenceTextClassificationAbstract, TextClassificationAbstractZeroShot):
     """
      Zeroshot model based on cosine distance of embedding vectors.
     """
-    def __init__(self, mode="vanilla", entailment_output=3, dropout=0.5,  *args, **kwargs):
+    def __init__(self, mode="vanilla", entailment_output=3, dropout=0.5, vertical_dropout=0., *args, **kwargs):
         """
          Zeroshot model based on cosine distance of embedding vectors.
         This changes the default activation to identity function (lambda x:x)
@@ -27,6 +28,10 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract, TextClassificat
         self.dropout = torch.nn.Dropout(dropout)
         self.parameter = torch.nn.Linear(self.embeddings_dim,256)
         self.entailment_projection = torch.nn.Linear(3 * self.embeddings_dim, entailment_output)
+        self.vdropout = VerticalDropout(vertical_dropout)
+
+        self._config["dropout"] = dropout
+        self._config["vertical_dropout"]= vertical_dropout
         self.build()
 
 
@@ -38,6 +43,9 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract, TextClassificat
     def forward(self, x, *args, **kwargs):
         input_embedding = self.dropout(self.embedding(**x)[0])
         label_embedding = self.dropout(self.embedding(**self.label_dict)[0])
+
+        input_embedding = self.vdropout(input_embedding)
+        # label_embedding = self.vdropout(label_embedding)
 
         if "mean" in self.mode:
             label_embedding = label_embedding - label_embedding.mean(0)
