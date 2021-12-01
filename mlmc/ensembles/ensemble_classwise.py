@@ -181,18 +181,18 @@ class BinaryEnsemble:
         [m.multi(*args,**kwargs) for m in self.m]
     def entailment(self, *args, **kwargs):
         [m.entailment(*args,**kwargs) for m in self.m]
-
-def create_model():
-    return mlmc.models.EmbeddingBasedWeighted(mode="max",
-                                              sformatter=mlmc.data.SFORMATTER["agnews"],
-                                              finetune=True, classes={}, target="multi", device=device)
-
-
-zeromodel=[mlmc.models.SimpleEncoder(representation="roberta-large-mnli", sformatter=mlmc.data.SFORMATTER["agnews"],
-                                     finetune=True, classes=d["classes"], target="single", device=device)]
-from  mlmc_lab import mlmc_experimental as mlmce
-e = BinaryEnsemble(create_model, classes=d["classes"], loss=mlmce.loss.EncourageLoss(0.75), zero=None)
-e.fit(mlmc.data.sampler(d["train"], absolute=100), epochs=50)
-e.evaluate(mlmc.data.sampler(d["test"], absolute=1000))
-
-
+#
+# def create_model():
+#     return mlmc.models.EmbeddingBasedWeighted(mode="max",
+#                                               sformatter=mlmc.data.SFORMATTER["agnews"],
+#                                               finetune=True, classes={}, target="multi", device=device)
+#
+#
+# zeromodel=[mlmc.models.SimpleEncoder(representation="roberta-large-mnli", sformatter=mlmc.data.SFORMATTER["agnews"],
+#                                      finetune=True, classes=d["classes"], target="single", device=device)]
+# from  mlmc_lab import mlmc_experimental as mlmce
+# e = BinaryEnsemble(create_model, classes=d["classes"], loss=mlmce.loss.EncourageLoss(0.75), zero=None)
+# e.fit(mlmc.data.sampler(d["train"], absolute=100), epochs=50)
+# e.evaluate(mlmc.data.sampler(d["test"], absolute=1000))
+#
+#

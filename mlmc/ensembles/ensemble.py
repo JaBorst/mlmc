@@ -93,27 +93,39 @@ class Ensemble:
         [m.train() for m in self.m]
         return [x[i] for x,i in zip(zip(*[s[0] for s in scores]),idx)], s, p
 
+    def predict_ensemble_batch(self, *args, **kwargs):
+        [m.eval() for m in self.m]  # set mode to evaluation to disable dropout
+        kwargs["return_scores"]=True
+        scores=[m.predict_batch(*args,**kwargs) for m in self.m]
+        idx = self.vote([s[1] for s in scores])
+        s = torch.stack([x[i]  for x,i in zip(zip(*[s[1] for s in scores]), idx.tolist())],0)
+        p = torch.stack([x[i]  for x,i in zip(zip(*[s[2] for s in scores]), idx.tolist())],0)
+        [m.train() for m in self.m]
+        return [x[i] for x,i in zip(zip(*[s[0] for s in scores]),idx)], s, p
+
+
     def single(self, *args, **kwargs):
         [m.single(*args,**kwargs) for m in self.m]
     def multi(self, *args, **kwargs):
         [m.multi(*args,**kwargs) for m in self.m]
     def entailment(self, *args, **kwargs):
         [m.entailment(*args,**kwargs) for m in self.m]
-
-r = "google/bert_uncased_L-4_H-256_A-4"
-from mlmc_lab import mlmc_experimental as mlmce
-m = [mlmc.models.EmbeddingBasedWeighted(mode="vanilla", representation=r, sformatter=mlmc.data.SFORMATTER["agnews"], finetune=True, classes=d["classes"], target="single", loss=mlmce.loss.EncourageLoss(0.75), device=device),
-     mlmc.models.EmbeddingBasedWeighted(mode="max", representation=r, sformatter=mlmc.data.SFORMATTER["agnews"],  finetune=True, classes=d["classes"], target="single",loss=mlmce.loss.EncourageLoss(0.75), device=device),
-     mlmc.models.EmbeddingBasedWeighted(mode="mean", representation=r, sformatter=mlmc.data.SFORMATTER["agnews"], finetune=True, classes=d["classes"], target="single",loss=mlmce.loss.EncourageLoss(0.75),device=device),
-     mlmc.models.EmbeddingBasedWeighted(mode="max_mean",representation=r,  sformatter=mlmc.data.SFORMATTER["agnews"], finetune=True, classes=d["classes"], target="single", loss=mlmce.loss.EncourageLoss(0.75),device=device),
-     mlmc.models.EmbeddingBasedWeighted(mode="attention_max_mean", representation=r, sformatter=mlmc.data.SFORMATTER["agnews"], finetune=True, classes=d["classes"], target="single", loss=mlmce.loss.EncourageLoss(0.75),device=device)]
-m = m+[mlmc.models.SimpleEncoder(representation="roberta-large-mnli", sformatter=mlmc.data.SFORMATTER["agnews"], finetune=True, classes=d["classes"], target="single", device=device)]
-
-e = Ensemble(m)
-e.t[-1] = False
-e.fit(mlmc.data.sampler(d["train"], absolute=100), epochs=50)
-test=mlmc.data.sampler(d["test"], absolute=1000)
-print(e.evaluate(test))
-e.evaluate_ensemble(test)
-
+#
+# r = "google/bert_uncased_L-4_H-256_A-4"
+# from mlmc_lab import mlmc_experimental as mlmce
+# m = [mlmc.models.EmbeddingBasedWeighted(mode="vanilla", representation=r, sformatter=mlmc.data.SFORMATTER["agnews"], finetune=True, classes=d["classes"], target="single", loss=mlmce.loss.EncourageLoss(0.75), device=device),
+#      mlmc.models.EmbeddingBasedWeighted(mode="max", representation=r, sformatter=mlmc.data.SFORMATTER["agnews"],  finetune=True, classes=d["classes"], target="single",loss=mlmce.loss.EncourageLoss(0.75), device=device),
+#      mlmc.models.EmbeddingBasedWeighted(mode="mean", representation=r, sformatter=mlmc.data.SFORMATTER["agnews"], finetune=True, classes=d["classes"], target="single",loss=mlmce.loss.EncourageLoss(0.75),device=device),
+#      mlmc.models.EmbeddingBasedWeighted(mode="max_mean",representation=r,  sformatter=mlmc.data.SFORMATTER["agnews"], finetune=True, classes=d["classes"], target="single", loss=mlmce.loss.EncourageLoss(0.75),device=device),
+#      mlmc.models.EmbeddingBasedWeighted(mode="attention_max_mean", representation=r, sformatter=mlmc.data.SFORMATTER["agnews"], finetune=True, classes=d["classes"], target="single", loss=mlmce.loss.EncourageLoss(0.75),device=device)]
+# # m = m+[mlmc.models.SimpleEncoder(representation="roberta-large-mnli", sformatter=mlmc.data.SFORMATTER["agnews"], finetune=True, classes=d["classes"], target="single", device=device)]
+#
+# e = Ensemble(m)
+# # e.t[-1] = False
+# # e.fit(mlmc.data.sampler(d["train"], absolute=100), epochs=50)
+# test=mlmc.data.sampler(d["test"], absolute=1000)
+#
+# print(e.evaluate(test))
+# e.predict_ensemble_batch(test)
+#
 

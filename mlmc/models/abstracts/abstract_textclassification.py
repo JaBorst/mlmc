@@ -313,7 +313,7 @@ class TextClassificationAbstract(torch.nn.Module):
 
     def fit(self, train,
             valid=None, epochs=1, batch_size=16, valid_batch_size=50, patience=-1, tolerance=1e-2,
-            return_roc=False, return_report=False, callbacks=None, metrics=None, lr_schedule=None, lr_param={}, log_mlflow=False):
+            return_roc=False, return_report=False, callbacks=None, metrics=None, lr_schedule=None, lr_param={}, log_mlflow=False, valid_prefix="valid"):
         """
         Training function
 
@@ -378,14 +378,14 @@ class TextClassificationAbstract(torch.nn.Module):
 
                     if log_mlflow:
                         import mlflow
-                        mlflow.log_metric("valid_loss" ,valid_loss, step=e)
-                        result_metrics.log_mlflow(step=e, prefix="valid")
+                        mlflow.log_metric(f"{valid_prefix}_loss" ,valid_loss, step=e)
+                        result_metrics.log_mlflow(step=e, prefix=valid_prefix)
 
-                    valid_loss_dict = {"valid_loss": valid_loss}
+                    valid_loss_dict = {f"{valid_prefix}_loss": valid_loss}
                     valid_loss_dict.update(result_metrics.compute())
                     self.validation.append(valid_loss_dict)
 
-                    printables = {"valid_loss": valid_loss}
+                    printables = {f"{valid_prefix}_loss": valid_loss}
                     printables.update(result_metrics.print())
                     pbar.postfix[0].update(printables)
                     pbar.update()
@@ -515,12 +515,15 @@ class TextClassificationAbstract(torch.nn.Module):
             self.classes_rev = {v: k for k, v in self.classes.items()}
         for b in tqdm(train_loader, ncols=100):
             predictions.extend(self.predict(b["text"], return_scores=return_scores))
-
-        labels = sum([predictions[x] for x in list(range(0, len(predictions), 3))],[])
-        scores = torch.cat([predictions[x] for x in list(range(1, len(predictions) + 1, 3))], dim=0)
-        bools = torch.cat([predictions[x] for x in list(range(2, len(predictions), 3))], dim=0)
         del self.classes_rev
-        return labels, scores, bools
+        if return_scores:
+            labels = sum([predictions[x] for x in list(range(0, len(predictions), 3))],[])
+            scores = torch.cat([predictions[x] for x in list(range(1, len(predictions) + 1, 3))], dim=0)
+            bools = torch.cat([predictions[x] for x in list(range(2, len(predictions), 3))], dim=0)
+            return labels, scores, bools
+        else:
+            labels = sum([predictions[x] for x in list(range(0, len(predictions)))], [])
+            return labels
 
     def run(self, x):
         """
