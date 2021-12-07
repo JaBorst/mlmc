@@ -25,6 +25,7 @@ def save(model, path, only_inference=False):
     model.optimizer = None
     model.loss = None
     model.device = "cpu"
+    model = model.cpu()
 
     if only_inference:
         # Use torch.save to save the inference state. if save_all: Save the input representation (embedding or lm)
@@ -50,7 +51,7 @@ def save(model, path, only_inference=False):
     return path
 
 
-def load(path, only_inference=False, only_cpu=False):
+def load(path, device="cpu"):
     """
     Load a model from disk
 
@@ -65,18 +66,14 @@ def load(path, only_inference=False, only_cpu=False):
 
     """
     additional_arguments = {}
-    if only_cpu:
-        additional_arguments["map_location"] = torch.device('cpu')
+    additional_arguments["map_location"] = torch.device(device)
 
-    if only_inference:
-        loaded = torch.load(Path(path), pickle_module=dill, **additional_arguments)
-        return loaded
-    else:
-        #load all information
-        loaded = torch.load(Path(path), pickle_module=dill, **additional_arguments)
-        # Create a model with the same parameters
-        model = loaded["type"](**loaded["args"])
-        model.load_state_dict(loaded["model_state_dict"])
-        model.optimizer = loaded["optimizer"]
-        model.loss = loaded["loss"]
-        return model
+    #load all information
+    loaded = torch.load(Path(path), pickle_module=dill, **additional_arguments)
+    loaded["args"]["device"] = device
+    # Create a model with the same parameters
+    model = loaded["type"](**loaded["args"])
+    model.load_state_dict(loaded["model_state_dict"])
+    model.optimizer = loaded["optimizer"]
+    model.loss = loaded["loss"]
+    return model
