@@ -6,6 +6,7 @@ from .confusion import ConfusionMatrix
 from ..thresholds import get as thresholdget
 from .save_scores import SaveScores
 from .helpers import flatten, flt
+from .unsupervised import TopicCoherence
 
 metrics_dict= {
     "p@1": lambda: PrecisionK(k=1, is_multilabel=True, average=True),
@@ -16,7 +17,8 @@ metrics_dict= {
     "auc_roc":lambda: AUC_ROC(return_roc=True),
     "multilabel_report": lambda:  MultiLabelReport(),
     "accuracy": lambda: AccuracyTreshold(thresholdget("max"), is_multilabel=False),
-    "singlelabel_report": lambda: MultiLabelReport(is_multilabel=False)
+    "singlelabel_report": lambda: MultiLabelReport(is_multilabel=False),
+    "topic_coherence": lambda: TopicCoherence(),
 }
 
 metrics_config = {

@@ -223,7 +223,7 @@ class TextClassificationAbstract(torch.nn.Module):
                     pred = pred * mask
 
                 average.update(l.item())
-                initialized_metrics.update_metrics((output, y, pred))
+                initialized_metrics.update_metrics((output, y, pred, b["text"]))
 
         self.train()
         if _fit:
