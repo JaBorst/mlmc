@@ -57,7 +57,7 @@ class KimCNN(TextClassificationAbstract):
             out_features=self.n_classes)
         self.build()
 
-    def forward(self, x):
+    def forward(self, x, emb=False):
         """
         Forward pass function for transforming input tensor into output tensor.
 
@@ -70,4 +70,6 @@ class KimCNN(TextClassificationAbstract):
             e2 = self.embedding_channel2(x)
             c = torch.cat([c, self.kimcnn_module(e2.permute(0, 2, 1))],-1)
         output = self.projection(self.dropout_layer(c))
+        if emb:
+            return output, (c, torch.tensor([0.]))
         return output

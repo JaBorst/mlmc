@@ -229,7 +229,7 @@ class TextClassificationAbstract(torch.nn.Module):
         if _fit:
             return average.compute().item(), initialized_metrics
         else:
-            return average.compute().item(), initialized_metrics.compute()
+            return average.compute().item(), initialized_metrics.compute(model=self)
 
     def _epoch(self, train, pbar=None):
         """Combining into training loop"""
@@ -382,11 +382,11 @@ class TextClassificationAbstract(torch.nn.Module):
                         result_metrics.log_mlflow(step=e, prefix=valid_prefix)
 
                     valid_loss_dict = {f"{valid_prefix}_loss": valid_loss}
-                    valid_loss_dict.update(result_metrics.compute())
+                    valid_loss_dict.update(result_metrics.compute(model=self))
                     self.validation.append(valid_loss_dict)
 
                     printables = {f"{valid_prefix}_loss": valid_loss}
-                    printables.update(result_metrics.print())
+                    printables.update(result_metrics.print(model=self))
                     pbar.postfix[0].update(printables)
                     pbar.update()
 
@@ -824,3 +824,43 @@ class TextClassificationAbstract(torch.nn.Module):
         # Load best
         return_copy = {"train": copy(self.train_history), "valid": copy(self.validation)}
         return return_copy
+
+
+    def embed_batch(self, data, batch_size=50):
+        """
+        Predict all labels for a dataset int the mlmc.data.MultilabelDataset format.
+
+        For detailed information on the arcuments see `mlmc.models.TextclassificationAbstract.predict`
+
+        Args:
+            data: A MultilabelDataset
+            batch_size: Batch size
+
+        Returns:
+            A list of labels
+
+        """
+        train_loader = torch.utils.data.DataLoader(PredictionDataset(x=data), batch_size=batch_size, shuffle=False)
+        l_p, l_e, l_l = [],[],[]
+        with torch.no_grad():
+            for b in train_loader:
+                p, (e,l) = self.embed(b["text"])
+                l_p.append(p.detach().cpu())
+                l_e.append(e.detach().cpu())
+                l_l.append(l.detach().cpu())
+        return torch.cat(l_p), (torch.cat(l_e), torch.cat(l_l))
+
+    def embed(self, x):
+        """
+        Method to return input embeddings.
+        ToDo: Modularize the forward to avoid code copying.
+        Args:
+            x: list of input texts
+
+        Returns: a tuple of:
+            A tensor of embeddings shape (b, e), where b is the number of input texts and e the embedding dimension
+            A tensor of embeddings shape (l, e), where l is the number of labels and e the embedding dimension
+
+        """
+        x = self.transform(x)
+        return self.forward(x, emb=True)

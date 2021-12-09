@@ -6,7 +6,7 @@ from .confusion import ConfusionMatrix
 from ..thresholds import get as thresholdget
 from .save_scores import SaveScores
 from .helpers import flatten, flt
-from .unsupervised import TopicCoherence
+from .unsupervised import TopicCoherence, SilhouetteCoefficient,DaviesBouldinScore,CalinskiHarabaszScore, KeywordCoherence
 
 metrics_dict= {
     "p@1": lambda: PrecisionK(k=1, is_multilabel=True, average=True),
@@ -19,11 +19,16 @@ metrics_dict= {
     "accuracy": lambda: AccuracyTreshold(thresholdget("max"), is_multilabel=False),
     "singlelabel_report": lambda: MultiLabelReport(is_multilabel=False),
     "topic_coherence": lambda: TopicCoherence(),
+    "silhouette": lambda: SilhouetteCoefficient(),
+    "daviesbouldinscore": lambda: DaviesBouldinScore(),
+    "calinskiharabaszscore": lambda: CalinskiHarabaszScore(),
+    "keyword_coherence": lambda: KeywordCoherence()
 }
 
 metrics_config = {
     "default_multilabel": ["p@1", "p@3", "p@5", "tr@0.5", "mcut", "auc_roc", "multilabel_report"],
-    "default_singlelabel": ["accuracy", "singlelabel_report"]
+    "default_singlelabel": ["accuracy", "singlelabel_report"],
+    "default_unsupervised": ["keyword_coherence",  "silhouette", "daviesbouldinscore", "calinskiharabaszscore"]
 }
 
 def get(s) -> dict:
@@ -117,13 +122,13 @@ class MetricsDict:
         for v in self.values():
             v.update(batch)
 
-    def compute(self):
+    def compute(self, *args, **kwargs):
         """Computes and returns metric in a dictionary with the metric name as key and metric results as value"""
-        r = {k: v.compute() if not isinstance(v, float) else v for k, v in self.map.items()}
+        r = {k: v.compute(*args, **kwargs) if not isinstance(v, float) else v for k, v in self.map.items()}
         r = {k: round(v, self.PRECISION_DIGITS) if isinstance(v, float) else v for k,v in r.items()}
         return r
 
-    def print(self):
+    def print(self,*args, **kwargs):
         """Computes and returns metric in a dictionary with the metric name as key and metric results as value by usage
         of print() if it's implemented for the given metric"""
         def _choose(v):
@@ -134,9 +139,9 @@ class MetricsDict:
             :return: Function call of print() if it exists else compute()
             """
             if hasattr(v, "print"):
-                return v.print()
+                return v.print(*args, **kwargs)
             if hasattr(v, "compute"):
-                return v.compute()
+                return v.compute(*args, **kwargs)
             else:
                 return v
         r = {k: _choose(v) for k, v in self.map.items()}
@@ -166,7 +171,7 @@ class MetricsDict:
                         print("This is a list of floats")
         return l
 
-    def log_sacred(self, _run, step, prefix=""):
+    def log_sacred(self, _run, step, prefix="", model=None):
         """
         Logs a metric to Sacred.
 
@@ -175,12 +180,12 @@ class MetricsDict:
         :param prefix: Prefix added to metric
         :return: Run object of Experiment with added metric
         """
-        results = self.print()
+        results = self.print(model=model)
         for k, v in self._recurse_dictionary(results, prefix=prefix):
             _run.log_scalar(k,v,step)
         return _run
 
-    def log_mlflow(self, step, prefix=""):
+    def log_mlflow(self, step, prefix="",  model=None):
         """
         Logs a metric to MLflow.
 
@@ -190,7 +195,7 @@ class MetricsDict:
         :return: Run object of Experiment with added metric
         """
         import mlflow
-        results = self.print()
+        results = self.print(model=model)
         for k, v in self._recurse_dictionary(results, prefix=prefix):
             mlflow.log_metric(k.replace("@","/a/"),v,step)
 

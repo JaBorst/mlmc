@@ -26,7 +26,7 @@ class SaveScores:
         self.truth.append(batch[1])
         self.pred.append(batch[0])
 
-    def compute(self):
+    def compute(self,*args, **kwargs):
         np.save(
             self.filename,
             {
@@ -37,7 +37,7 @@ class SaveScores:
         )
         return str(self.filename)
 
-    def print(self):
+    def print(self,*args, **kwargs):
         return str(self.filename)
 
 

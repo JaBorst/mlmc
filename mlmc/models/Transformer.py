@@ -1,5 +1,6 @@
 import torch
 from mlmc.models.abstracts.abstract_textclassification import TextClassificationAbstract
+from mlmc.models.abstracts.abstract_sentence import SentenceTextClassificationAbstract
 
 
 ##############################################################################################
@@ -8,7 +9,7 @@ from mlmc.models.abstracts.abstract_textclassification import TextClassification
 ##############################################################################################
 
 
-class Transformer(TextClassificationAbstract):
+class Transformer(SentenceTextClassificationAbstract):
     """
     Implementation of a simple transformer model.
     """
@@ -28,7 +29,7 @@ class Transformer(TextClassificationAbstract):
         self.build()
 
 
-    def forward(self, x):
+    def forward(self, x, emb=False):
         """
         Forward pass function for transforming input tensor into output tensor.
 
@@ -36,7 +37,10 @@ class Transformer(TextClassificationAbstract):
         :return: Output tensor
         """
         embedded = self.embed_input(x)
+        embedded = self._mean_pooling(embedded, x["attention_mask"])
         embedded = self.dropout_layer(embedded)
-        output = self.projection(self.dropout_layer(embedded.mean(-2)))
+        output = self.projection(self.dropout_layer(embedded))
+        if emb:
+            return output, (embedded, torch.tensor([0.]))
         return output
 

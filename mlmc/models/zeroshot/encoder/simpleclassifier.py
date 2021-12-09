@@ -37,9 +37,11 @@ class SimpleEncoderClassifier(SentenceTextClassificationAbstract, TextClassifica
             tok = {k: v.to(device) for k, v in tok.items()}
 
         return tok
-    def forward(self, x):
+    def forward(self, x, emb=False):
         e = self.embedding(**x)[0]
         e = self._mean_pooling(e, x["attention_mask"])
         r = self.p2(self.p(e).relu()).squeeze(-1)
         r = r.reshape((int(x["input_ids"].shape[0] / self._config["n_classes"]), self._config["n_classes"]))
+        if emb:
+            return r, (e.reshape((int(x["input_ids"].shape[0]/self._config["n_classes"]) , self._config["n_classes"], self.embeddings_dim)).mean(1), torch.tensor([0.]))
         return r
