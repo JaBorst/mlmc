@@ -159,9 +159,9 @@ class KeywordCoherence():
         kw_acc = sum([(x.item() in y) for x,y in zip(counts.sum(-1).argmax(-1), predictions)]) / len(predictions)
         kw_sw = [sum([(x.item() in y) for x,y in zip(counts[:,:,(i-idx):i].sum(-1).argmax(-1), predictions)]) / len(predictions) for i in range(min(idx,ndx-1),ndx)]
 
-        import matplotlib.pyplot as plt
-        plt.plot(kw_sw)
-        plt.show()
+        # import matplotlib.pyplot as plt
+        # plt.plot(kw_sw)
+        # plt.show()
 
         return {"kw_acc": kw_acc, "kwsw_aoc":sum(kw_sw) / len(kw_sw), "kw_sw": kw_sw, }
 

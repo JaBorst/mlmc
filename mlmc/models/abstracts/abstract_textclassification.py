@@ -379,7 +379,7 @@ class TextClassificationAbstract(torch.nn.Module):
                     if log_mlflow:
                         import mlflow
                         mlflow.log_metric(f"{valid_prefix}_loss" ,valid_loss, step=e)
-                        result_metrics.log_mlflow(step=e, prefix=valid_prefix)
+                        result_metrics.log_mlflow(step=e, prefix=valid_prefix, model=self)
 
                     valid_loss_dict = {f"{valid_prefix}_loss": valid_loss}
                     valid_loss_dict.update(result_metrics.compute(model=self))
