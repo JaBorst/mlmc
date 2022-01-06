@@ -26,8 +26,6 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract, TextClassificat
 
         self.create_labels(self.classes)
         self.dropout = torch.nn.Dropout(dropout)
-        self.parameter = torch.nn.Linear(self.embeddings_dim,256)
-        self.entailment_projection = torch.nn.Linear(3 * self.embeddings_dim, entailment_output)
         self.vdropout = VerticalDropout(vertical_dropout)
 
         self._config["dropout"] = dropout
