@@ -15,7 +15,10 @@ from .MoLSANNC import MoLSANNC
 from .MoTransformer import MoTransformer
 from .Transformer import Transformer
 
+from .bayes_model import  BayesNetwork
+
 from .zeroshot import *
+
 
 # Geometric Models
 try:

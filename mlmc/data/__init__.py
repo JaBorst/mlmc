@@ -198,5 +198,5 @@ def is_multilabel(x):
 
 
 ## Sampler import
-from .sampling_functions import sampler, successive_sampler, class_sampler, validation_split, kfolds, fewshot_sampler, entailment_split
+from .sampling_functions import sampler, successive_sampler, class_sampler, validation_split, kfolds, fewshot_sampler, entailment_split, subset
 from .dataset_formatter import  *
