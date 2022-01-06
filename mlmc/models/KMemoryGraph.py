@@ -2,11 +2,11 @@ from mlmc.models.abstracts.abstracts_zeroshot import TextClassificationAbstractZ
 from mlmc.models.abstracts.abstract_sentence import SentenceTextClassificationAbstract
 import torch
 from ..modules.dropout import VerticalDropout
+from ..graph import get as gget
 
-
-class KMemory(SentenceTextClassificationAbstract, TextClassificationAbstractZeroShot):
+class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstractZeroShot):
     def __init__(self, similarity="cosine", dropout=0.5,  *args, **kwargs):
-        super(KMemory, self).__init__(*args, **kwargs)
+        super(KMemoryGraph, self).__init__(*args, **kwargs)
         self.dropout = torch.nn.Dropout(dropout)
         self.parameter = torch.nn.Linear(self.embeddings_dim,256)
         self.entailment_projection = torch.nn.Linear(3 * self.embeddings_dim, self.embeddings_dim)
@@ -14,7 +14,21 @@ class KMemory(SentenceTextClassificationAbstract, TextClassificationAbstractZero
         self._config["dropout"] = dropout
         self.create_labels(self.classes)
         self._config["similarity"] = similarity
-        self.memory = {k:[self._config["sformatter"](v)] for k,v in self.classes.items()}
+
+        graph = gget("wordnet")
+
+
+        self.map = {"Sports": ["sport"], "Business":["business"], "World": ["world"], "Sci/Tech": ["science", "technology"] }
+
+        # self.memory = {
+        #     k:[self._config["sformatter"](x) for x in sum([list(graph.neighbors(x)) for x in self.map[k]],[]) ]+[self._config["sformatter"](k)]
+        #     for k in self.classes.keys()
+        # }
+        self.memory = {
+            k: [x for x in sum([list(graph.neighbors(x)) for x in self.map[k]], [])] + [k]
+            for k in self.classes.keys()
+        }
+
         self.memory_dicts = {}
         self.update_memory()
         self.vdropout = VerticalDropout(0.5)
@@ -22,9 +36,9 @@ class KMemory(SentenceTextClassificationAbstract, TextClassificationAbstractZero
         self.build()
 
     def fit(self, train, valid,*args, **kwargs):
-        for x, y in zip(train.x, train.y):
-            for l in y:
-                self.memory[l] = list(set(self.memory.get(l, []) + [x]))
+        # for x, y in zip(train.x, train.y):
+        #     for l in y:
+        #         self.memory[l] = list(set(self.memory.get(l, []) + [x]))
         self.update_memory()
 
         return super().fit(train, valid, *args, **kwargs)
@@ -67,18 +81,23 @@ class KMemory(SentenceTextClassificationAbstract, TextClassificationAbstractZero
 
     def forward(self, x):
         input_embedding = self.vdropout(self.embedding(**x)[0])
-        label_embedding = self.dropout(self.embedding(**self.label_dict)[0])
+        # label_embedding = self.dropout(self.embedding(**self.label_dict)[0])
         memory_embedding = {x:self.embedding(**self.memory_dicts.get(x))[0] if x in self.memory_dicts else None for x in self.classes.keys()}
+
 
         if self.training:
             input_embedding = input_embedding + 0.1*torch.rand_like(input_embedding)[:,0,None,0,None]*torch.rand_like(input_embedding) #
             input_embedding = input_embedding * ((torch.rand_like(input_embedding[:,:,0])>0.05).float()*2 -1)[...,None]
 
-        input_embedding = self._mean_pooling(input_embedding, x["attention_mask"])
-        label_embedding = self._mean_pooling(label_embedding, self.label_dict["attention_mask"])
         memory_embedding = {x: self._mean_pooling(memory_embedding[x], self.memory_dicts[x]["attention_mask"]) if memory_embedding[x] is not None else None for x in memory_embedding}
+        # memory_embedding_words = torch.stack([torch.einsum("bwe,ke->bwk",input_embedding, memory_embedding[x],).max(-1)[0].max(-1)[0] for x in memory_embedding],-1)
+        memory_embedding_words = torch.stack([
+            torch.einsum("bwe,ke->bwk",
+                         input_embedding/input_embedding.norm(dim=-1, keepdim=True),
+                         memory_embedding[x]/memory_embedding[x].norm(dim=-1, keepdim=True),
+                         ).max(-1)[0].max(-1)[0] for x in memory_embedding],-1)
+        memory_embedding_words = ((memory_embedding_words+1)*0.5).log()
+        input_embedding = self._mean_pooling(input_embedding, x["attention_mask"])
+        r2 = torch.stack([self._sim(input_embedding, x).max(-1)[0] for i,(k, x) in enumerate(memory_embedding.items())],-1)
 
-        r = self._sim(input_embedding, label_embedding)
-        r2 = torch.stack([self._sim(input_embedding, x).max(-1)[0] if x is not None else (r[:,i]) for i,(k, x) in enumerate(memory_embedding.items())],-1)
-        # return 0.5*(r + r2)
-        return r2
+        return 0.5*(r2 + memory_embedding_words)
