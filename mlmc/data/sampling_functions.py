@@ -4,6 +4,7 @@ A collection of sampling methods for the MultilabelDataset object
 .
 """
 import numpy as np
+import torch
 
 def sampler(dataset, fraction=None, absolute=None):
     """
@@ -26,6 +27,12 @@ def sampler(dataset, fraction=None, absolute=None):
     y = [dataset.y[i] for i in ind]
     return type(dataset)(x=x, y=y, classes=dataset.classes, target_dtype=dataset.target_dtype)
 
+def subset(dataset, index):
+    if isinstance(index[0], bool) or isinstance(index[0].item(), bool):
+        index = np.where(index)[0]
+    x = [dataset.x[i] for i in index]
+    y = [dataset.y[i] for i in index]
+    return type(dataset)(x=x, y=y, classes=dataset.classes, target_dtype=dataset.target_dtype)
 
 def successive_sampler(dataset, classes, separate_dataset, reindex_classes=True):
     """
