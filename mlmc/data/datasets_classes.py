@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import Dataset
-
+from .sampling_functions import subset
 
 class RegressionDataset(Dataset):
     def __init__(self, x1, x2, labels):
@@ -250,6 +250,9 @@ class MultiLabelDataset(Dataset):
         Returns: The average labelset size per instance
         """
         return sum([len(x) for x in self.y]) / len(self.y)
+
+    def subset(self, index):
+        return subset(self, index)
 
 
 class SingleLabelDataset(MultiLabelDataset):

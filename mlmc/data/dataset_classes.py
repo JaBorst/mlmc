@@ -1,6 +1,7 @@
 import torch
 from torch.utils.data import Dataset
 from warnings import warn
+from  .sampling_functions import subset
 
 class RegressionDataset(Dataset):
     def __init__(self, x1, x2, labels):
@@ -273,6 +274,8 @@ class MultiLabelDataset(Dataset):
         import pandas as pd
         return pd.DataFrame.from_dict({"x": self.x, "y": self.y})
 
+    def subset(self, index):
+        return subset(self, index)
 
 class SingleLabelDataset(MultiLabelDataset):
     def __init__(self, *args, **kwargs):
