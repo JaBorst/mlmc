@@ -11,6 +11,7 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
         self.parameter = torch.nn.Linear(self.embeddings_dim,256)
         self.entailment_projection = torch.nn.Linear(3 * self.embeddings_dim, self.embeddings_dim)
         self.entailment_projection2 = torch.nn.Linear(self.embeddings_dim, 1)
+        self.project = torch.nn.Linear(self.embeddings_dim, len(self.classes))
         self._config["dropout"] = dropout
         self.create_labels(self.classes)
         self._config["similarity"] = similarity
@@ -23,7 +24,8 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
                     "Company":["company"], "EducationalInstitution": ["Education", "institution"], "Artist":["artist"],
                     "Athlete":["athlete"], "OfficeHolder":["officeholder"], "MeanOfTransportation": ["Transportation", "vehicle"],
                     "Building":["building"], "NaturalPlace":["nature", "region", "location"], "Village":["village"],
-                    "Animal":["animal"], "Plant":["plant"], "Album":["album"], "Film":["film"], "WrittenWork":["writing", "literature", "work"]}
+                    "Animal":["animal"], "Plant":["plant"], "Album":["album"], "Film":["film"], "WrittenWork":["writing", "literature", "work"],
+                    "ABBR": ["abbreviation"], "DESC": ["description"], "ENTY":["entity", "person"], "HUM":["human", "person"], "LOC":["location"], "NUM": ["number"]}
 
         self.memory = {
             k: [k] +[x for x in sum([list(graph.neighbors(x)) for x in self.map[k]], [])]
@@ -107,4 +109,4 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
         r = self._sim(ke,label_embedding).squeeze()
         r3 = self._sim(input_embedding,label_embedding).squeeze()
         # r = torch.einsum("bte,te->bt", ke, label_embedding)
-        return r+r2+r3#tfidf.max(1)[0].log_softmax(-1)
+        return r+r2+r3 + self.project(input_embedding)#tfidf.max(1)[0].log_softmax(-1)
