@@ -4,7 +4,7 @@ Provides functions for loading predefined graphs
 from .helpers import cooc_matrix
 from .embeddings import get_nmf, get_node2vec, get_random_projection
 from .graph_loaders import load_wordnet, load_wordnet_sample, load_NELL,load_elsevier,load_conceptNet, load_stw, load_nasa, \
-    load_gesis, load_mesh
+    load_gesis, load_mesh, load_afinn
 from .graph_operations import subgraphs, embed_align, augment_wikiabstracts,ascii_graph
 from .graph_operations import plot_activation
 from .graph_insert import graph_insert_labels
@@ -15,7 +15,8 @@ register = {
     "gesis": load_gesis,
     "mesh": load_mesh,
     "conceptnet": load_conceptNet,
-    "elsevier": load_elsevier
+    "elsevier": load_elsevier,
+    "afinn": load_afinn
 
 }
 

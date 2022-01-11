@@ -256,21 +256,23 @@ def load_wordnet():
             print("To use this function you have to install nltk.")
         G = nx.OrderedDiGraph()
         for ss in wn.all_synsets():
+            for word in ss.lemmas():
+                G.add_node(word.name().replace("_", " "), label=word.name().replace("_", " "), pos=ss.pos())
+                for word2 in ss.lemmas():
+                    G.add_edge(word2.name().replace("_", " "), word.name().replace("_", " "), label="synonym")
+
             if ss.hypernyms() != []:
                 for hypernym in ss.hypernyms():
                     for hh in hypernym.lemmas():
+                        G.add_node(hh.name().replace("_"," "), label=hh.name().replace("_"," "), pos=hypernym.pos())
                         for word in ss.lemmas():
-                            G.add_node(hh.name().replace("_"," "), label=hh.name().replace("_"," "))
-                            G.add_node(word.name().replace("_"," "), label=word.name().replace("_"," "))
                             G.add_edge(hh.name().replace("_"," "), word.name().replace("_"," "), label="hypernym")
-                            for word2 in ss.lemmas():
-                                G.add_edge(word2.name().replace("_"," "), word.name().replace("_"," "), label="synonym")
+
             if ss.hyponyms() != []:
                 for hyponym in ss.hyponyms():
                     for hh in hyponym.lemmas():
+                        G.add_node(hh.name().replace("_"," "), label=hh.name().replace("_"," "), pos=hyponym.pos())
                         for word in ss.lemmas():
-                            G.add_node(hh.name().replace("_"," "), label=hh.name().replace("_"," "))
-                            G.add_node(word.name().replace("_"," "), label=word.name().replace("_"," "))
                             G.add_edge(hh.name().replace("_"," "), word.name().replace("_"," "), label="hyponym")
 
         _save_to_tmp("wordnet",G)
@@ -367,3 +369,18 @@ def load_conceptNet():
     _save_to_tmp("conceptnet",g)
     return g
 
+def load_afinn():
+    url = "https://raw.githubusercontent.com/fnielsen/afinn/master/afinn/data/AFINN-en-165.txt"
+    data = _load_from_tmp("afinn")
+    if data is not None:
+        return data
+    else:
+
+        resp = urlopen(url)
+        content = urlopen(url).read().decode().split("\n")[:-1]
+        from collections import Counter
+        edges = ([( str(int(int(x.split("\t")[1])/2)+3), x.split("\t")[0]) for x in content])
+        g = nx.OrderedGraph()
+        g.add_edges_from(edges)
+    _save_to_tmp("afinn", g)
+    return g
