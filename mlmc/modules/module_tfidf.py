@@ -9,9 +9,9 @@ class TFIDFAggregation(torch.nn.Module):
     def forward(self, x, y, x_mask=None):
         x_norm = x/x.norm(dim=-1, keepdim=True)
         with torch.no_grad():
-            y = [w-w.mean(0)[None] for w in y]
-            words = [torch.einsum("ijn,ln->ilj",x_norm , te/te.norm(dim=-1, keepdim=True) ) for te in y]
-            words = [(w* x_mask[:,None]) for w in words]
+            # y = [w-w.mean(0)[None] for w in y]
+            words = [0.5*(1+torch.einsum("ijn,ln->ilj",x_norm , te/te.norm(dim=-1, keepdim=True) )) for te in y]
+            words = [(w.softmax(-1)* x_mask[:,None]) for w in words]
 
             cidf = (1./(sum([w.sum(1)[0]/ x_mask[:,None].sum(-1) for w in words]) ))
             cidf[cidf.isinf()]=0
