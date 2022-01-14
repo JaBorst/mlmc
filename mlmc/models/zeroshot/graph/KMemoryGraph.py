@@ -138,7 +138,7 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
         return r
 
     def forward(self, x):
-        input_embedding = self.vdropout(self.embedding(**{k:x[k] for k in ['input_ids', 'token_type_ids', 'attention_mask']})[0])
+        input_embedding = self.dropout(self.embedding(**{k:x[k] for k in ['input_ids', 'token_type_ids', 'attention_mask']})[0])
         label_embedding = self.dropout(self.embedding(**{k:self.label_dict[k] for k in ['input_ids', 'token_type_ids', 'attention_mask']})[0])
         nodes_embedding = self.embedding(**{k:self.nodes[k] for k in ['input_ids', 'token_type_ids', 'attention_mask']})[0]
         memory_embedding = {x:self.embedding(**{k:self.memory_dicts.get(x)[k] for k in ['input_ids', 'token_type_ids', 'attention_mask']})[0] if x in self.memory_dicts else None for x in self.classes.keys()}
