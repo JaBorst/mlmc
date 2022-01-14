@@ -791,8 +791,8 @@ def load_amazonpolarity():
     train = load_dataset("amazon_polarity", split="train")
     test = load_dataset("amazon_polarity", split="test")
     data = {
-                "train": ([" ".join(x) for x in zip(train["title"], train["content"])], [["negative"] if x=="0" else ["positive"] for x in train["label"]]),
-                "test": ([" ".join(x) for x in zip(test["title"], test["content"])], [["negative"] if x=="0" else ["positive"] for x in test["label"]]),
+                "train": ([" ".join(x) for x in zip(train["title"], train["content"])], [["negative"] if x==0 else ["positive"] for x in train["label"]]),
+                "test": ([" ".join(x) for x in zip(test["title"], test["content"])], [["negative"] if x==0 else ["positive"] for x in test["label"]]),
             }
     return data, {"negative":0, "positive":1}
 
