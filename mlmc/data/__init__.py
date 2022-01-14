@@ -7,7 +7,7 @@ import torch
 from .data_loaders_classification import load_eurlex, load_wiki30k, load_huffpost, load_aapd, load_rcv1, \
     load_moviesummaries, load_blurbgenrecollection, load_blurbgenrecollection_de, load_20newsgroup, export, \
     load_agnews, load_dbpedia, load_ohsumed, load_yahoo_answers, load_movie_reviews, load_amazonfull, load_trec6, \
-    load_trec50, load_yelpfull
+    load_trec50, load_yelpfull, load_amazonpolarity
 
 from .data_loaders_similarity import load_sts, load_stsb, load_sts12, load_sts13, load_sts14, load_sts16, load_sick
 from .data_loaders_nli import load_mnli, load_snli
@@ -37,6 +37,7 @@ register = {
     "amazonfull": load_amazonfull,
     "snli": load_snli,
     "mnli": load_mnli,
+    "amazonpolarity": load_amazonpolarity
 }
 
 
@@ -200,3 +201,5 @@ def is_multilabel(x):
 ## Sampler import
 from .sampling_functions import sampler, successive_sampler, class_sampler, validation_split, kfolds, fewshot_sampler, entailment_split, subset
 from .dataset_formatter import  *
+
+

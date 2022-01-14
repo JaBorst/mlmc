@@ -786,6 +786,16 @@ def load_yelpfull():
             }
     return data, dict((str(i+1),i) for i in range(5))
 
+def load_amazonpolarity():
+    from datasets import load_dataset
+    train = load_dataset("amazon_polarity", split="train")
+    test = load_dataset("amazon_polarity", split="test")
+    data = {
+                "train": ([" ".join(x) for x in zip(train["title"], train["content"])], [["negative"] if x=="0" else ["positive"] for x in train["label"]]),
+                "test": ([" ".join(x) for x in zip(test["title"], test["content"])], [["negative"] if x=="0" else ["positive"] for x in test["label"]]),
+            }
+    return data, {"negative":0, "positive":1}
+
 import tempfile
 import tarfile
 import csv

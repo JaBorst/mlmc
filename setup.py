@@ -35,6 +35,7 @@ setup(
               'mlmc.models.zeroshot',
               'mlmc.models.zeroshot.encoder',
               'mlmc.models.zeroshot.embedding',
+              'mlmc.models.zeroshot.graph',
               'mlmc.callbacks',
               'mlmc.modules',
               'mlmc.models.abstracts',
