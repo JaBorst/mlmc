@@ -773,6 +773,16 @@ def load_movie_reviews():
         _save_to_tmp("movie_reviews", (data, classes))
         return data, classes
 
+def load_imdb():
+    from datasets import load_dataset
+    train = load_dataset("imdb", split="train")
+    test = load_dataset("imdb", split="test")
+
+    data = {
+                "train": (train["text"], [["negative" if x==0 else "positive"] for x in train["label"]]),
+                "test": (test["text"], [["negative" if x==0 else "positive"]  for x in test["label"]]),
+            }
+    return data, dict(negative=0, positive=1)
 
 
 def load_yelpfull():
@@ -793,6 +803,16 @@ def load_amazonpolarity():
     data = {
                 "train": ([" ".join(x) for x in zip(train["title"], train["content"])], [["negative"] if x==0 else ["positive"] for x in train["label"]]),
                 "test": ([" ".join(x) for x in zip(test["title"], test["content"])], [["negative"] if x==0 else ["positive"] for x in test["label"]]),
+            }
+    return data, {"negative":0, "positive":1}
+
+def load_yelppolarity():
+    from datasets import load_dataset
+    train = load_dataset("yelp_polarity", split="train")
+    test = load_dataset("yelp_polarity", split="test")
+    data = {
+                "train": (train["text"], [["negative"] if x==0 else ["positive"] for x in train["label"]]),
+                "test": (test["text"], [["negative"] if x==0 else ["positive"] for x in test["label"]]),
             }
     return data, {"negative":0, "positive":1}
 

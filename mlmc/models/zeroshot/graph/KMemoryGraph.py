@@ -24,7 +24,7 @@ class NormedLinear(torch.nn.Module):
         return r * self.g
 
 class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstractZeroShot):
-    def __init__(self, similarity="cosine", dropout=0.5, measures=[ "keyword_similarity_max", "pooled_similarity", "keyword_similiarity_mean", "fallback_classifier", "weighted_similarity"],
+    def __init__(self, similarity="cosine", dropout=0.5, entropy=True, measures=[ "keyword_similarity_max", "pooled_similarity", "keyword_similiarity_mean", "fallback_classifier", "weighted_similarity"],
                  graph="wordnet", *args, **kwargs):
         super(KMemoryGraph, self).__init__(*args, **kwargs)
         self.dropout = torch.nn.Dropout(dropout)
@@ -36,10 +36,10 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
 
         self._config["dropout"] = dropout
         self._config["similarity"] = similarity
-
+        self._config["entropy"] = entropy
         self.agg = TFIDFAggregation()
 
-        self._config["scoring"] = measures
+        self.set_scoring(measures)
         self._config["pos"] = ["a", "s", "n", "v"]
         self._config["depth"] = 2
         self._config["graph"] = graph
@@ -51,6 +51,9 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
         self._classifier_weight = torch.nn.Parameter(torch.tensor([0.01]))
         self.build()
 
+
+    def set_scoring(self, measures):
+        self._config["scoring"] = measures
 
     def update_memory(self):
         """
@@ -64,12 +67,12 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
         graph = gget(self._config["graph"])
 
         self.memory = {
-            k: [k] +self.map[k]+[x for x in sum([list(graph.neighbors(x)) for x in self.map[k]] , [])] # if graph.nodes(True)[x]["pos"] in self._config["pos"]
+            k: [k] +self.map[k]+[x for x in sum([list(graph.neighbors(x)) if x in graph else [x] for x in self.map[k]], [])] # if graph.nodes(True)[x]["pos"] in self._config["pos"]
             for k in self.classes.keys()
         }
 
         subgraph = {
-            k: graph.subgraph(self.map[k] + [x for x in sum([list(graph.neighbors(x)) for x in self.map[k] ], [])])
+            k: graph.subgraph(self.map[k] + [x for x in sum([list(graph.neighbors(x)) if x in graph else [x] for x in self.map[k]], [])])
             for k in self.classes.keys()
         }
 
@@ -178,5 +181,14 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
         if "weighted_similarity" in self._config["scoring"]:
             weighted_similarity = self._sim(ke, label_embedding).squeeze()  # weighted-similarity
             l.append(weighted_similarity)
-        scores = torch.stack(l,-1).mean(-1)
+
+        if self._config["entropy"]:
+            with torch.no_grad():
+                w = torch.stack([self._ent(x.detach()) for x in l], -1).softmax(-1).unsqueeze(-2)
+            scores = (torch.stack(l, -1) * w).mean(-1)
+        else:
+            scores = torch.stack(l,-1).mean(-1)
         return scores
+
+    def _ent(self, x):
+        return (x.log_softmax(-1) * x.softmax(-1)).sum(-1)

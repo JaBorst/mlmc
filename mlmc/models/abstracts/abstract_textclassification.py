@@ -864,3 +864,8 @@ class TextClassificationAbstract(torch.nn.Module):
         """
         x = self.transform(x)
         return self.forward(x, emb=True)
+
+    def log_mlflow(self):
+        import mlflow
+        mlflow.log_params({k:v for k,v in self._config.items() if k not in ["classes"]})
+        mlflow.log_param("model", self.__class__.__name__)
