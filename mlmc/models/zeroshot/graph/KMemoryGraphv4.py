@@ -25,12 +25,16 @@ class NormedLinear(torch.nn.Module):
 
 class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstractZeroShot):
     def __init__(self, similarity="cosine", dropout=0.5, entropy=True,
-                 measures=None,depth=1,
+                 measures=None,depth=1,fallback_classifier = False,
                  graph="wordnet", *args, **kwargs):
         super(KMemoryGraph, self).__init__(*args, **kwargs)
         if measures is None:
-            measures= ["keyword_similarity_max", "pooled_similarity", "keyword_similiarity_mean", "fallback_classifier",
-             "weighted_similarity"]
+            measures= ["pooled_similarity", "keyword_similiarity_mean"]
+
+        if fallback_classifier:
+            measures = measures + ["fallback_classifier"]
+
+        self._config["fallback_classifier"] = fallback_classifier
         self.dropout = torch.nn.Dropout(dropout)
         self.parameter = torch.nn.Linear(self.embeddings_dim,256)
         self.entailment_projection = torch.nn.Linear(3 * self.embeddings_dim, self.embeddings_dim)
@@ -59,6 +63,27 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
     def set_scoring(self, measures):
         self._config["scoring"] = measures
 
+    def _get_graph(self):
+        graph = gget(self._config["graph"])
+
+        subgraph = {
+            k: graph.subgraph(self.map[k] + [x for x in
+                                             sum([list(graph.neighbors(x)) if x in graph else [x] for x in self.map[k]],
+                                                 [])])
+            for k in self.classes.keys()
+        }
+        g = nx.OrderedGraph()
+        for k, v in subgraph.items():
+            g = nx.compose(g, v)
+            g.add_node(k)
+            g.add_edges_from([(n, k) for n in v.nodes])
+            g.add_edge(k, k)
+
+        if self._config["depth"] > 1:
+            for _ in range(self._config["depth"] - 1):
+                g = nx.compose(g, graph.subgraph(sum([list(graph.neighbors(n)) for n in g if n in graph], [])))
+        return g
+
     def update_memory(self):
         """
         Method to change the current target variables
@@ -68,40 +93,16 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
         Returns:
 
         """
-        graph = gget(self._config["graph"])
-
-
-        subgraph = {
-            k: graph.subgraph(self.map[k] + [x for x in sum([list(graph.neighbors(x)) if x in graph else [x] for x in self.map[k]], [])])
-            for k in self.classes.keys()
-        }
-        self.g = nx.OrderedGraph()
-        for k, v in subgraph.items():
-            self.g = nx.compose(self.g, v)
-            self.g.add_node(k)
-            self.g.add_edges_from([(n, k) for n in v.nodes])
-            self.g.add_edge(k, k)
-
-        if self._config["depth"] > 1:
-            for _ in range(self._config["depth"]-1):
-                self.g = nx.compose(self.g, graph.subgraph(sum([list(graph.neighbors(n)) for n in self.g if n in graph],[])))
-
-
+        self.g = self._get_graph()
         self._node_list = sorted(list(self.g.nodes))
         self.nodes = self.transform(self._node_list)
         self._class_nodes = {k:self._node_list.index(k) for k in self.classes.keys()}
         adj = nx.adj_matrix(self.g, self._node_list)
 
-        self.adjencies = torch.nn.Parameter(torch.cat([torch.FloatTensor(adj[i].toarray()) for i in self._class_nodes.values()],0).float()).to(self.device)
-        self.adjencies= self.adjencies.detach()
-
-
-        adj = torch.FloatTensor(adj.toarray()).to(self.device)
         adj = adj / adj.sum(-1)
-        for _ in range(self._config["depth"]):
-            adj = torch.mm(adj, adj.t())
-        adj = torch.stack([adj[i] for i in self._class_nodes.values()],0).float()
-        self.adjencies_all = torch.nn.Parameter(adj.detach()).to(self.device)
+        self.adjencies = torch.nn.Parameter(torch.cat([torch.FloatTensor(adj[i]) for i in self._class_nodes.values()],0).float()).to(self.device)
+        self.adjencies = self.adjencies.detach()
+
 
     def create_labels(self, classes: dict):
         super().create_labels(classes)
@@ -173,17 +174,15 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
 
 
         l = []
+        keyword_similiarity = self._sim(input_embedding, nodes_embedding)
         if "keyword_similarity_max" in self._config["scoring"]:
-            s = self._sim(input_embedding, nodes_embedding)
-            keyword_similarity_max = torch.stack([s[:, torch.where(x == 1)[0]].max(-1)[0] for x in self.adjencies],1)
+            keyword_similarity_max = torch.stack([keyword_similiarity[:, torch.where(x != 0)[0]].max(-1)[0] for x in self.adjencies],1)
             l.append(keyword_similarity_max)
         if "pooled_similarity" in self._config["scoring"]:
             pooled_similarity = self._sim(input_embedding, label_embedding).squeeze(-1)  # pooled-similarity
             l.append(pooled_similarity)
         if "keyword_similiarity_mean" in self._config["scoring"]:
-            keyword_similiarity = self._sim(input_embedding, nodes_embedding).squeeze(-1) # keyword-similarity-mean
-            keyword_similiarity_mean = torch.mm(keyword_similiarity, (
-                    self.adjencies / self.adjencies.norm(1, dim=-1, keepdim=True)).t())
+            keyword_similiarity_mean = torch.mm(keyword_similiarity, self.adjencies.t())
             l.append(keyword_similiarity_mean)
         if "fallback_classifier" in self._config["scoring"]:
             fallback_classifier = self._classifier_weight * self._entailment(input_embedding,
@@ -192,12 +191,6 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
         if "weighted_similarity" in self._config["scoring"]:
             weighted_similarity = self._sim(ke, label_embedding).squeeze(-1) # weighted_similarity
             l.append(weighted_similarity)
-
-        if "keyword_similarity_weighted" in self._config["scoring"]:
-            keyword_similiarity_weighted = self._sim(input_embedding, nodes_embedding).squeeze(-1) # keyword-similarity-mean
-            keyword_similiarity_weighted = torch.mm(keyword_similiarity_weighted, (
-                    self.adjencies_all / self.adjencies_all.norm(1, dim=-1, keepdim=True)).t())
-            l.append(keyword_similiarity_weighted)
 
         scores = torch.stack(l,-1).mean(-1)
         if kw:

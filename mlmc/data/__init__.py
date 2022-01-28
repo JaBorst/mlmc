@@ -185,7 +185,7 @@ def get(name):
         except:
             return get_multilabel_dataset(name)
     except:
-        print("Datset not found. Must be one of:")
+        print(f"Dataset [{name}] not found. Must be one of:")
         print(register.keys())
 
 def is_multilabel(x):
