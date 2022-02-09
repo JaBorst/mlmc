@@ -193,11 +193,11 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
         # nodes_embedding = self.dropout(self.embedding(**self.nodes)[0])
 
         input_embedding=input_embedding_t
-        if self.training:
-            input_embedding = input_embedding + 0.1 * torch.rand_like(input_embedding)[:, 0, None, 0,
-                                                       None].round() * torch.rand_like(input_embedding)  #
-            input_embedding = input_embedding * ((torch.rand_like(input_embedding[:, :, 0]) > 0.05).float() * 2 - 1)[..., None]
-
+        # if self.training:
+        #     input_embedding = input_embedding * ((torch.rand_like(input_embedding[:, :, 0]) > 0.05).float() )[..., None]
+        #     input_embedding = input_embedding + 0.1 * torch.rand_like(input_embedding)[:, 0, None, 0,
+        #                                                None].round() * torch.randn_like(input_embedding)  #
+        #
 
         nodes_embedding = self._mean_pooling(nodes_embedding, self.nodes["attention_mask"])
         input_embedding = self._mean_pooling(input_embedding, x["attention_mask"])
@@ -227,17 +227,11 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
 
             in_distr = torch.mm(input_embedding, nodes_embedding_norm.t())
             l_distr = torch.mm(label_embedding, nodes_embedding_norm.t()) #
-            # l.append((in_distr[:,None] * self.distance[None]).sum(-1).log_softmax(-1))
             with torch.no_grad():
                 mean = in_distr.mean(-1, keepdim=True)
                 std = in_distr.std(-1, keepdim=True)
-                mask = (in_distr < mean - 2 * std) | (in_distr > mean + 2 * std)  #
-
-
+                mask = (in_distr < mean - 1 * std) | (in_distr > mean + 1 * std)  #
             in_distr = in_distr * mask
-
-
-
             l.append(self._sim(in_distr, l_distr))
 
         if "numberbatch" in self._config["scoring"]:
@@ -250,6 +244,7 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
                 mean = in_distr.mean(1, keepdim=True)
                 std = in_distr.std(1, keepdim=True)
                 mask = (in_distr < mean - 2*std) | (in_distr> mean+ 2*std) #
+                # mask = (in_distr < -0.5) | (in_distr> 0.5) #
             in_distr = (in_distr * mask).sum(1)
 
             with torch.no_grad():
@@ -257,19 +252,24 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
                 std = in_distr.std(1, keepdim=True)
                 mask = (in_distr < mean - 2*std) | (in_distr> mean+ 2*std) #
             in_distr = (in_distr * mask)
+            l_distr =  torch.mm(label_embedding, nodes_embedding_norm.t())#.softmax(-1) #
 
-
-            l_distr =  torch.mm(label_embedding, nodes_embedding_norm.t()) #
-            # sim =  (in_distr)[:, None] * (l_distr)[None]
-            sim = self._sim(in_distr, l_distr)
-            # sim = torch.mm(in_distr, l_distr.t())
-            # sim = torch.mm(in_distr.softmax(-1), l_distr.t().softmax(-1))
-            # sim = torch.mm(
-            #     in_distr/ in_distr.norm(p=2, dim=-1, keepdim=True),
-            #          (l_distr / l_distr.norm(p=2, dim=-1, keepdim=True)).t() )
-
+            sim = torch.mm(in_distr, l_distr.t()).log_softmax(-1)
             l.append(sim)
 
+        if "numberbatch2" in self._config["scoring"]:
+            nodes_embedding_norm = nodes_embedding / nodes_embedding.norm(2, dim=-1, keepdim=True)
+            input_embedding_t = input_embedding_t / input_embedding_t.norm(2, dim=-1, keepdim=True)
+            label_embedding = label_embedding / label_embedding.norm(2, dim=-1, keepdim=True)
+
+            in_distr = torch.matmul(input_embedding_t, nodes_embedding_norm.t())  # .sum(1)#max(1)[0]
+            with torch.no_grad():
+                mask = (in_distr > 0.25).sum(1)
+                mask = mask>0#
+            l_distr = torch.mm(label_embedding, nodes_embedding_norm.t())  # .softmax(-1) #
+
+            sim =( (l_distr[None] * mask.unsqueeze(1)).sum(-1) / mask.sum(-1).unsqueeze(-1)).log_softmax(-1)
+            l.append(sim)
             # l.append(sim.relu() / sim.relu().sum(-1, keepdim=True))
 
         # import matplotlib.pyplot as plt
