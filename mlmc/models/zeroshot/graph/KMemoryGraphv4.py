@@ -45,7 +45,6 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
         self._config["dropout"] = dropout
         self._config["similarity"] = similarity
         self._config["entropy"] = entropy
-        self.agg = TFIDFAggregation()
 
         self.set_scoring(measures)
         self._config["pos"] = ["a", "s", "n", "v"]

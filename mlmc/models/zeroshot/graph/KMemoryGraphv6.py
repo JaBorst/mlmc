@@ -23,9 +23,52 @@ class NormedLinear(torch.nn.Module):
             r = r + self.bias
         return r * self.g
 
+
+class NonLinearRandomProjectionAttention(torch.nn.Module):
+    def __init__(self, in_features, inner_dim=32, n_proj=4, trainable=False):
+        super(NonLinearRandomProjectionAttention, self).__init__()
+        self.in_features=in_features
+        self.inner_dim = inner_dim
+        self.n_proj = n_proj
+        self.set_trainable(trainable)
+        self.random_projections = torch.nn.ParameterList([torch.nn.Parameter(self._random_gaussorthonormal(), requires_grad=trainable) for _ in range(self.n_proj)])
+
+    def set_trainable(self, trainable= False):
+        self.trainable = trainable
+        for param in self.parameters():
+            param.requires_grad = trainable
+
+    def _random_projection_matrix(self):
+        ##ä### maybe do this sparse?
+        random = torch.rand(128, 32)  # .round().float()
+        z = torch.zeros_like(random)
+        z[random < 0.3] = -1
+        z[random > 0.66] = 1
+        z = z / z.norm(p = 2, dim=-1, keepdim=True)
+        return z
+
+
+    def _random_gaussorthonormal(self):
+        z = torch.nn.init.orthogonal_(torch.rand(self.in_features,self.inner_dim, requires_grad=self.trainable))
+        z = z / z.norm(p = 2, dim=0, keepdim=True)
+        z.requires_grad = self.trainable
+        return z
+
+    def _projection(self, x):
+        return  torch.stack([torch.matmul(x, z) for z in self.random_projections]).mean(0)
+
+    def forward(self, x, y, v=None):
+        xp = self._projection(x)
+        yp = self._projection(y)
+        attention = torch.mm(xp, yp.t())
+        if v is not None:
+            return  attention, torch.mm(attention.softmax(-1), v)
+        else:
+            return attention
+
 class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstractZeroShot):
     def __init__(self, similarity="cosine", dropout=0.5, entropy=True,
-                 measures=None,depth=1,fallback_classifier = False,
+                 measures=None,depth=1,fallback_classifier = False, rp = False, rp_trainable=False, inner_dim=32, n_proj=4,
                  graph="wordnet", *args, **kwargs):
         super(KMemoryGraph, self).__init__(*args, **kwargs)
         if measures is None:
@@ -36,11 +79,17 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
 
         self._config["fallback_classifier"] = fallback_classifier
         self.dropout = torch.nn.Dropout(dropout)
-        self.parameter = torch.nn.Linear(self.embeddings_dim,256)
+
+        if rp:
+            self.nlp = NonLinearRandomProjectionAttention(self.embeddings_dim, n_proj=n_proj, inner_dim=inner_dim)
+            self.embeddings_dim = inner_dim
+        self._config["random_projection"] = rp
+        self._config["random_projection_trainable"] = rp_trainable
+
+
         self.entailment_projection = torch.nn.Linear(3 * self.embeddings_dim, self.embeddings_dim)
         self.entailment_projection2 = torch.nn.Linear(self.embeddings_dim, 1)
 
-        self.project = NormedLinear(self.embeddings_dim, len(self.classes), bias=False)
 
         self._config["dropout"] = dropout
         self._config["similarity"] = similarity
@@ -52,8 +101,7 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
         self._config["graph"] = graph
         from ....graph.helpers import keywordmap
 
-        self.map = keywordmap# {"Sports": ["sport"], "Business": ["business", "financial", "tech"], "World": ["world", "war", "countries", "financial"], "Sci/Tech": ["science", "technology", "software", "computer"]}
-
+        self.map = keywordmap
         self.create_labels(self.classes)
         self.vdropout = VerticalDropout(0.5)
         self._classifier_weight = torch.nn.Parameter(torch.tensor([0.01]))
@@ -85,8 +133,6 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
 
         remove = [node for node, degree in dict(g.degree()).items() if degree < 2]
         g.remove_nodes_from(remove)
-
-
         return g
 
     def update_memory(self):
@@ -108,18 +154,16 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
 
         self._class_nodes = {k:self._node_list.index(k) for k in self.classes.keys()}
         adj = nx.adj_matrix(self.g, self._node_list)
-
+        adj = torch.FloatTensor(adj.toarray())
         self.adjacency_shape = adj.shape
         with torch.no_grad():
-            nodes_embedding = self.embedding(**{k: self.nodes[k] for k in ['input_ids', 'token_type_ids', 'attention_mask']})[0].mean(1)
-            nodes_embedding = nodes_embedding/nodes_embedding.norm(2, dim=-1, keepdim=True)
-            s = torch.mm(nodes_embedding, nodes_embedding.t()) * torch.FloatTensor(adj.toarray()).to(self.device)
-            s = s / s.sum(-1)
-            adj = s.to_sparse()
-
-        self.adj = torch.nn.Parameter(adj).to(self.device)
-        self.adjencies = torch.nn.Parameter(torch.stack([adj[i] for i in self._class_nodes.values()],0).float().to_dense()).to(self.device).detach()
-        # self.adjencies = self.adjencies
+            for _ in range(self._config["depth"]-1):
+                adj = adj / adj.sum(-1, keepdim=True)
+                adj = torch.mm(adj.t(),adj)
+        adj= adj/ adj.sum(-1, keepdim=True)
+        self.adjencies = torch.nn.Parameter(torch.stack([adj[i] for i in self._class_nodes.values()], 0).float()).to(self.device).detach()
+        self.adj = torch.nn.Parameter(adj).to_sparse().to(self.device)
+        
 
         l = {}
         for cls in self.classes.keys():
@@ -142,7 +186,7 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
         if self._config["similarity"] == "cosine":
             x = x / (x.norm(p=2, dim=-1, keepdim=True) + 1e-25)
             y = y / (y.norm(p=2, dim=-1, keepdim=True) + 1e-25)
-            r = (x[:, None] * y[None]).sum(-1)
+            r = torch.matmul(x,y.t())#(x.unsqueeze(-2) * y.unsqueeze(-3) ).sum(-1)
             r = torch.log(0.5 * (r + 1))
         elif self._config["similarity"] == "scalar":
             r = (x[:, None] * y[None]).sum(-1)
@@ -185,90 +229,69 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
         label_embedding = self.dropout(self.embedding(**{k:self.label_dict[k] for k in ['input_ids', 'token_type_ids', 'attention_mask']})[0])
         nodes_embedding = self.dropout(self.embedding(**{k:self.nodes[k] for k in ['input_ids', 'token_type_ids', 'attention_mask']})[0])
 
-        # input_embedding_t = self.dropout(self.embedding(**x)[0])
-        # label_embedding = self.dropout(self.embedding(**self.label_dict)[0])
-        # nodes_embedding = self.dropout(self.embedding(**self.nodes)[0])
+
 
         input_embedding=input_embedding_t
-        # if self.training:
-        #     input_embedding = input_embedding * ((torch.rand_like(input_embedding[:, :, 0]) > 0.05).float() )[..., None]
-        #     input_embedding = input_embedding + 0.1 * torch.rand_like(input_embedding)[:, 0, None, 0,
-        #                                                None].round() * torch.randn_like(input_embedding)  #
-        #
-
         nodes_embedding = self._mean_pooling(nodes_embedding, self.nodes["attention_mask"])
         input_embedding = self._mean_pooling(input_embedding, x["attention_mask"])
         label_embedding = self._mean_pooling(label_embedding, self.label_dict["attention_mask"])
 
+        pooled_similarity = self._sim(input_embedding, label_embedding).squeeze(-1)  # pooled-similarity
+        nodes_embedding_norm = nodes_embedding / nodes_embedding.norm(2, dim = -1, keepdim=True)
+        input_embedding_t = input_embedding_t / input_embedding_t.norm(2, dim = -1, keepdim=True)
+        label_embedding = label_embedding / label_embedding.norm(2, dim = -1, keepdim=True)
 
-        l = []
-        keyword_similiarity = self._sim(input_embedding, nodes_embedding)
-        if "keyword_similarity_max" in self._config["scoring"]:
-            keyword_similarity_max = torch.stack([keyword_similiarity[:, torch.where(x != 0)[0]].max(-1)[0] for x in self.adjencies],1)
-            l.append(keyword_similarity_max)
-        if "pooled_similarity" in self._config["scoring"]:
-            pooled_similarity = self._sim(input_embedding, label_embedding).squeeze(-1)  # pooled-similarity
-            l.append(pooled_similarity)
-        if "keyword_similiarity_mean" in self._config["scoring"]:
-            keyword_similiarity_mean = torch.mm(keyword_similiarity, self.adjencies.t())
-            l.append(keyword_similiarity_mean)
-        if "fallback_classifier" in self._config["scoring"]:
-            fallback_classifier = self._classifier_weight * self._entailment(input_embedding,
-                                                                             label_embedding)  # classifier
-            l.append(fallback_classifier)
 
-        if "distribution_cmp" in self._config["scoring"]:
-            nodes_embedding_norm = nodes_embedding / nodes_embedding.norm(2, dim = -1, keepdim=True)
-            input_embedding = input_embedding / input_embedding.norm(2, dim = -1, keepdim=True)
-            label_embedding = label_embedding / label_embedding.norm(2, dim = -1, keepdim=True)
 
-            in_distr = torch.mm(input_embedding, nodes_embedding_norm.t())
-            l_distr = torch.mm(label_embedding, nodes_embedding_norm.t()) #
-            with torch.no_grad():
-                mean = in_distr.mean(-1, keepdim=True)
-                std = in_distr.std(-1, keepdim=True)
-                mask = (in_distr < mean - 1 * std) | (in_distr > mean + 1 * std)  #
-            in_distr = in_distr * mask
-            l.append(self._sim(in_distr, l_distr))
+        in_distr = torch.matmul(input_embedding_t, nodes_embedding_norm.t())#.sum(1)#max(1)[0]
+        l_distr = torch.matmul(label_embedding, nodes_embedding_norm.t())#.sum(1)#max(1)[0]
+        in_distr = (in_distr).max(1)[0]
+        with torch.no_grad():
+            mask = (in_distr>0.4).float()
+            mask_neg =  (in_distr<0.4).float()
+            gumbel = mask-in_distr
 
-        if "numberbatch" in self._config["scoring"]:
-            nodes_embedding_norm = nodes_embedding / nodes_embedding.norm(2, dim = -1, keepdim=True)
-            input_embedding_t = input_embedding_t / input_embedding_t.norm(2, dim = -1, keepdim=True)
-            label_embedding = label_embedding / label_embedding.norm(2, dim = -1, keepdim=True)
+            # l_mask = (l_distr > 0)
+        # l_distr = l_distr * l_mask
+        in_distr_masked = in_distr  + gumbel
 
-            in_distr = torch.matmul(input_embedding_t, nodes_embedding_norm.t())#.sum(1)#max(1)[0]
-            with torch.no_grad():
-                mean = in_distr.mean(1, keepdim=True)
-                std = in_distr.std(1, keepdim=True)
-                mask = (in_distr < mean - 2*std) | (in_distr> mean+ 2*std) #
-                # mask = (in_distr < -0.5) | (in_distr> 0.5) #
-            in_distr = (in_distr * mask).sum(1)
+        sim=( l_distr[None] * in_distr_masked[:, None] * self.adjencies[None]).mean(-1)
+        sim2 = torch.mm(in_distr * in_distr_masked,self.adjencies.t())
+        # sim = sim/sim.sum(-1, keepdim=True)
 
-            with torch.no_grad():
-                mean = in_distr.mean(1, keepdim=True)
-                std = in_distr.std(1, keepdim=True)
-                mask = (in_distr < mean - 2*std) | (in_distr> mean+ 2*std) #
-            in_distr = (in_distr * mask)
-            l_distr =  torch.mm(label_embedding, nodes_embedding_norm.t())#.softmax(-1) #
+        t_distr = torch.matmul(input_embedding_t, label_embedding.t())#.sum(1)#max(1)[0]
+        with torch.no_grad():
+            mean = (t_distr*x["attention_mask"][...,None]).mean((1,2))
+            std = (t_distr*x["attention_mask"][...,None]).std((1,2))
+            mask = (t_distr > (mean+2*std)[:,None,None])*x["attention_mask"][...,None]
 
-            sim = torch.mm(in_distr, l_distr.t()).log_softmax(-1)
-            l.append(sim)
+        sim3 = (t_distr*mask).sum(1) / t_distr.sum(1) + 1e-6
+        # sim3 = mask.sum(1) / x["attention_mask"].sum(1,keepdim=True)
 
-        if "numberbatch2" in self._config["scoring"]:
-            nodes_embedding_norm = nodes_embedding / nodes_embedding.norm(2, dim=-1, keepdim=True)
-            input_embedding_t = input_embedding_t / input_embedding_t.norm(2, dim=-1, keepdim=True)
-            label_embedding = label_embedding / label_embedding.norm(2, dim=-1, keepdim=True)
+        # sim3 = mask.sum(1) / ( torch.logical_not(mask)*x["attention_mask"][...,None]).sum(1)
 
-            in_distr = torch.matmul(input_embedding_t, nodes_embedding_norm.t())  # .sum(1)#max(1)[0]
-            with torch.no_grad():
-                mask = (in_distr > 0.25).sum(1)
-                mask = mask>0#
-            l_distr = torch.mm(label_embedding, nodes_embedding_norm.t())  # .softmax(-1) #
+        # sim4 = ((in_distr_masked[:, None] * (self.adjencies>0)[None]).sum(-1)) / ((mask_neg[:, None] * (self.adjencies>0)[None]).sum(-1))
+        sim4 = ((in_distr_masked[:, None] * self.adjencies[None]).sum(-1)) / ((mask_neg[:, None] * self.adjencies[None]).sum(-1))
 
-            sim =( (l_distr[None] * mask.unsqueeze(1)).sum(-1) / mask.sum(-1).unsqueeze(-1)).log_softmax(-1)
-            l.append(sim)
-            # l.append(sim.relu() / sim.relu().sum(-1, keepdim=True))
+        all = 0.2*(sim.log_softmax(-1)+sim2.log_softmax(-1)+sim3.log_softmax(-1)+sim4.log_softmax(-1)) + pooled_similarity.log_softmax(-1)
 
+
+        # labels = [['Business'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sports'], ['Sports'], ['Sports'], ['Sports'], ['Sports'], ['Sports'], ['World'], ['World'], ['World'], ['World'], ['World'], ['World'], ['World'], ['World'], ['Sports'], ['Business'], ['World'], ['Sci/Tech'], ['Sports'], ['Sports'], ['World'], ['Sci/Tech'], ['World'], ['Sports']]
+        # i=-1
+        # i=i+1
+        # print(x["text"][i])
+        # print("sim :",sim[i],sim[i].argmax(-1).item())
+        # print("sim2:",sim2[i],sim2[i].argmax(-1).item())
+        # print("sim3:",sim3[i],sim3[i].argmax(-1).item())
+        # print("sim4:",sim4[i],sim4[i].argmax(-1).item())
+        # print(pooled_similarity[i],pooled_similarity[i].argmax(-1).item())
+        # print(all[i], all[i].argmax(-1).item())
+        # print(labels[i])
+        # # print((sim2[i]).log_softmax(-1) + pooled_similarity[i])
+        # # print((sim[i]+sim2[i]).log_softmax(-1) + pooled_similarity[i])
+        # print([self._node_list[k] for k in in_distr[i].topk(20)[1]])
+        # print([self._node_list[k] for k in in_distr_masked[i].topk(20)[1]])
+        # print(self.classes)
         # import matplotlib.pyplot as plt
         # plt.scatter(range(l_distr.shape[-1]),l_distr[0].cpu().detach())
         # plt.plot(self.adjencies[0])
@@ -278,7 +301,7 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
         # plt.plot((self.adjencies[0]>0).int().cpu().detach())
         # plt.show()
 
-        scores = torch.stack(l,-1).mean(-1)
+        scores = all#(sim+sim2).log_softmax(-1) + pooled_similarity
 
 
 
