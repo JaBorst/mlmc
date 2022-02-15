@@ -7,64 +7,64 @@ from mlmc.modules.dropout import VerticalDropout
 from mlmc.graph import get as gget
 from mlmc.modules.module_tfidf import TFIDFAggregation
 import networkx as nx
-
-class NormedLinear(torch.nn.Module):
-    def __init__(self, input_dim, output_dim, bias=True):
-        super(NormedLinear, self).__init__()
-        self.weight = torch.nn.Parameter(torch.randn((input_dim, output_dim)))
-        self.use_bias = bias
-        if bias:
-            self.bias = torch.nn.Parameter(torch.randn((1, output_dim,)))
-
-        self.g = torch.nn.Parameter(torch.tensor([0.005]))
-    def forward(self, x):
-        r =  torch.mm(x, self.weight/self.weight.norm(p=2, dim=0, keepdim=True))
-        if self.use_bias:
-            r = r + self.bias
-        return r * self.g
-
-
-class NonLinearRandomProjectionAttention(torch.nn.Module):
-    def __init__(self, in_features, inner_dim=32, n_proj=4, trainable=False):
-        super(NonLinearRandomProjectionAttention, self).__init__()
-        self.in_features=in_features
-        self.inner_dim = inner_dim
-        self.n_proj = n_proj
-        self.set_trainable(trainable)
-        self.random_projections = torch.nn.ParameterList([torch.nn.Parameter(self._random_gaussorthonormal(), requires_grad=trainable) for _ in range(self.n_proj)])
-
-    def set_trainable(self, trainable= False):
-        self.trainable = trainable
-        for param in self.parameters():
-            param.requires_grad = trainable
-
-    def _random_projection_matrix(self):
-        ##ä### maybe do this sparse?
-        random = torch.rand(128, 32)  # .round().float()
-        z = torch.zeros_like(random)
-        z[random < 0.3] = -1
-        z[random > 0.66] = 1
-        z = z / z.norm(p = 2, dim=-1, keepdim=True)
-        return z
-
-
-    def _random_gaussorthonormal(self):
-        z = torch.nn.init.orthogonal_(torch.rand(self.in_features,self.inner_dim, requires_grad=self.trainable))
-        z = z / z.norm(p = 2, dim=0, keepdim=True)
-        z.requires_grad = self.trainable
-        return z
-
-    def _projection(self, x):
-        return  torch.stack([torch.matmul(x, z) for z in self.random_projections]).mean(0)
-
-    def forward(self, x, y, v=None):
-        xp = self._projection(x)
-        yp = self._projection(y)
-        attention = torch.mm(xp, yp.t())
-        if v is not None:
-            return  attention, torch.mm(attention.softmax(-1), v)
-        else:
-            return attention
+#
+# class NormedLinear(torch.nn.Module):
+#     def __init__(self, input_dim, output_dim, bias=True):
+#         super(NormedLinear, self).__init__()
+#         self.weight = torch.nn.Parameter(torch.randn((input_dim, output_dim)))
+#         self.use_bias = bias
+#         if bias:
+#             self.bias = torch.nn.Parameter(torch.randn((1, output_dim,)))
+# 
+#         self.g = torch.nn.Parameter(torch.tensor([0.005]))
+#     def forward(self, x):
+#         r =  torch.mm(x, self.weight/self.weight.norm(p=2, dim=0, keepdim=True))
+#         if self.use_bias:
+#             r = r + self.bias
+#         return r * self.g
+# 
+# 
+# class NonLinearRandomProjectionAttention(torch.nn.Module):
+#     def __init__(self, in_features, inner_dim=32, n_proj=4, trainable=False):
+#         super(NonLinearRandomProjectionAttention, self).__init__()
+#         self.in_features=in_features
+#         self.inner_dim = inner_dim
+#         self.n_proj = n_proj
+#         self.set_trainable(trainable)
+#         self.random_projections = torch.nn.ParameterList([torch.nn.Parameter(self._random_gaussorthonormal(), requires_grad=trainable) for _ in range(self.n_proj)])
+# 
+#     def set_trainable(self, trainable= False):
+#         self.trainable = trainable
+#         for param in self.parameters():
+#             param.requires_grad = trainable
+# 
+#     def _random_projection_matrix(self):
+#         ##ä### maybe do this sparse?
+#         random = torch.rand(128, 32)  # .round().float()
+#         z = torch.zeros_like(random)
+#         z[random < 0.3] = -1
+#         z[random > 0.66] = 1
+#         z = z / z.norm(p = 2, dim=-1, keepdim=True)
+#         return z
+# 
+# 
+#     def _random_gaussorthonormal(self):
+#         z = torch.nn.init.orthogonal_(torch.rand(self.in_features,self.inner_dim, requires_grad=self.trainable))
+#         z = z / z.norm(p = 2, dim=0, keepdim=True)
+#         z.requires_grad = self.trainable
+#         return z
+# 
+#     def _projection(self, x):
+#         return  torch.stack([torch.matmul(x, z) for z in self.random_projections]).mean(0)
+# 
+#     def forward(self, x, y, v=None):
+#         xp = self._projection(x)
+#         yp = self._projection(y)
+#         attention = torch.mm(xp, yp.t())
+#         if v is not None:
+#             return  attention, torch.mm(attention.softmax(-1), v)
+#         else:
+#             return attention
 
 class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstractZeroShot):
     def __init__(self, similarity="cosine", dropout=0.5, entropy=True,
@@ -80,11 +80,11 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
         self._config["fallback_classifier"] = fallback_classifier
         self.dropout = torch.nn.Dropout(dropout)
 
-        if rp:
-            self.nlp = NonLinearRandomProjectionAttention(self.embeddings_dim, n_proj=n_proj, inner_dim=inner_dim)
-            self.embeddings_dim = inner_dim
-        self._config["random_projection"] = rp
-        self._config["random_projection_trainable"] = rp_trainable
+        # if rp:
+        #     self.nlp = NonLinearRandomProjectionAttention(self.embeddings_dim, n_proj=n_proj, inner_dim=inner_dim)
+        #     self.embeddings_dim = inner_dim
+        # self._config["random_projection"] = rp
+        # self._config["random_projection_trainable"] = rp_trainable
 
 
         self.entailment_projection = torch.nn.Linear(3 * self.embeddings_dim, self.embeddings_dim)
@@ -159,10 +159,10 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
         with torch.no_grad():
             for _ in range(self._config["depth"]-1):
                 adj = adj / adj.sum(-1, keepdim=True)
-                adj = torch.mm(adj.t(),adj)
+                adj = torch.mm(adj,adj.t())
         adj= adj/ adj.sum(-1, keepdim=True)
         self.adjencies = torch.nn.Parameter(torch.stack([adj[i] for i in self._class_nodes.values()], 0).float()).to(self.device).detach()
-        self.adj = torch.nn.Parameter(adj).to_sparse().to(self.device)
+        self.adj = torch.nn.Parameter(adj).to_sparse().to(self.device).detach()
         
 
         l = {}
@@ -232,6 +232,13 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
 
 
         input_embedding=input_embedding_t
+
+        if self.training:
+            input_embedding = input_embedding + 0.01 * torch.rand_like(input_embedding)[:, 0, None, 0,
+                                                       None].round() * torch.rand_like(input_embedding)  #
+            input_embedding = input_embedding * ((torch.rand_like(input_embedding[:, :, 0]) > 0.05).float() * 2 - 1)[
+                ..., None]
+
         nodes_embedding = self._mean_pooling(nodes_embedding, self.nodes["attention_mask"])
         input_embedding = self._mean_pooling(input_embedding, x["attention_mask"])
         label_embedding = self._mean_pooling(label_embedding, self.label_dict["attention_mask"])
@@ -247,9 +254,16 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
         l_distr = torch.matmul(label_embedding, nodes_embedding_norm.t())#.sum(1)#max(1)[0]
         in_distr = (in_distr).max(1)[0]
         with torch.no_grad():
-            mask = (in_distr>0.4).float()
-            mask_neg =  (in_distr<0.4).float()
+            # mask = (in_distr>0.4).float()
+            # mask_neg =  (in_distr<0.4).float()
+
+            mean = in_distr.mean(1, keepdim=True)
+            std = in_distr.std(1, keepdim=True)
+            mask = (in_distr>(mean+2*std)).float()
+            mask_neg = (in_distr<(mean-2*std)).float()
+
             gumbel = mask-in_distr
+
 
             # l_mask = (l_distr > 0)
         # l_distr = l_distr * l_mask
@@ -271,12 +285,14 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
         # sim3 = mask.sum(1) / ( torch.logical_not(mask)*x["attention_mask"][...,None]).sum(1)
 
         # sim4 = ((in_distr_masked[:, None] * (self.adjencies>0)[None]).sum(-1)) / ((mask_neg[:, None] * (self.adjencies>0)[None]).sum(-1))
-        sim4 = ((in_distr_masked[:, None] * self.adjencies[None]).sum(-1)) / ((mask_neg[:, None] * self.adjencies[None]).sum(-1))
-
-        all = 0.2*(sim.log_softmax(-1)+sim2.log_softmax(-1)+sim3.log_softmax(-1)+sim4.log_softmax(-1)) + pooled_similarity.log_softmax(-1)
+        sim4 = (1+(in_distr_masked[:, None] * self.adjencies[None]).sum(-1))# / ((mask_neg[:, None] * self.adjencies[None]).sum(-1)+1)
 
 
-        # labels = [['Business'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sports'], ['Sports'], ['Sports'], ['Sports'], ['Sports'], ['Sports'], ['World'], ['World'], ['World'], ['World'], ['World'], ['World'], ['World'], ['World'], ['Sports'], ['Business'], ['World'], ['Sci/Tech'], ['Sports'], ['Sports'], ['World'], ['Sci/Tech'], ['World'], ['Sports']]
+        l = [sim.log_softmax(-1), sim3.log_softmax(-1), sim4.log_softmax(-1),pooled_similarity.log_softmax(-1)]
+        all =torch.stack(l,-1).mean(-1)
+
+
+        labels = [['Business'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sports'], ['Sports'], ['Sports'], ['Sports'], ['Sports'], ['Sports'], ['World'], ['World'], ['World'], ['World'], ['World'], ['World'], ['World'], ['World'], ['Sports'], ['Business'], ['World'], ['Sci/Tech'], ['Sports'], ['Sports'], ['World'], ['Sci/Tech'], ['World'], ['Sports']]
         # i=-1
         # i=i+1
         # print(x["text"][i])
