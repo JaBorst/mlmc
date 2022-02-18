@@ -50,7 +50,7 @@ def show_graph(vectors, classes):
         ax.annotate(txt, (X_embedded[i, 0], X_embedded[i, 1]))
     plt.show()
 
-keywordmap = {"Sports": ["sports"], "Business":["business"], "World": ["world"], "Sci/Tech": ["science", "technology"] ,
+keywordmap = {"Sports": ["sport", "sports", "sporting"], "Business":["business"], "World": ["world","politics", "war"], "Sci/Tech": ["science", "technology"] ,
                     "Company":["company"], "EducationalInstitution": ["Education", "institution"], "Artist":["artist"],
                     "Athlete":["athlete"], "OfficeHolder":["officeholder"], "MeanOfTransportation": ["Transportation", "vehicle"],
                     "Building":["building"], "NaturalPlace":["nature", "region", "location"], "Village":["village"],
