@@ -91,28 +91,17 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
     def _get_graph(self):
         graph = gget(self._config["graph"])#.to_undirected()
 
-        subgraphs = {}
-        for k in  self.classes.keys():
-            sg = graph.subgraph(self.map[k] + [x for x in
-                                             sum([list(graph.neighbors(x)) if x in graph else [x] for x in self.map[k]],
-                                                 [])]).copy()
-            nodes =  [list(set(sum([list(graph.neighbors(x)) for x in sg.nodes if x in graph],[]))) for _ in range(self._config["depth"]-1)]
-            nodes = list(set(sum(nodes,[])))
-            sg2 = graph.subgraph(nodes).copy()
-            sg2.add_nodes_from(sg.nodes)
-            sg2.add_edges_from([(k, x) for x in sg.nodes])
-            sg2.add_edges_from([(x, k) for x in sg.nodes])
-            sg2.add_edges_from([e for e in graph.edges if e[1] in sg2 and e[0] in sg2])
-            sg2.remove_nodes_from([x for x in sg2.nodes if x.count("_") > 2 or ":" in x or len(x) < 3])
-            sg2.remove_nodes_from([node for node, degree in dict(sg.degree()).items() if degree < 2])
-            subgraphs[k] = sg2
 
-        g = nx.compose_all(list(subgraphs.values()))
-        g.add_edges_from([e for e in graph.edges if e[1] in g and e[0] in g])
-        g.remove_nodes_from([node for node, degree in dict(g.degree()).items() if degree == 0])
+        nodes = [sum([self.map[k] for k in self.classes.keys()],[])]
+        for i in range(1, self._config["depth"]):
+            nodes.append(list(set(sum([list(graph.neighbors(x)) for x in nodes[i-1] if x in graph][:200],[]))))
+        nodes = sum(nodes,[])
+        nodes = [x for x in nodes if x.count("_") < 3 and ":" not in x and len(x) > 3]
+        g = graph.subgraph(nodes).copy()
+        g.add_edges_from([(k, v) for k in self.classes.keys() for v in self.map[k]])
+        g.add_edges_from([( v,k) for k in self.classes.keys() for v in self.map[k]])
+        g.remove_nodes_from([node for node, degree in dict(g.degree()).items() if degree < 2])
         g =nx.relabel_nodes(g,merge_nodes(g, threshold=0.7, classes=self.classes.keys()))
-
-
         return g
 
     def update_memory(self):
@@ -236,11 +225,17 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
             # topmask = torch.nn.functional.one_hot(in_distr.argmax(-1),len(self._node_list))#.sum(-2)
             mask = (mask * topmask * x["attention_mask"].unsqueeze(-1)).float()#.to_sparse()
             gumbel = mask - in_distr
+        # mask = in_distr + gumbel
 
         in_distr = (in_distr*mask).sum(1)
-        # in_distr = (in_distr + gumbel).sum(1)
 
-        sim=(mask.sum([1,2]).unsqueeze(-1))*( in_distr[:, None] * self.adjencies[None]).sum(-1)
+        # in_distr[:, None] * self.adjencies[None]
+        # kg_distr = torch.matmul(mask/(mask.sum(-1, keepdim=True)+1e-12), nodes_embedding)
+        # kg_distr = self._mean_pooling(kg_distr, x["attention_mask"])
+        # pooled_similarity2 = self._sim(kg_distr, label_embedding).squeeze(-1)  # pooled-similarity
+
+
+        sim=( in_distr[:, None] * self.adjencies[None]).sum(-1) #(mask.sum([1,2]).unsqueeze(-1))*
 
         with torch.no_grad():
             t_mean = (t_distr.mean((1,2), keepdim=True)).float()
@@ -249,13 +244,14 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
             t_topmask = torch.nn.functional.one_hot(t_distr.argmax(-1), len(self.classes))
             t_mask = t_mask* t_topmask * x["attention_mask"].unsqueeze(-1)
             t_mask.sum(1)
-
-        sim3 = (t_distr*t_mask).sum(1) / (t_mask.sum(1) + 1e-6)
+            gumbel2 = t_mask - t_distr
+        # t_mask = t_distr + gumbel2
+        sim3 = (t_distr*t_mask).sum(1) #/ (t_mask.sum(1) + 1e-6)
         # sim4 = ((t_mask).sum(1)) / x["attention_mask"].sum(-1,keepdim=True) #/ ((mask_neg[:, None] * self.adjencies[None]).sum(-1))
 
         # all =torch.stack([sim.log_softmax(-1), sim3.log_softmax(-1), pooled_similarity.log_softmax(-1)],-1).mean(-1)
-        all =torch.stack([sim, sim3, pooled_similarity],-1).mean(-1)
-
+        all =torch.stack([(0.5*(1+sim)).log(), (0.5*(1+sim3)).log(), pooled_similarity],-1).mean(-1)#.log_softmax(-1)
+        # all = pooled_similarity + pooled_similarity2
 
         # labels = [['Business'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sci/Tech'], ['Sports'], ['Sports'], ['Sports'], ['Sports'], ['Sports'], ['Sports'], ['World'], ['World'], ['World'], ['World'], ['World'], ['World'], ['World'], ['World'], ['Sports'], ['Business'], ['World'], ['Sci/Tech'], ['Sports'], ['Sports'], ['World'], ['Sci/Tech'], ['World'], ['Sports']]
         # i=-1

@@ -77,14 +77,14 @@ print("Accuracy without training with formatter:", m.evaluate(data["test"])[1]["
 
 # This Performance can still be improved of course by showing some of the training data.
 # We'll only take around 10 exapmles per class.
-train = mlmc.data.sampler(data["train"], absolute=40)
+train = mlmc.data.fewshot_sampler(data["train"], k=1)
 print(train.count())
 
 
 # Use the fit method to train the model
 # m.loss = mlmc.loss.RelativeRankingLoss(0.5)
-m.single(loss="cross") # anything else as argument will result in crossentropyloss
-m.fit(train, train, epochs=50, patience=3)    # RelativeRankingLoss might go to zero. This is not bad thing but you can interrupt
+m.single() # anything else as argument will result in crossentropyloss
+m.fit(train, train, epochs=50, patience=-1)    # RelativeRankingLoss might go to zero. This is not bad thing but you can interrupt
                             # the training at this point or set the number of epochs accordingly
 
 # For the large model this should achieve for the larger model over 80 % accuracy, for the smaller instantiation around 70% accuracy.
