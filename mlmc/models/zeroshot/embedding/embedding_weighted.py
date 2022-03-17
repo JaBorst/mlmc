@@ -7,7 +7,7 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract, TextClassificat
     """
      Zeroshot model based on cosine distance of embedding vectors.
     """
-    def __init__(self, mode="vanilla", entailment_output=3, dropout=0.5, vertical_dropout=0., *args, **kwargs):
+    def __init__(self, mode="vanilla", augment=True, dropout=0.5, vertical_dropout=0., *args, **kwargs):
         """
          Zeroshot model based on cosine distance of embedding vectors.
         This changes the default activation to identity function (lambda x:x)
@@ -23,7 +23,7 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract, TextClassificat
         self.modes = ("vanilla","max","mean","max_mean", "attention","attention_max_mean")
         assert mode in self.modes, f"Unknown mode: '{mode}'!"
         self.set_mode(mode=mode)
-
+        self._config["augment"] = augment
         self.create_labels(self.classes)
         self.dropout = torch.nn.Dropout(dropout)
         self.vdropout = VerticalDropout(vertical_dropout)
@@ -42,8 +42,12 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract, TextClassificat
         input_embedding = self.dropout(self.embedding(**x)[0])
         label_embedding = self.dropout(self.embedding(**self.label_dict)[0])
 
-        input_embedding = self.vdropout(input_embedding)
-        # label_embedding = self.vdropout(label_embedding)
+
+        if self.training and self._config["augment"]:
+            input_embedding = input_embedding + 0.01 * torch.rand_like(input_embedding)[:, 0, None, 0,
+                                                       None].round() * torch.rand_like(input_embedding)  #
+            input_embedding = input_embedding * ((torch.rand_like(input_embedding[:, :, 0]) > 0.05).float() * 2 - 1)[
+                ..., None]
 
         if "mean" in self.mode:
             label_embedding = label_embedding - label_embedding.mean(0)
