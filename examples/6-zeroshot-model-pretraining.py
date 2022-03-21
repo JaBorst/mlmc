@@ -13,7 +13,7 @@ formatter = lambda x: f"The topic of this is {x}"
 
 # If you have a more capable computer and even a GPU, you can use this instantiation to load a larger model
 # and put it on the GPU.
-m = mlmc.models.zeroshot.graph.GraphBased(
+m = mlmc.models.zeroshot.EmbeddingBasedWeighted(
     classes={},
     target="single",
     sformatter=formatter,
@@ -21,7 +21,7 @@ m = mlmc.models.zeroshot.graph.GraphBased(
     mode="vanilla",
     optimizer_params={"lr": 1e-5, "betas": (0.9, 0.99)},
     optimizer=torch.optim.AdamW,
-    device="cuda:3",  # If you have a GPU uncomment this
+    device="cuda:0",  # If you have a GPU uncomment this
     representation="google/bert_uncased_L-6_H-768_A-12"
     # representation = "bert-large-uncased",
 )

@@ -3,9 +3,9 @@ https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
 """
 from mlmc.models.abstracts.abstract_label import LabelEmbeddingAbstract
 from mlmc.models.abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
-from ..representation import is_transformer
+from mlmc.representation import is_transformer
 import re
-from ..modules import *
+from mlmc.modules import *
 
 class LSANNC(LabelEmbeddingAbstract,TextClassificationAbstractZeroShot):
     """

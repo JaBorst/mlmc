@@ -3,27 +3,20 @@ Submodule containing implementations of neural network models for Multilabel Arc
 """
 
 # CNN Variants
-from .XMLCNN import XMLCNN
-from .KimCNN import KimCNN
-from .MoKimCNN import MoKimCNN
+from mlmc.models.standard.KimCNN import KimCNN
 
 #LSAN Variants
-from .LSAN import LSAN
-from .LSANNC import LSANNC
-from .MoLSANNC import MoLSANNC
 # Basic transformers
-from .MoTransformer import MoTransformer
-from .Transformer import Transformer
 
-from .bayes_model import  BayesNetwork
+from mlmc.models.abstracts.bayes_model import  BayesNetwork
 
 from .zeroshot import *
 
 
 # Geometric Models
 try:
-    from .ZAGCNNLM import ZAGCNNLM
-    from .SKGLM import SKGLM
+    from mlmc.models.standard.ZAGCNNLM import ZAGCNNLM
+    from mlmc.models.standard.SKGLM import SKGLM
 except:
     print("pytorch_geometric not installed.")
     pass

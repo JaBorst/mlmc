@@ -1,7 +1,7 @@
 import torch
 from tqdm import tqdm
 
-from ..data.dataset_classes import PredictionDataset
+from mlmc.data.dataset_classes import PredictionDataset
 
 class BayesNetwork:
     def __init__(self, model):
