@@ -195,13 +195,18 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
         return r
 
     def forward(self, x, kw=False):
-        input_embedding_t = self.dropout(self.embedding(**{k:x[k] for k in ['input_ids', 'token_type_ids', 'attention_mask']})[0])
-        label_embedding = self.dropout(self.embedding(**{k:self.label_dict[k] for k in ['input_ids', 'token_type_ids', 'attention_mask']})[0])
-        nodes_embedding = self.dropout(self.embedding(**{k:self.nodes[k] for k in ['input_ids', 'token_type_ids', 'attention_mask']})[0])
+        input_embedding_t = self.dropout(self.embedding(**{k:x[k] for k in ['input_ids', 'token_type_ids', 'attention_mask'] if k in x})[0])
+        label_embedding = self.dropout(self.embedding(**{k:self.label_dict[k] for k in ['input_ids', 'token_type_ids', 'attention_mask'] if k in self.label_dict})[0])
+        nodes_embedding = self.dropout(self.embedding(**{k:self.nodes[k] for k in ['input_ids', 'token_type_ids', 'attention_mask'] if k in self.nodes})[0])
 
 
+        if self.training:
+            input_embedding_t = input_embedding_t + 0.01*torch.rand_like(input_embedding_t)[:,0,None,0,None].round()*torch.rand_like(input_embedding_t) #
+            input_embedding_t = input_embedding_t * ((torch.rand_like(input_embedding_t[:,:,0])>0.05).float()*2 -1)[...,None]
 
         input_embedding=input_embedding_t
+
+
         nodes_embedding = self._mean_pooling(nodes_embedding, self.nodes["attention_mask"])
         input_embedding = self._mean_pooling(input_embedding, x["attention_mask"])
         label_embedding = self._mean_pooling(label_embedding, self.label_dict["attention_mask"])
@@ -215,7 +220,6 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
 
         in_distr = torch.matmul(input_embedding_t, nodes_embedding_norm.t())#.sum(1)#max(1)[0]
         # l_distr = torch.matmul(label_embedding, nodes_embedding_norm.t())#.sum(1)#max(1)[0]
-        t_distr = torch.matmul(input_embedding_t, label_embedding.t())#.sum(1)#max(1)[0]
 
         with torch.no_grad():
             mean = (in_distr.mean((-1,-2), keepdim=True)).float()
@@ -227,17 +231,18 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
             gumbel = mask - in_distr
         # mask = in_distr + gumbel
 
-        in_distr = (in_distr*mask).sum(1)
+        in_distr = (in_distr*mask.detach()).sum(1)
 
         # in_distr[:, None] * self.adjencies[None]
         # kg_distr = torch.matmul(mask/(mask.sum(-1, keepdim=True)+1e-12), nodes_embedding)
         # kg_distr = self._mean_pooling(kg_distr, x["attention_mask"])
         # pooled_similarity2 = self._sim(kg_distr, label_embedding).squeeze(-1)  # pooled-similarity
 
-
         sim=( in_distr[:, None] * self.adjencies[None]).sum(-1) #(mask.sum([1,2]).unsqueeze(-1))*
 
+        t_distr = torch.matmul(input_embedding_t, label_embedding.t())#.sum(1)#max(1)[0]
         with torch.no_grad():
+            t_distr = torch.matmul(input_embedding_t, label_embedding.t())  # .sum(1)#max(1)[0]
             t_mean = (t_distr.mean((1,2), keepdim=True)).float()
             t_std = (t_distr.std((1,2), keepdim=True)).float()
             t_mask = (t_distr > (t_mean +  2*t_std))  # .to_sparse()
@@ -246,7 +251,7 @@ class KMemoryGraph(SentenceTextClassificationAbstract, TextClassificationAbstrac
             t_mask.sum(1)
             gumbel2 = t_mask - t_distr
         # t_mask = t_distr + gumbel2
-        sim3 = (t_distr*t_mask).sum(1) #/ (t_mask.sum(1) + 1e-6)
+        sim3 = (t_distr*t_mask.detach()).sum(1) #/ (t_mask.sum(1) + 1e-6)
         # sim4 = ((t_mask).sum(1)) / x["attention_mask"].sum(-1,keepdim=True) #/ ((mask_neg[:, None] * self.adjencies[None]).sum(-1))
 
         # all =torch.stack([sim.log_softmax(-1), sim3.log_softmax(-1), pooled_similarity.log_softmax(-1)],-1).mean(-1)
