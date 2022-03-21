@@ -1,12 +1,13 @@
+import networkx as nx
+import random
 import torch
+from tqdm import tqdm
 
+from mlmc.data import MultiLabelDataset
+from mlmc.graph import get as graph_get
 from mlmc.models.abstracts.abstract_textclassification import TextClassificationAbstract
 from mlmc.models.abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
-from mlmc.graph import get as graph_get
-import networkx as nx
-from mlmc.data import MultiLabelDataset
-from tqdm import tqdm
-import random
+from ...metrics import Average
 
 
 class TextClassificationAbstractGraph(TextClassificationAbstract, TextClassificationAbstractZeroShot):
@@ -110,7 +111,6 @@ class TextClassificationAbstractGraph(TextClassificationAbstract, TextClassifica
         last_best_loss_update = 0
         classes_backup = self.classes.copy()
         label_subgraph_backup = self.label_subgraph.copy()
-        from ignite.metrics import Average
         for e in range(epochs):
             losses = {"loss": str(0.)}
             average = Average()

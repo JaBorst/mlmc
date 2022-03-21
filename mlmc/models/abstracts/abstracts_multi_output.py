@@ -1,15 +1,12 @@
 import torch
 from tqdm import tqdm
 
-from mlmc.metrics.multilabel import MultiLabelReport, AUC_ROC
-from mlmc.representation import is_transformer, get
 from mlmc.models.abstracts import TextClassificationAbstract
-from mlmc.thresholds import get as  thresholdget
+from ...metrics import Average
+
 from ...metrics import MetricsDict
 from ...representation.character import  makemultilabels
 from mlmc.data import MultiOutputMultiLabelDataset, SingleLabelDataset
-from ...data.dataset_classes import MultiOutputSingleLabelDataset
-import re
 
 
 class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
@@ -125,7 +122,7 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
         self.eval()  # set mode to evaluation to disable dropout
 
         initialized_metrics = self._init_metrics(metrics)
-        from ignite.metrics import Average
+
         average = Average()
         data_loader = torch.utils.data.DataLoader(data, batch_size=batch_size)
         with torch.no_grad():
@@ -292,7 +289,6 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
 
     def _epoch(self, train, pbar=None):
         """Combining into training loop"""
-        from ignite.metrics import Average
         average = Average()
         for i, b in enumerate(train):
             self.optimizer.zero_grad()

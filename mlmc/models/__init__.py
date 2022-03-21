@@ -3,7 +3,7 @@ Submodule containing implementations of neural network models for Multilabel Arc
 """
 
 # CNN Variants
-from mlmc.models.standard.KimCNN import KimCNN
+from mlmc.models.standard import *
 
 #LSAN Variants
 # Basic transformers

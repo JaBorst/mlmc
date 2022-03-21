@@ -2,7 +2,7 @@ from .multilabel import MultiLabelReport, AUC_ROC
 from .precisionk import PrecisionK, AccuracyTreshold, Accuracy
 from .analyser import History
 from .confusion import ConfusionMatrix
-
+from .average import Average
 from ..thresholds import get as thresholdget
 from .save_scores import SaveScores
 from .helpers import flatten, flt

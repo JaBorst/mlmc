@@ -1,6 +1,6 @@
 import torch
 import transformers
-from ignite.metrics import Average
+from ...metrics import Average
 from tqdm import tqdm
 from copy import copy
 

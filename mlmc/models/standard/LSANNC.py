@@ -49,7 +49,7 @@ class LSANNC(LabelEmbeddingAbstract,TextClassificationAbstractZeroShot):
 
         # self.projection_labels = torch.nn.Linear(self.label_embedding_dim, self.hidden_representations)
 
-        from ..modules import LSANNCModule
+        from ...modules import LSANNCModule
 
         self.lsannc = LSANNCModule(self._config["hidden_representations"]*2,
                                    self.label_embedding_dim ,
@@ -94,7 +94,7 @@ class LSANNC(LabelEmbeddingAbstract,TextClassificationAbstractZeroShot):
         :param classes: The classes mapping
         :return: Tensor containing the embedded labels
         """
-        from ..representation import get_word_embedding_mean
+        from ...representation import get_word_embedding_mean
         import re
         with torch.no_grad():
             l = get_word_embedding_mean(
@@ -102,22 +102,3 @@ class LSANNC(LabelEmbeddingAbstract,TextClassificationAbstractZeroShot):
                 self._config["label_model"])
             self.label_embedding_dim = l.shape[-1]
         return l
-
-
-    # def create_label_dict(self):
-    #     from ..representation import get_word_embedding_mean
-    #     with torch.no_grad():
-    #         l = get_word_embedding_mean(
-    #             [" ".join(re.split("[/ _-]", x.lower())) for x in self.classes.keys()],
-    #             "glove300")
-    #     self.label_embedding_dim = l.shape[-1]
-    #     return {w: e for w, e in zip(self.classes, l)}
-    #
-    # def create_labels(self, classes):
-    #     self.classes = classes
-    #     self.n_classes = len(classes)
-    #     if not hasattr(self, "label_dict"):
-    #         self.label_dict = self.create_label_dict()
-    #     self.label_embedding = torch.stack([self.label_dict[cls] for cls in classes.keys()])
-    #     self.label_embedding = self.label_embedding.to(self.device)
-    #

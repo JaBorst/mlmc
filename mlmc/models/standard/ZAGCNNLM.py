@@ -75,7 +75,7 @@ class ZAGCNNLM(TextClassificationAbstractGraph, TextClassificationAbstractZeroSh
         :return: Dictionary containing the original label with its corresponding embedding.
         """
         # assert method in ("repeat","generate","embed", "glove", "graph"), 'method has to be one of ("repeat","generate","embed")'
-        from ..representation import get_word_embedding_mean
+        from ...representation import get_word_embedding_mean
         with torch.no_grad():
             l = get_word_embedding_mean(
                 [" ".join(re.split("[/ _-]", x.lower())) for x in self.classes.keys()],

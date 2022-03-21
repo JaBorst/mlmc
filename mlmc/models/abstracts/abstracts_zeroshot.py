@@ -1,5 +1,6 @@
 import torch
-from ignite.metrics import Average
+
+from ...metrics import Average
 from ...metrics.precisionk import Accuracy
 
 
@@ -219,7 +220,6 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
     def pretrain_sts(self,batch_size=12, datasets=None, steps=600, eval_every=100, log_mlflow=False):
         c = 0
         from ...data.data_loaders_similarity import load_sts
-        from ...data import SFORMATTER
         from tqdm import tqdm
         data = load_sts()
         epochs = int(steps*batch_size/len(data))+1

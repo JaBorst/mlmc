@@ -1,12 +1,12 @@
 """
 https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
 """
+import re
+
 from mlmc.models.abstracts.abstracts_multi_output import TextClassificationAbstractMultiOutput
 from mlmc.models.abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
-from mlmc.representation import is_transformer
-import re
 from mlmc.modules import *
-
+from ...representation import is_transformer
 
 
 class MoLSANNC(TextClassificationAbstractMultiOutput, TextClassificationAbstractZeroShot):
@@ -47,7 +47,7 @@ class MoLSANNC(TextClassificationAbstractMultiOutput, TextClassificationAbstract
                                                   bidirectional=True)
 
         # self.projection_labels = torch.nn.Linear(self.label_embedding_dim, self.hidden_representations)
-        from ..modules import LSANNCModule
+        from ...modules import LSANNCModule
         self.lsannc = LSANNCModule(self._config["hidden_representations"]*2,
                                    self.label_embedding_dim,
                                    hidden_features=self._config["d_a"])
@@ -105,7 +105,7 @@ class MoLSANNC(TextClassificationAbstractMultiOutput, TextClassificationAbstract
         :return: Dictionary containing the original label with its corresponding embedding.
         """
         # assert method in ("repeat","generate","embed", "glove", "graph"), 'method has to be one of ("repeat","generate","embed")'
-        from ..representation import get_word_embedding_mean
+        from ...representation import get_word_embedding_mean
         with torch.no_grad():
             l = [get_word_embedding_mean(
                 [(" ".join(re.split("[/ _-]", re.sub("[0-9]", "", x.lower())))).strip() for x in classes.keys()],
