@@ -50,6 +50,7 @@ setup(
     install_requires=['transformers',
                       'nltk',
                       'scikit-learn',
+                      'datasets',
                       'pytorch-ignite',
                       'tqdm',
                       'networkx',
