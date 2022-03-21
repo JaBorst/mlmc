@@ -6,21 +6,30 @@ stages:
   - test
   - deploy
 
-test_python3.7:
-    only:
-      - master
-      - merge_requests
-    stage: test
-    image: python:3.7.5-slim-buster
-    script:
-    - python -m pytest tests
-
 test_python3.8:
     only:
       - master
       - merge_requests
     stage: test
     image: python:3.8-buster
+    script:
+    - python -m pytest tests
+
+test_python3.9:
+    only:
+      - master
+      - merge_requests
+    stage: test
+    image: python:3.9-buster
+    script:
+    - python -m pytest tests
+
+test_python3.10:
+    only:
+      - master
+      - merge_requests
+    stage: test
+    image: python:3.10-buster
     script:
     - python -m pytest tests
 
