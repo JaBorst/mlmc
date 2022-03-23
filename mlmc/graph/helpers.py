@@ -2,6 +2,45 @@ import numpy as np
 import itertools
 from sklearn.manifold import TSNE
 
+def merge_nodes(graph,classes, num_perm=32, threshold=0.9, n = 3, ):
+    def _mh(x, k):
+        x = x.upper()
+        k = k if isinstance(k, (tuple, list)) else [k]
+        def ngrams(x, k):
+            return [x[i:(i + k)] for i in range(len(x) - k + 1)]
+        m1 = MinHash(num_perm)
+        for kk in k:
+            for i in ngrams(x, kk): m1.update(i.encode("utf8"))
+        for w in x.split(" "):
+            # m1.update(w.encode("utf8"))
+            for kk in k:
+                for i in ngrams(w, kk): m1.update(i.encode("utf8"))
+        return m1
+    lsh = MinHashLSH(threshold=0.95, num_perm=num_perm)
+    for x in tqdm(graph.nodes): lsh.insert(x, _mh(x, n))
+    sims = {k: lsh.query(_mh(k, n)) for k in graph.nodes}
+    resultsets = [set([k] + v) for k, v in sims.items()]
+
+    len_2 = len(resultsets)
+    len_1 = len_2 + 1
+    iterations = 0
+    while len_1 != len_2:
+        iterations += 1
+        resultsets = set([frozenset(list(k) + sum([sims[v] for v in k], [])) for k in resultsets])
+        len_1 = len_2
+        len_2 = len(resultsets)
+
+    resultsets = [list(x) for x in resultsets]
+
+    relabel_dict = {}
+    for s in [x for x in resultsets if len(x) > 1]:
+        i = 0 if not any([x in classes for x in s]) else [s.index(x)  for x in classes if x in s][0]
+        for j, k in enumerate(s):
+            if i==j: pass
+            else: relabel_dict[k] = s[i]
+    return relabel_dict
+
+
 
 def cooc_matrix(labels, classes):
     """Deprecated"""
