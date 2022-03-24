@@ -1,1 +1,1 @@
-from .graph import KMemoryGraph
+from .graph import GraphBased

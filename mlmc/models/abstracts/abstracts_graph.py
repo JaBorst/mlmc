@@ -3,10 +3,10 @@ import random
 import torch
 from tqdm import tqdm
 
-from mlmc.data import MultiLabelDataset
-from mlmc.graph import get as graph_get
-from mlmc.models.abstracts.abstract_textclassification import TextClassificationAbstract
-from mlmc.models.abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
+from ...data import MultiLabelDataset
+from ...graph import get as graph_get
+from ...models.abstracts.abstract_textclassification import TextClassificationAbstract
+from ...models.abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
 from ...metrics import Average
 
 
