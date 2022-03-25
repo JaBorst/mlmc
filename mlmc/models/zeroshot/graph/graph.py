@@ -87,25 +87,25 @@ class GraphBased(SentenceTextClassificationAbstract, TextClassificationAbstractZ
             mask = (mask * x["attention_mask"].unsqueeze(-1)).float()#.to_sparse()
         in_distr = (in_distr*mask.detach()).sum(1)
 
-        node_rep = torch.mm(in_distr/in_distr.sum(-1,keepdim=True), nodes_embedding)
-        node_sim = torch.matmul(node_rep, label_embedding.t()).log_softmax(-1)
+        # node_rep = torch.mm(in_distr/in_distr.sum(-1,keepdim=True), nodes_embedding)
+        # node_sim = torch.matmul(node_rep, label_embedding.t()).log_softmax(-1)
 
 
         sim=( in_distr[:, None] * self.class_adjacency.to_dense()[None]).sum(-1) #(mask.sum([1,2]).unsqueeze(-1))*
 
-        t_distr = torch.matmul(input_embedding_t, label_embedding.t())#.sum(1)#max(1)[0]
-        with torch.no_grad():
-            # t_distr = torch.matmul(input_embedding_t, label_embedding.t())  # .sum(1)#max(1)[0]
-            t_mean = (t_distr.mean((1,2), keepdim=True)).float()
-            t_std = (t_distr.std((1,2), keepdim=True)).float()
-            t_mask = (t_distr > (t_mean +  3*t_std))  # .to_sparse()
-            t_topmask = torch.nn.functional.one_hot(t_distr.argmax(-1), len(self.classes))
-            t_mask = t_mask* t_topmask * x["attention_mask"].unsqueeze(-1)
-            t_mask.sum(1)
-        sim3 = (t_distr*t_mask.detach()).sum(1) #/ (t_mask.sum(1) + 1e-6)
+        # t_distr = torch.matmul(input_embedding_t, label_embedding.t())#.sum(1)#max(1)[0]
+        # with torch.no_grad():
+        #     # t_distr = torch.matmul(input_embedding_t, label_embedding.t())  # .sum(1)#max(1)[0]
+        #     t_mean = (t_distr.mean((1,2), keepdim=True)).float()
+        #     t_std = (t_distr.std((1,2), keepdim=True)).float()
+        #     t_mask = (t_distr > (t_mean +  3*t_std))  # .to_sparse()
+        #     t_topmask = torch.nn.functional.one_hot(t_distr.argmax(-1), len(self.classes))
+        #     t_mask = t_mask* t_topmask * x["attention_mask"].unsqueeze(-1)
+        #     t_mask.sum(1)
+        # sim3 = (t_distr*t_mask.detach()).sum(1) #/ (t_mask.sum(1) + 1e-6)
 
-        l = [(0.5*(1+sim)).log(), (0.5*(1+sim3)).log(), pooled_similarity]#.log_softmax(-1)
-        l = [node_sim]#, (0.5*(1+sim)).log(),(0.5*(1+sim3)).log(),]#.log_softmax(-1)
+        # l = [(0.5*(1+sim)).log(), (0.5*(1+sim3)).log(), pooled_similarity]#.log_softmax(-1)
+        l = [(0.5*(1+sim)).log(), pooled_similarity]#, (0.5*(1+sim)).log(),(0.5*(1+sim3)).log(),]#.log_softmax(-1)
         scores=torch.stack(l, -1).mean(-1)#.log_softmax(-1)
         if kw:
             return scores, in_distr, mask
