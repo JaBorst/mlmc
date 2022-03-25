@@ -83,10 +83,13 @@ class GraphBased(SentenceTextClassificationAbstract, TextClassificationAbstractZ
         with torch.no_grad():
             mean = (in_distr.mean((-1), keepdim=True)).float()
             std = (in_distr.std((-1), keepdim=True)).float()
-            mask = (in_distr > (mean + 4*std))#.to_sparse()
+            mask = (in_distr > (mean + 5*std))#.to_sparse()
             mask = (mask * x["attention_mask"].unsqueeze(-1)).float()#.to_sparse()
-
         in_distr = (in_distr*mask.detach()).sum(1)
+
+        node_rep = torch.mm(in_distr/in_distr.sum(-1,keepdim=True), nodes_embedding)
+        node_sim = torch.matmul(node_rep, label_embedding.t()).log_softmax(-1)
+
 
         sim=( in_distr[:, None] * self.class_adjacency.to_dense()[None]).sum(-1) #(mask.sum([1,2]).unsqueeze(-1))*
 
@@ -95,14 +98,14 @@ class GraphBased(SentenceTextClassificationAbstract, TextClassificationAbstractZ
             # t_distr = torch.matmul(input_embedding_t, label_embedding.t())  # .sum(1)#max(1)[0]
             t_mean = (t_distr.mean((1,2), keepdim=True)).float()
             t_std = (t_distr.std((1,2), keepdim=True)).float()
-            t_mask = (t_distr > (t_mean +  4*t_std))  # .to_sparse()
+            t_mask = (t_distr > (t_mean +  3*t_std))  # .to_sparse()
             t_topmask = torch.nn.functional.one_hot(t_distr.argmax(-1), len(self.classes))
             t_mask = t_mask* t_topmask * x["attention_mask"].unsqueeze(-1)
             t_mask.sum(1)
         sim3 = (t_distr*t_mask.detach()).sum(1) #/ (t_mask.sum(1) + 1e-6)
 
         l = [(0.5*(1+sim)).log(), (0.5*(1+sim3)).log(), pooled_similarity]#.log_softmax(-1)
-        l = [pooled_similarity, (0.5*(1+sim)).log(),(0.5*(1+sim3)).log(),]#.log_softmax(-1)
+        l = [node_sim]#, (0.5*(1+sim)).log(),(0.5*(1+sim3)).log(),]#.log_softmax(-1)
         scores=torch.stack(l, -1).mean(-1)#.log_softmax(-1)
         if kw:
             return scores, in_distr, mask
@@ -116,7 +119,7 @@ class GraphBased(SentenceTextClassificationAbstract, TextClassificationAbstractZ
         for b, text in enumerate(tok["text"]):
             print(" ".join(text))
             cls = scores.argmax(-1)[b].item()
-            print([self._node_list[i.item()] for i in (graphkw).topk(10, dim=-1)[1][b]])
+            print([self._node_list[i.item()] for i in (graphkw).topk(n, dim=-1)[1][b]])
             print(list(self.classes.keys())[cls])
             print("\n\n")
         for b, (text, tkw) in enumerate(zip(tok["text"],t_mask)):

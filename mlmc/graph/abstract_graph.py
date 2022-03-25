@@ -1,5 +1,5 @@
 import networkx as nx
-from .graph_loaders import get as gget
+from mlmc.graph.graph_loaders import get as gget
 import torch
 from sklearn.manifold import TSNE
 from datasketch import MinHashLSH, MinHash
@@ -33,7 +33,30 @@ class Graph(torch.nn.Module):
         return g
 
     def _get_match_graph(self):
-        raise NotImplementedError
+        from fuzzylists import RIList
+        base_graph = gget(self._config["graph"])
+        l1 = RIList(base_graph.nodes)
+        l2 = [RIList(x.split(","),threshold=0.9) for x in self.classes.keys()]
+
+        # l2 = RIList([x.lower() for x in self.classes.keys()],threshold=0.85)
+        mapping = [sum([[list(base_graph.nodes)[n] for n in x] for x in l.map(l1)],[]) for l in l2]
+        mapping = list(zip(self.classes.keys(),mapping))
+        print("Found class mapping:", mapping)
+        base_graph.add_nodes_from(self.classes.keys())
+        base_graph.add_edges_from([(k,e) for k,v in mapping for e in v])
+
+        retain = []
+        for n in tqdm(base_graph.nodes):
+            for cls in self.classes.keys():
+                try:
+                    l = (len(nx.shortest_path(base_graph, cls, n)))
+                except nx.exception.NetworkXNoPath:
+                    l = (100)
+                if l<self._config["depth"]+1:
+                    retain.append(n)
+                    continue
+        g = nx.subgraph(base_graph, list(self.classes.keys()) + retain)
+        raise g
 
     def fit(self, classes):
         """Generate a subgraph fitted to the current set of classes"""
@@ -115,7 +138,7 @@ class Graph(torch.nn.Module):
                 for _ in range(self._config["depth"]-1):
                     adj = adj / (adj.sum(-1, keepdim=True)+1e-10)
                     adj = torch.mm(adj.t(),adj)
-            adj= adj/ adj.sum(-1, keepdim=True)
+            adj= adj/ (adj.sum(-1, keepdim=True) +1e-10)
 
         self._adjacency = torch.nn.Parameter(adj).to_sparse()
         self.shape = adj.shape
@@ -162,5 +185,5 @@ class Graph(torch.nn.Module):
                    self._adjacency.to(device), \
                    self._class_adjacency.to(device)
 # from mlmc.graph.helpers import keywordmap
-# g = Graph("wordnet", map=keywordmap)
-# g(classes={"Science":3, "World":0,"Sports":1, "Business":2})
+# g = Graph("wordnet", map=None)
+# g(classes={"Sci/Tech":3, "World":0,"Sports":1, "Business":2})
