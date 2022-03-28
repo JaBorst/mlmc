@@ -16,7 +16,7 @@ class GraphBased(SentenceTextClassificationAbstract, TextClassificationAbstractZ
         self._config["fallback_classifier"] = fallback_classifier
         self.dropout = torch.nn.Dropout(dropout)
         from ....graph.helpers import keywordmap
-        self.graph = Graph(graph, depth = depth, map=keywordmap)
+        self.graph = Graph(graph, depth = depth, map=keywordmap, calc_depth=True, distances=True)
 
         self._config["dropout"] = dropout
         self._config["similarity"] = similarity
@@ -29,9 +29,12 @@ class GraphBased(SentenceTextClassificationAbstract, TextClassificationAbstractZ
 
 
     def create_labels(self, classes: dict):
+        if classes == {}:
+            self._node_list, self.class_nodes_index, self.adjacency, self.class_adjacency, self.distances = None, None,None,None, None
+            return
         super().create_labels(classes)
         self.graph(classes)
-        self._node_list, self.class_nodes_index, self.adjacency, self.class_adjacency  = self.graph.get(self.device)
+        self._node_list, self.class_nodes_index, self.adjacency, self.class_adjacency, self.distance  = self.graph.get(self.device)
         self.nodes = self.transform([x.replace("_", " ") for x in self._node_list])
 
     def _sim(self, x, y):
@@ -63,7 +66,8 @@ class GraphBased(SentenceTextClassificationAbstract, TextClassificationAbstractZ
 
         if self.training:
             input_embedding_t = input_embedding_t + 0.01*torch.rand_like(input_embedding_t)[:,0,None,0,None].round()*torch.rand_like(input_embedding_t) #
-            input_embedding_t = input_embedding_t * ((torch.rand_like(input_embedding_t[:,:,0])>0.05).float()*2 -1)[...,None]
+            input_embedding_t = input_embedding_t * ((torch.rand_like(input_embedding_t[:,:,0])>0.01).float()*2 -1)[...,None]
+            input_embedding_t = input_embedding_t * ((torch.rand_like(input_embedding_t[:,:,0])>0.01).float())[...,None]
 
         input_embedding=input_embedding_t
 
@@ -85,13 +89,21 @@ class GraphBased(SentenceTextClassificationAbstract, TextClassificationAbstractZ
             std = (in_distr.std((-1), keepdim=True)).float()
             mask = (in_distr > (mean + 5*std))#.to_sparse()
             mask = (mask * x["attention_mask"].unsqueeze(-1)).float()#.to_sparse()
-        in_distr = (in_distr*mask.detach()).sum(1)
+        in_distr = ((in_distr)).sum(1)
 
         # node_rep = torch.mm(in_distr/in_distr.sum(-1,keepdim=True), nodes_embedding)
         # node_sim = torch.matmul(node_rep, label_embedding.t()).log_softmax(-1)
 
 
-        sim=( in_distr[:, None] * self.class_adjacency.to_dense()[None]).sum(-1) #(mask.sum([1,2]).unsqueeze(-1))*
+        sim=( in_distr[:,None] *(self.distance.to_dense())[None]).mean(-1) #(mask.sum([1,2]).unsqueeze(-1))*
+        # in_distr = in_distr / in_distr.norm(1, dim=-1, keepdim=True)
+        # sim4=torch.mm(torch.mm(in_distr, nodes_embedding), label_embedding.t()).softmax(-1)
+
+        # with torch.no_grad():
+        #     top_k = in_distr.topk(10,dim=-1)
+        #     n = nodes_embedding[top_k[1]].sum(1)
+        #     n = n/n.norm(2,dim=-1, keepdim=True)
+        #     sim4 = torch.mm(n, label_embedding.t())
 
         # t_distr = torch.matmul(input_embedding_t, label_embedding.t())#.sum(1)#max(1)[0]
         # with torch.no_grad():
@@ -105,8 +117,8 @@ class GraphBased(SentenceTextClassificationAbstract, TextClassificationAbstractZ
         # sim3 = (t_distr*t_mask.detach()).sum(1) #/ (t_mask.sum(1) + 1e-6)
 
         # l = [(0.5*(1+sim)).log(), (0.5*(1+sim3)).log(), pooled_similarity]#.log_softmax(-1)
-        l = [(0.5*(1+sim)).log(), pooled_similarity]#, (0.5*(1+sim)).log(),(0.5*(1+sim3)).log(),]#.log_softmax(-1)
-        scores=torch.stack(l, -1).mean(-1)#.log_softmax(-1)
+        l = [sim.log_softmax(-1), pooled_similarity]#, (0.5*(1+sim)).log(),(0.5*(1+sim3)).log(),]#.log_softmax(-1)
+        scores=torch.stack(l, -1).sum(-1)#.log_softmax(-1)
         if kw:
             return scores, in_distr, mask
         return scores
@@ -128,7 +140,9 @@ class GraphBased(SentenceTextClassificationAbstract, TextClassificationAbstractZ
 
             print(" ".join(text))
             cls = scores.argmax(-1)[b].item()
-            print([self._node_list[i.item()] for i in (graphkw).topk(10, dim=-1)[1][b]])
+            # print([self._node_list[i.item()] for i in torch.where((graphkw[b,None])>0.1)[1]])
+            from mlmc.thresholds import threshold_mcut
+            print([self._node_list[i.item()] for i in torch.where(threshold_mcut(graphkw[b,None]))[1]])
             print(list(self.classes.keys())[cls])
             print("\n\n")
 

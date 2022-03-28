@@ -29,12 +29,13 @@ print(mlmc.data.SFORMATTER["trec6"]("DESC"))
 # )
 # If you have a more capable computer and even a GPU, you can use this instantiation to load a larger model
 # and put it on the GPU.
-m = mlmc.models.zeroshot.EmbeddingBasedWeighted(
+m = mlmc.models.zeroshot.GraphBased(
     classes={},
+    graph = "conceptnet",
+    depth=3,
     target="single",
     mode="max",
     finetune=True,
-    sformatter=formatter,
     optimizer_params={"lr": 1e-5},
     device="cuda:1",  # If you have a GPU uncomment this
     representation="google/bert_uncased_L-6_H-768_A-12"
@@ -42,7 +43,7 @@ m = mlmc.models.zeroshot.EmbeddingBasedWeighted(
 
 # Zeroshot models have a method to switch and create new target classes
 classes1 = {"Sports":0, "Science":1}
-classes2 = {"Vacation": 0, "Work":1}
+classes2 = {"vacation": 0, "work":1}
 
 m.create_labels(classes1)
 
@@ -62,13 +63,12 @@ data = mlmc.data.get("agnews")
 
 # We can switch to the label set of the data and evaluate. The smaller model achieve around 40 % accuracy, the
 # larger model should land around 36% accuracy without seeing any training example and without formatter:
-m.set_sformatter(lambda x: x)
+m.set_sformatter(mlmc.data.SFORMATTER["agnews"])
 m.create_labels(data["classes"])
 print("Accuracy without training:", m.evaluate(data["test"])[1]["accuracy"])
 
 # Texts can formatter really do make a difference. Using the provided formatter for agnews,
 # this should increase to  51% for the smaller model and about 60 % for the larger model.
-m.set_sformatter(mlmc.data.SFORMATTER["agnews"])
 m.create_labels(data["classes"])
 m = m.eval()
 print("Accuracy without training with formatter:", m.evaluate(data["test"])[1]["accuracy"])

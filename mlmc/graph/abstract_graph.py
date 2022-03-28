@@ -20,14 +20,14 @@ class Graph(torch.nn.Module):
 
     def _get_map_graph(self):
         graph = gget(self._config["graph"])
-        nodes = [sum([self.map[k] for k in self.classes.keys()], [])]
+        nodes = [sum([self.map.get(k,[k]) for k in self.classes.keys()], [])]
         for i in range(1,  self._config["depth"]):
             nodes.append(list(set(sum([list(graph.neighbors(x)) for x in nodes[i - 1] if x in graph][:200], []))))
         nodes = sum(nodes, [])
         nodes = [x for x in nodes if x.count("_") < 3 and ":" not in x and len(x) > 3]
         g = graph.subgraph(nodes).copy()
-        g.add_edges_from([(k, v) for k in self.classes.keys() for v in self.map[k]])
-        g.add_edges_from([(v, k) for k in self.classes.keys() for v in self.map[k]])
+        g.add_edges_from([(k, v) for k in self.classes.keys() for v in self.map.get(k,[k])])
+        g.add_edges_from([(v, k) for k in self.classes.keys() for v in self.map.get(k,[k])])
         g.remove_nodes_from([node for node, degree in dict(g.degree()).items() if degree < 2])
         g = nx.relabel_nodes(g, self._merge_nodes(g, threshold=0.7, classes=self.classes.keys()))
         return g
