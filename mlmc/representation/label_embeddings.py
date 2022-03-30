@@ -33,33 +33,32 @@ def get_word_embeddings(words, model):
     transformed = tok(words)
     embeddings = emb(transformed)
     return embeddings
-#
-# def get_lm_repeated(classes, model, repeat=20):
-#     emb, tok = get(model)
-#     transformed = tok([" ".join(cls.split()*repeat) for cls in classes])
-#     return emb(transformed)[1]
-#
-# def get_lm_generated(classes, model, num=10, device="cuda:0"):
-#     with torch.no_grad():
-#         from transformers import AutoModelWithLMHead, AutoTokenizer
-#         gp2E = AutoModelWithLMHead.from_pretrained('gpt2').to(device)
-#         gpt2T= AutoTokenizer.from_pretrained("gpt2")
-#
-#         generated_sentences = [[gpt2T.decode(x) for x in gp2E.generate(torch.tensor([gpt2T.encode((cls+" ")*3)]*num).to("cuda:0"), max_length=80)]
-#          for cls in tqdm(classes, total=len(classes))
-#          ]
-#         emb, tok = get(model)
-#         emb = emb.to(device)
-#         embeddings = [torch.cat([emb(tok(s).to(device))[1] for s in cls]).mean(0) for cls in generated_sentences]
-#     return torch.stack(embeddings,0)
-#
-# def get_graph_augmented(classes, model, graph, topk=20, batch_size=64, device="cuda:0"):
-#     from ..graph.graph_loaders_elsevir import embed_align
-#     doct = embed_align(classes, graph=graph, model="glove300", topk=topk, batch_size=batch_size, device=device)
-#
-#     emb, tok = get(model)
-#     emb.to(device)
-#     with torch.no_grad():
-#         transformed = tok([cls + " | " + ". ".join(keywords) for cls, keywords in doct.items()])
-#         embeddings = emb(transformed.to(device))[1]
-#     return embeddings
+
+def get_wikidata_desc(x, targets=3):
+    """
+    Queries wikidata using ID's to retrieve descriptions.
+
+    :param x: List of ID's
+    :return: Dictionary of input ID's corresponding to its wikidata descriptions
+    """
+    import wikipedia
+    sites = [wikipedia.search(l, results= 3) for l in x]
+    def _get_summaries(x):
+        l = []
+        for site in x:
+            try: l.append(wikipedia.summary(site, sentences=2))
+            except: pass
+        return l
+    descriptions = dict(zip(x, run_io_tasks_in_parallel(_get_summaries, sites)))
+    return descriptions
+
+
+from concurrent.futures import ThreadPoolExecutor
+
+def run_io_tasks_in_parallel(func, args):
+    with ThreadPoolExecutor() as executor:
+        running_tasks = [executor.submit(func, arg) for arg in args]
+        l = []
+        for running_task in running_tasks:
+            l.append(running_task.result())
+        return l

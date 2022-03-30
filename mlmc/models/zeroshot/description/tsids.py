@@ -22,9 +22,16 @@ class TSIDS(mlmc.models.abstracts.SentenceTextClassificationAbstract, mlmc.model
         self.entailment_projection = torch.nn.Linear(3 * self.embeddings_dim, self.embeddings_dim)
         self.entailment_projection2 = torch.nn.Linear(self.embeddings_dim, 1)
         self.descriptor = descriptor
-
+        self.descriptions = descriptor(list(self.classes.keys()))
+        self.targets = [self.transform(list(v)) for v in self.descriptions.values()]
+        self.graph = torch.zeros((self.n_classes, len(sum(self.descriptions.values(),[]))))
+        s = 0
+        for k, v in self.classes.items():
+            self.graph[v, s:(s + len(self.descriptions[k]))] = 1
+            s += len(self.descriptions[k])
         self.dropout=torch.nn.Dropout(p=0.5)
 
+        self.create_labels(self.classes)
 
         self.graph = torch.nn.Parameter(self.graph/self.graph.sum(dim=-1, keepdim=True))
         self.graph.requires_grad=False
@@ -66,11 +73,11 @@ class TSIDS(mlmc.models.abstracts.SentenceTextClassificationAbstract, mlmc.model
     def forward(self, x,return_keywords=False, *args, **kwargs):
         input_embedding = self.embedding(**{k:x[k] for k in ['input_ids', 'token_type_ids', 'attention_mask'] if k in x})[0]
         target_embedding = [self.embedding(**{k:t[k] for k in ['input_ids', 'token_type_ids', 'attention_mask']if k in t})[0] for t in self.targets]
-        sdg_embedding = self.embedding(**{k:self.sdgs[k] for k in ['input_ids', 'token_type_ids', 'attention_mask']if k in self.sdgs})[0]
+        label_embedding = self.embedding(**{k:self.label_dict[k] for k in ['input_ids', 'token_type_ids', 'attention_mask']if k in self.label_dict})[0]
 
         input_embedding = self.dropout(input_embedding)
         target_embedding = [self.dropout(t) for t in target_embedding]
-        sdg_embedding = self.dropout(sdg_embedding)
+        sdg_embedding = self.dropout(label_embedding)
 
         if self.training:
             input_embedding = input_embedding + 0.01 * torch.rand_like(input_embedding)[:, 0, None, 0,
@@ -87,7 +94,7 @@ class TSIDS(mlmc.models.abstracts.SentenceTextClassificationAbstract, mlmc.model
 
         keyword_embedding = torch.einsum("btw,bwe->bte", tfidf, input_embedding)
         input_embedding = torch.einsum("bwe,bw->be",input_embedding, tfidf.mean(1)*x["attention_mask"])
-        sdg_embedding = self._mean_pooling(sdg_embedding, self.sdgs["attention_mask"])
+        sdg_embedding = self._mean_pooling(sdg_embedding, self.label_dict["attention_mask"])
 
         te = torch.cat(target_embedding, 0)
         te = te - te.mean(0)
@@ -187,4 +194,5 @@ class TSIDS(mlmc.models.abstracts.SentenceTextClassificationAbstract, mlmc.model
 
 import mlmc
 d = mlmc.data.get("rcv1")
-TSIDS(classes=d["classes"])
+model = TSIDS(classes=d["classes"], target="multi", device="cuda:0")
+model.evaluate(data=mlmc.data.sampler(d["test"], absolute=1000))
