@@ -34,7 +34,7 @@ def get_word_embeddings(words, model):
     embeddings = emb(transformed)
     return embeddings
 
-def get_wikidata_desc(x, targets=3):
+def get_wikidata_desc(x, targets=3, sentences=2):
     """
     Queries wikidata using ID's to retrieve descriptions.
 
@@ -42,11 +42,11 @@ def get_wikidata_desc(x, targets=3):
     :return: Dictionary of input ID's corresponding to its wikidata descriptions
     """
     import wikipedia
-    sites = [wikipedia.search(l, results= 3) for l in x]
+    sites = [wikipedia.search(l, results= targets) for l in x]
     def _get_summaries(x):
         l = []
         for site in x:
-            try: l.append(wikipedia.summary(site, sentences=2))
+            try: l.append(wikipedia.summary(site, sentences=sentences))
             except: pass
         return l
     descriptions = dict(zip(x, run_io_tasks_in_parallel(_get_summaries, sites)))
