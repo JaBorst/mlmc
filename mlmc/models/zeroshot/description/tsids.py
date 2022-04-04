@@ -2,9 +2,9 @@ import torch
 import mlmc
 import numpy as np
 from mlmc.representation.label_embeddings import get_wikidata_desc
-
+from mlmc.graph.helpers import keywordmap
 class TSIDS(mlmc.models.abstracts.SentenceTextClassificationAbstract, mlmc.models.abstracts.TextClassificationAbstractZeroShot):
-    def __init__(self, descriptor = get_wikidata_desc, similarity="cosine",  *args, **kwargs):
+    def __init__(self, descriptor = get_wikidata_desc, keywordmap={}, similarity="cosine",  *args, **kwargs):
         """
          Zeroshot model based on cosine distance of embedding vectors.
         This changes the default activation to identity function (lambda x:x)
@@ -27,7 +27,8 @@ class TSIDS(mlmc.models.abstracts.SentenceTextClassificationAbstract, mlmc.model
         self.dropout=torch.nn.Dropout(p=0.5)
         #############################################
         self.create_labels(self.classes)
-        self.descriptions = descriptor(list(self.classes.keys()), 5, 3)
+        dict((x,keywordmap.get(x, [x])) for x in self.classes.keys())
+        self.descriptions = descriptor(dict((x,keywordmap.get(x, [x])) for x in self.classes.keys()), 5, 3)
         self.targets = [self.transform(list(v)) for v in self.descriptions.values()]
         self.graph = torch.zeros((self.n_classes, len(sum(self.descriptions.values(), []))))
         s = 0
@@ -91,21 +92,34 @@ class TSIDS(mlmc.models.abstracts.SentenceTextClassificationAbstract, mlmc.model
                 ..., None]
         target_embedding = [self._mean_pooling(e, x["attention_mask"]) for e, x in zip(target_embedding, self.targets)]
 
-        words = [self._sim(input_embedding, te[None] ).exp() for te, r in zip(target_embedding, self.targets)]
-        idf = (1./sum([w.sum([-1]) for w in words]) )
-        tfidf = torch.stack([w.max(2)[0] * idf for w in words],1) *x["attention_mask"][:, None]
+        # words = [self._sim(input_embedding, te[None] ).exp() for te, r in zip(target_embedding, self.targets)]
+        # idf = (1./sum([w.sum([-1]) for w in words]) )
+        # tfidf = torch.stack([w.max(2)[0] * idf for w in words],1) *x["attention_mask"][:, None]
+
+        with torch.no_grad():
+            words = [self._sim(input_embedding, te[None]) for te, r in zip(target_embedding, self.targets)]
+            # words = [w.exp()/ w.exp().sum(-1, keepdim=True)  for w in words]
+
+            w2=torch.stack([(w.max(-1)[0] - w.min(-1)[0]) for w in words],1)
+            idf = (w2.sum(1, keepdim=True).exp() / w2.exp())#.log()
+            tfidf = (w2*idf) *x["attention_mask"][:, None]
+
+            # Masked SOftmax. THis really necessary?shows
+            tfidf = tfidf.exp()
+            tfidf = tfidf / tfidf.sum(-1, keepdim=True)
 
         keyword_embedding = torch.einsum("btw,bwe->bte", tfidf, input_embedding)
+        keyword_embedding = keyword_embedding/keyword_embedding.norm(dim=-1, p=2, keepdim=True)
         input_embedding = torch.einsum("bwe,bw->be",input_embedding, tfidf.mean(1)*x["attention_mask"])
         sdg_embedding = self._mean_pooling(sdg_embedding, self.label_dict["attention_mask"])
 
         te = torch.cat(target_embedding, 0)
-        te = te - te.mean(0)
+        # te = te - te.mean(0)
         te[0] = te.mean(0)
         te = te / te.norm(p=2, dim=-1, keepdim=True)
 
         se = sdg_embedding
-        se = se - se.mean(0, keepdim=True)
+        # se = se - se.mean(0, keepdim=True)
         se[0] = se.mean(0)
         se = se / se.norm(p=2, dim=-1, keepdim=True)
 
@@ -113,10 +127,10 @@ class TSIDS(mlmc.models.abstracts.SentenceTextClassificationAbstract, mlmc.model
 
         keyword_scores = torch.einsum("bse,se->bs", keyword_embedding, se)
         target_scores = (self._sim(input_embedding, te)[:,None] * self.graph[None].to(te.device)).sum(-1)
-        sdg_scores = self._sim(input_embedding, sdg_embedding)
+        sdg_scores = self._sim(input_embedding, se)
 
 
-        scores = sdg_scores#keyword_scores #+ sdg_scores+target_scores#  + tfidf.mean(-1)
+        scores = keyword_scores# sdg_scores + keyword_scores# sdg_scores#keyword_scores #+ sdg_scores+target_scores#  + tfidf.mean(-1)
         if return_keywords:
             return scores, tfidf
         return scores
@@ -199,12 +213,16 @@ class TSIDS(mlmc.models.abstracts.SentenceTextClassificationAbstract, mlmc.model
 import mlmc
 d = mlmc.data.get("agnews")
 representation = "sentence-transformers/multi-qa-mpnet-base-dot-v1"
-# representation = "google/bert_uncased_L-8_H-512_A-8"
+representation = "google/bert_uncased_L-12_H-768_A-12"
+# representation = "sentence-transformers/multi-qa-MiniLM-L6-cos-v1"
 # model = mlmc.models.EmbeddingBasedWeighted(classes=d["classes"], finetune=True,target="multi",representation=representation, device="cuda:0")
 model = TSIDS(classes=d["classes"], finetune=True,target="single",
-              loss=mlmc.loss.RelativeRankingLoss(0.5),
+              # loss=mlmc.loss.RelativeRankingLoss(0.5),
+              optimizer_params={"lr": 1e-5}, optimizer=torch.optim.AdamW,
+              keywordmap={"World": ["Politics", "War"], "Sci/Tech":["Science", "Technology"], "Sports":["Sports"], "Business": ["Business", "Company"]},
               representation=representation, device="cuda:0")
 _, eval = model.evaluate(data=mlmc.data.sampler(d["test"], absolute=5000))
-model.keywords(d["test"].x[1000:1020],d["test"].y[1000:1020])
-example = mlmc.data.fewshot_sampler(d["train"],k=1)
-model.fit(example, epochs=100)
+model.keywords(d["test"].x[100:120],d["test"].y[100:120])
+example = mlmc.data.fewshot_sampler(d["train"],k=10)
+model.fit(example, valid=mlmc.data.sampler(d["test"], absolute=5000),batch_size=10, epochs=100)
+_, eval2 = model.evaluate(data=mlmc.data.sampler(d["test"], absolute=5000))

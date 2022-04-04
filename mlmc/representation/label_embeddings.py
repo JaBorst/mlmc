@@ -42,14 +42,14 @@ def get_wikidata_desc(x, targets=3, sentences=2):
     :return: Dictionary of input ID's corresponding to its wikidata descriptions
     """
     import wikipedia
-    sites = [wikipedia.search(l, results= targets) for l in x]
+    sites = [sum([wikipedia.search(k, results= targets) for k in l],[]) for l in x.values()]
     def _get_summaries(x):
         l = []
         for site in x:
             try: l.append(wikipedia.summary(site, sentences=sentences))
             except: pass
         return l
-    descriptions = dict(zip(x, run_io_tasks_in_parallel(_get_summaries, sites)))
+    descriptions = dict(zip(x.keys(), run_io_tasks_in_parallel(_get_summaries, sites)))
     return descriptions
 
 
