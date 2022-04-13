@@ -4,8 +4,7 @@ import numpy as np
 from mlmc.representation.label_embeddings import get_wikidata_desc
 from mlmc.graph.helpers import keywordmap
 class TSIDS(mlmc.models.abstracts.SentenceTextClassificationAbstract, mlmc.models.abstracts.TextClassificationAbstractZeroShot):
-    def __init__(self, descriptor = get_wikidata_desc, keywordmap={}, scores = None,
-                 similarity="cosine", projection=False, augment=True, *args, **kwargs):
+    def __init__(self, descriptor = get_wikidata_desc, keywordmap={}, similarity="cosine",  *args, **kwargs):
         """
          Zeroshot model based on cosine distance of embedding vectors.
         This changes the default activation to identity function (lambda x:x)
@@ -20,54 +19,28 @@ class TSIDS(mlmc.models.abstracts.SentenceTextClassificationAbstract, mlmc.model
         super(TSIDS, self).__init__(*args, **kwargs)
         self.modes = ("vanilla", "mean",)
         self.set_similarity(similarity=similarity)
-        self._config["projection"] = projection
-        self._config["augment"] = augment
-        self.keywordmap = keywordmap
-        if projection:
-            self.projection = torch.nn.Linear(self.embeddings_dim, self.embeddings_dim)
-
-
-        if scores is None:
-            self._config["scores"] = {"embedding", "description", "keywords"}
-        else:
-            self._config["scores"] = set(scores)
-
+        self.entailment_projection = torch.nn.Linear(3 * self.embeddings_dim, self.embeddings_dim)
+        self.entailment_projection2 = torch.nn.Linear(self.embeddings_dim, 1)
         self.descriptor = descriptor
+
+
         self.dropout=torch.nn.Dropout(p=0.5)
         #############################################
         self.create_labels(self.classes)
-
-        #############################################
-
-        self.graph = torch.nn.Parameter(self.graph/self.graph.sum(dim=-1, keepdim=True))
-        self.graph.requires_grad=False
-        self.build()
-
-    def create_labels(self, classes: dict):
-        """
-        Method to change the current target variables
-        Args:
-            classes: Dictionary of class mapping like {"label1": 0, "label2":1, ...}
-
-        Returns:
-
-        """
-        self._config["classes"] = classes
-        self.classes = classes
-        self._config["n_classes"] = len(self._config["classes"])
-
-        if isinstance(self._config["classes"], dict):
-            self.classes_rev = {v: k for k, v in  self._config["classes"].items()}
-
-        if self._config["n_classes"] != 0: # To ensure we can initialize the model without specifying classes
-            self.label_dict = self.label_embed( self._config["classes"])
-        self.descriptions = self.descriptor(dict((x, self.keywordmap.get(x, [x])) for x in self.classes.keys()), 4, 3)
+        dict((x,keywordmap.get(x, [x])) for x in self.classes.keys())
+        self.descriptions = descriptor(dict((x,keywordmap.get(x, [x])) for x in self.classes.keys()), 5, 3)
         self.targets = [self.transform(list(v)) for v in self.descriptions.values()]
         self.graph = torch.zeros((self.n_classes, len(sum(self.descriptions.values(), []))))
         s = 0
         for k, v in self.classes.items():
             self.graph[v, s:(s + len(self.descriptions[k]))] = 1
             s += len(self.descriptions[k])
+        #############################################
+
+        self.graph = torch.nn.Parameter(self.graph/self.graph.sum(dim=-1, keepdim=True))
+        self.graph.requires_grad=False
+        self.build()
+
 
     def set_similarity(self, similarity):
         """Set weighting mode"""
@@ -110,7 +83,7 @@ class TSIDS(mlmc.models.abstracts.SentenceTextClassificationAbstract, mlmc.model
         target_embedding = [self.dropout(t) for t in target_embedding]
         sdg_embedding = self.dropout(label_embedding)
 
-        if self.training and self._config["augment"]:
+        if self.training:
             input_embedding = input_embedding + 0.01 * torch.rand_like(input_embedding)[:, 0, None, 0,
                                                            None].round() * torch.rand_like(input_embedding)  #
             input_embedding = input_embedding * \
@@ -118,51 +91,47 @@ class TSIDS(mlmc.models.abstracts.SentenceTextClassificationAbstract, mlmc.model
             input_embedding = input_embedding * ((torch.rand_like(input_embedding[:, :, 0]) > 0.01).float())[..., None]
         target_embedding = [self._mean_pooling(e, x["attention_mask"]) for e, x in zip(target_embedding, self.targets)]
 
-        if self._config["projection"]:
-            target_embedding = [self.projection(t) for t in target_embedding]
-
-        sdg_embedding = self._mean_pooling(sdg_embedding, self.label_dict["attention_mask"])
-        target_sim = [(torch.mm(t,sdg_embedding[i,None].t()) ).squeeze(-1).softmax(-1) for i,t in enumerate(target_embedding)]
+        # words = [self._sim(input_embedding, te[None] ).exp() for te, r in zip(target_embedding, self.targets)]
+        # idf = (1./sum([w.sum([-1]) for w in words]) )
+        # tfidf = torch.stack([w.max(2)[0] * idf for w in words],1) *x["attention_mask"][:, None]
 
         with torch.no_grad():
-            words = [self._sim(input_embedding, te[None]) for te, r, s in zip(target_embedding, self.targets, target_sim)]
-            w2 = torch.stack([(w.max(-1)[0]) -(w.mean(-1)) for w in words],1)
+            words = [self._sim(input_embedding, te[None]) for te, r in zip(target_embedding, self.targets)]
+            # words = [w.exp()/ w.exp().sum(-1, keepdim=True)  for w in words]
 
-            ts = w2.max(1)[0]-w2.mean(1)
-            idf = (1/w2.sum(1, keepdim=True).exp())#.log()
-            tfidf = ts[:,None] * (w2*idf) *x["attention_mask"][:, None]
+            w2=torch.stack([(w.max(-1)[0] - w.min(-1)[0]) for w in words],1)
+            idf = (w2.sum(1, keepdim=True).exp() / w2.exp())#.log()
+            tfidf = (w2*idf) *x["attention_mask"][:, None]
 
             # Masked SOftmax. THis really necessary?shows
             tfidf = tfidf.exp()
-            tfidf = (tfidf / tfidf.sum(-1, keepdim=True))*x["attention_mask"][:,None]
+            tfidf = tfidf / tfidf.sum(-1, keepdim=True)
 
-
-        keyword_embedding = torch.einsum("btw,bwe->bte", tfidf, input_embedding)#*x["attention_mask"]
+        keyword_embedding = torch.einsum("btw,bwe->bte", tfidf, input_embedding)
         keyword_embedding = keyword_embedding/keyword_embedding.norm(dim=-1, p=2, keepdim=True)
-        input_embedding = torch.einsum("bwe,bw->be", input_embedding, x["attention_mask"].float()) #
+        input_embedding = torch.einsum("bwe,bw->be",input_embedding, tfidf.mean(1)*x["attention_mask"])
+        sdg_embedding = self._mean_pooling(sdg_embedding, self.label_dict["attention_mask"])
 
-        # te = torch.cat(target_embedding, 0)
-        te = torch.stack([(s[:,None]*t).mean(0) for t, s in zip(target_embedding,target_sim)],0)
+        te = torch.cat(target_embedding, 0)
+        # te = te - te.mean(0)
+        # te[0] = te.mean(0)
         te = te / te.norm(p=2, dim=-1, keepdim=True)
 
         se = sdg_embedding
+        # se = se - se.mean(0, keepdim=True)
+        # se[0] = se.mean(0)
         se = se / se.norm(p=2, dim=-1, keepdim=True)
 
+        # keyword_embedding = keyword_embedding / keyword_embedding.norm(p=2, dim=-1, keepdim=True)
 
         keyword_scores = torch.einsum("bse,se->bs", keyword_embedding, se)
-        target_scores = self._sim(input_embedding, te)
+        # target_scores = (self._sim(input_embedding, te)[:,None] * self.graph[None].to(te.device)).sum(-1)
+        target_scores = self._sim(input_embedding, te)[:,None] * (self.graph[None]>0)
+        target_scores = target_scores.max(-1)[0] * (target_scores.max(-1)[0] - target_scores.min(-1)[0])
         sdg_scores = self._sim(input_embedding, se)
 
-        scores = []
-        if "embedding" in self._config["scores"]:
-            scores.append(sdg_scores)
-        if "description" in self._config["scores"]:
-            scores.append(target_scores)
-        if "keywords" in self._config["scores"]:
-            scores.append(keyword_scores)
 
-        scores = torch.stack(scores, -1).sum(-1)
-
+        scores = keyword_scores#sdg_scores#keyword_scores#target_scores#keyword_scores + target_scores# sdg_scores + keyword_scores# sdg_scores#keyword_scores #+ sdg_scores+target_scores#  + tfidf.mean(-1)
         if return_keywords:
             return scores, tfidf
         return scores
@@ -196,11 +165,9 @@ class TSIDS(mlmc.models.abstracts.SentenceTextClassificationAbstract, mlmc.model
         prediction_array = self._threshold_fct(scores).cpu().detach()
         prediction = [[self.classes_rev[x] for x in y] for y in prediction.detach().cpu().tolist()]
         binary = np.array([[p in c for p in pred] for c, pred in zip(y, prediction)])
-        import seaborn as sns
-        plt.figure(figsize=((16,9)))
-        ax = sns.heatmap((sorted_scores.softmax(-1).cpu()+binary), annot=np.array(prediction), fmt="")
-        plt.show()
         return [(p[-n:], t, sorted(x, key=lambda x: -x[1])[:k]) for p,n, t,x in zip(prediction, prediction_array.sum(-1).long().tolist(), y, keywords_new)]
+
+
 
     def scores(self, x):
         """
@@ -243,23 +210,22 @@ class TSIDS(mlmc.models.abstracts.SentenceTextClassificationAbstract, mlmc.model
         self.embeddings_dim = self.embedding(torch.tensor([[0]]))[0].shape[-1]
         for param in self.embedding.parameters(): param.requires_grad = self.finetune
         self.embedding.requires_grad = self.finetune
-# #
-# import mlmc
-# d = mlmc.data.get("agnews")
-# representation = "sentence-transformers/multi-qa-mpnet-base-dot-v1"
-# representation = "google/bert_uncased_L-12_H-768_A-12"
-# # representation = "sentence-transformers/multi-qa-MiniLM-L6-cos-v1"
-# # model = mlmc.models.EmbeddingBasedWeighted(classes=d["classes"], finetune=True,target="multi",representation=representation, device="cuda:0")
-# model = TSIDS(classes=d["classes"], finetune=True,target="single",
-#               # loss=mlmc.loss.RelativeRankingLoss(0.5),
-#               optimizer_params={"lr": 5e-5}, optimizer=torch.optim.AdamW,
-#               keywordmap=mlmc.graph.helpers.keywordmap,#{"World": ["Politics", "War"], "Sci/Tech":["Science", "Technology"], "Sports":["Sports"], "Business": ["Business", "Company"]},
-#               representation=representation, device="cuda:0")
-# _, eval = model.evaluate(data=mlmc.data.sampler(d["test"], absolute=5000),batch_size=10, )
-# print(eval)
-# # keywords = model.keywords(d["test"].x[100:120],d["test"].y[100:120])
-# # _ = [(print(p), print(t), [print(x) for x in k]) for p,t,k in keywords]
-#
-# example = mlmc.data.fewshot_sampler(d["train"],k=1)
-# model.fit(example, valid=mlmc.data.sampler(d["test"], absolute=5000),batch_size=10, valid_batch_size=32, epochs=100)
-# _, eval2 = model.evaluate(data=mlmc.data.sampler(d["test"], absolute=5000))
+
+import mlmc
+d = mlmc.data.get("agnews")
+representation = "sentence-transformers/multi-qa-mpnet-base-dot-v1"
+representation = "google/bert_uncased_L-12_H-768_A-12"
+# representation = "sentence-transformers/multi-qa-MiniLM-L6-cos-v1"
+# model = mlmc.models.EmbeddingBasedWeighted(classes=d["classes"], finetune=True,target="multi",representation=representation, device="cuda:0")
+model = TSIDS(classes=d["classes"], finetune=True,target="single",
+              # loss=mlmc.loss.RelativeRankingLoss(0.5),
+              optimizer_params={"lr": 5e-5}, optimizer=torch.optim.AdamW,
+              keywordmap={"World": ["Politics", "War"], "Sci/Tech":["Science", "Technology"], "Sports":["Sports"], "Business": ["Business", "Company"]},
+              representation=representation, device="cuda:0")
+_, eval = model.evaluate(data=mlmc.data.sampler(d["test"], absolute=5000))
+keywords = model.keywords(d["test"].x[100:120],d["test"].y[100:120])
+_ = [(print(p), print(t), [print(x) for x in k]) for p,t,k in keywords]
+
+example = mlmc.data.fewshot_sampler(d["train"],k=1)
+model.fit(example, valid=mlmc.data.sampler(d["test"], absolute=5000),batch_size=10, epochs=100)
+_, eval2 = model.evaluate(data=mlmc.data.sampler(d["test"], absolute=5000))
