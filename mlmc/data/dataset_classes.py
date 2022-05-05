@@ -3,28 +3,6 @@ from torch.utils.data import Dataset
 from warnings import warn
 from  .sampling_functions import subset
 
-class RegressionDataset(Dataset):
-    def __init__(self, x1, x2, labels):
-        self.x1 = x1
-        self.x2 = x2
-        self.labels = labels
-
-    def __len__(self):
-        return len(self.x1)
-
-    def __getitem__(self, item):
-        return {"x1": self.x1[item], "x2": self.x2[item], "labels": self.labels[item]}
-
-    def __add__(self, other):
-        s =  [s1+s2 for s1,s2 in zip(self.x1, self.x2)]
-        s2 =  [s1+s2 for s1,s2 in zip(other.x1, other.x2)]
-
-        index = [i for i, x in enumerate(s2) if not (x  in s)]
-
-        x1 = self.x1 + [other.x1[i] for i in index]
-        x2 = self.x2 + [other.x2[i] for i in index]
-        labels = self.labels + [other.labels[i] for i in index]
-        return RegressionDataset(x1, x2, labels)
 
 
 class MultiLabelDataset(Dataset):
@@ -528,27 +506,18 @@ class EntailmentDataset(Dataset):
     def __getitem__(self, item):
         return {"x1": self.x1[item], "x2": self.x2[item], "labels": self.classes[self.labels[item]]}
 
-class ExplanationDataset(Dataset):
-    def __init__(self, x1, x2, e1, e2, e3, labels, classes):
-
-        e = e1 + e2 + e3
-        ind = [i for i,s in enumerate(e) if s!=""]
-
-        self.x1 = [x1[i % 3] for i in ind]
-        self.x2 = [x2[i % 3] for i in ind]
-        self.ex = [e[i] for i in ind]
-        self.labels = [labels[i % 3] for i in ind]
-        self.classes = classes
-
-    def __len__(self):
-        return len(self.x1)
-
-    def __getitem__(self, item):
-        return {"x1": self.x1[item], "x2": self.x2[item], "labels": self.classes[self.labels[item]],
-                "e": self.ex[item]}
-
 class PredictionDataset(MultiLabelDataset):
     def __init__(self, x, **kwargs):
         super().__init__(x, y=None, classes=None, target_dtype=torch._cast_Float, one_hot=True, **kwargs)
     def __getitem__(self, idx):
         return {'text': self.x[idx]}
+
+
+def is_multilabel(x):
+    """
+    Checks if input is a multilabel dataset.
+
+    :param x: A dataset
+    :return: True if multilabel, else False.
+    """
+    return type(x) in  (MultiLabelDataset, MultiOutputMultiLabelDataset)

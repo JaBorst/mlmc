@@ -1,6 +1,4 @@
-import torch
 import mlmc
-from mlmc.data import SingleLabelDataset, MultiLabelDataset
 from mlmc.ensembles.descision_criteria import *
 from tqdm import tqdm
 d = mlmc.data.get("agnews")

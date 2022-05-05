@@ -1,10 +1,7 @@
-import mlmc.data.dataset_classes
-
-
 def test_MultiLabelDataset():
-    d = mlmc.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
-                                                    y=[["a"],["b"],["c"],["d"]],
-                                                    classes = {"a":0,"b":1,"c":2,"d":3})
+    d = mlmc_lab.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
+                                                        y=[["a"],["b"],["c"],["d"]],
+                                                        classes = {"a":0,"b":1,"c":2,"d":3})
 
     assert len(d) == 4
     assert list(d[0].keys()) == ["text", "labels"]
@@ -14,13 +11,13 @@ def test_MultiLabelDataset():
 
 
 def test_MultiLabelDataset_add():
-    a = mlmc.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
-                                                    y=[["a"], ["b"], ["c"], ["d"]],
-                                                    classes = {"a":0,"b":1,"c":2,"d":3})
+    a = mlmc_lab.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
+                                                        y=[["a"], ["b"], ["c"], ["d"]],
+                                                        classes = {"a":0,"b":1,"c":2,"d":3})
 
-    b = mlmc.data.dataset_classes.MultiLabelDataset(x=["1", "4", "5"],
-                                                    y=[["a", "e"], ["d"], ["e"]],
-                                                    classes = {"a":0,"d":1,"e":2})
+    b = mlmc_lab.data.dataset_classes.MultiLabelDataset(x=["1", "4", "5"],
+                                                        y=[["a", "e"], ["d"], ["e"]],
+                                                        classes = {"a":0,"d":1,"e":2})
 
     c = a + b
 

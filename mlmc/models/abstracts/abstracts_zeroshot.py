@@ -44,7 +44,7 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         :param s: The sample size  for each dataset. If s=-1 the whole test set will be used.
         :return:
         """
-        from ...data import get, is_multilabel, sampler, SFORMATTER
+        from mlmc_lab.mlmc_experimental.data.data import get, is_multilabel, sampler, SFORMATTER
 
         if formatters is not None:
             formatters = formatters if isinstance(formatters,list) else [formatters]
@@ -219,7 +219,7 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
 
     def pretrain_sts(self,batch_size=12, datasets=None, steps=600, eval_every=100, log_mlflow=False):
         c = 0
-        from ...data.data_loaders_similarity import load_sts
+        from mlmc_lab.mlmc_experimental.data.data import load_sts
         from tqdm import tqdm
         data = load_sts()
         epochs = int(steps*batch_size/len(data))+1

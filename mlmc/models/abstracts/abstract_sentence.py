@@ -1,6 +1,5 @@
 import torch
 
-import mlmc.data.dataset_classes
 from .abstract_label import LabelEmbeddingAbstract
 
 

@@ -1,9 +1,9 @@
 """
 https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
 """
-from mlmc.models.abstracts.abstract_label import LabelEmbeddingAbstract
-from mlmc.models.abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
-from mlmc.representation import is_transformer
+from ..abstracts.abstract_label import LabelEmbeddingAbstract
+from ..abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
+from ...representation import is_transformer
 import re
 from mlmc.modules import *
 

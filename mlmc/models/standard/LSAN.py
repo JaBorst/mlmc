@@ -3,8 +3,8 @@ https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
 """
 import torch
 import torch.nn.functional as F
-from mlmc.models.abstracts.abstract_textclassification import TextClassificationAbstract
-from mlmc.representation import is_transformer
+from ..abstracts.abstract_textclassification import TextClassificationAbstract
+from ...representation import is_transformer
 
 class LSAN(TextClassificationAbstract):
     """

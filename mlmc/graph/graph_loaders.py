@@ -10,7 +10,7 @@ from rdflib import Graph as RDFGraph
 from rdflib.extras.external_graph_libs import rdflib_to_networkx_graph
 from tqdm import tqdm
 
-from ..data.data_loaders_classification import _save_to_tmp, _load_from_tmp
+from ..data import _save_to_tmp, _load_from_tmp
 
 def transform(x, rg, lang="en"):
     """
@@ -377,7 +377,6 @@ def load_afinn():
 
         resp = urlopen(url)
         content = urlopen(url).read().decode().split("\n")[:-1]
-        from collections import Counter
         edges = ([( str(int(int(x.split("\t")[1])/2)+3), x.split("\t")[0]) for x in content])
         g = nx.OrderedGraph()
         g.add_edges_from(edges)

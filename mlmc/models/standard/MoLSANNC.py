@@ -3,9 +3,9 @@ https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
 """
 import re
 
-from mlmc.models.abstracts.abstracts_multi_output import TextClassificationAbstractMultiOutput
-from mlmc.models.abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
-from mlmc.modules import *
+from ..abstracts.abstracts_multi_output import TextClassificationAbstractMultiOutput
+from ..abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
+from ...modules import *
 from ...representation import is_transformer
 
 

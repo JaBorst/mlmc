@@ -6,11 +6,12 @@ from copy import copy
 
 import mlmc.loss
 from ...data import SingleLabelDataset, MultiLabelDataset
-from ...data.dataset_classes import PredictionDataset
+from ...data import PredictionDataset
 from ...metrics import MetricsDict
 from ...representation import is_transformer, get
 from ...thresholds import get as thresholdget
 from ...representation.character import makemultilabels
+from functools import cache
 
 class TextClassificationAbstract(torch.nn.Module):
     """

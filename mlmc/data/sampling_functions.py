@@ -201,7 +201,7 @@ def kfolds(dataset, k=10):
 
 import random
 def fewshot_sampler(dataset, k):
-    from . import is_multilabel
+    from .dataset_classes import is_multilabel
     if is_multilabel(dataset):
         index = list(range(len(dataset)))
         random.shuffle(index)

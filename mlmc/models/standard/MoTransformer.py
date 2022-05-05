@@ -1,5 +1,5 @@
 import torch
-from mlmc.models.abstracts.abstracts_multi_output import TextClassificationAbstractMultiOutput
+from ..abstracts.abstracts_multi_output import TextClassificationAbstractMultiOutput
 
 
 class MoTransformer(TextClassificationAbstractMultiOutput):

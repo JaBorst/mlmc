@@ -1,7 +1,7 @@
 import torch
-from mlmc.models.abstracts.abstracts_graph import TextClassificationAbstractGraph
+from ..abstracts.abstracts_graph import TextClassificationAbstractGraph
 import networkx as nx
-from mlmc.modules import SKGModule
+from ...modules import SKGModule
 
 
 class SKGLM(TextClassificationAbstractGraph):

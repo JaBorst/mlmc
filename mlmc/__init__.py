@@ -10,7 +10,6 @@ try:
 except:
     __version__ = "unknown"
 
-import mlmc.data
 import mlmc.models
 import mlmc.graph
 import mlmc.metrics

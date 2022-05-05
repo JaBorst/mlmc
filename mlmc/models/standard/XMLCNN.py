@@ -1,8 +1,8 @@
 import torch
-from mlmc.models.abstracts.abstract_textclassification import TextClassificationAbstract
-from mlmc.representation import get
-from mlmc.modules.module_KimCNN import KimCNNModule
-from mlmc.representation import is_transformer
+from ..abstracts.abstract_textclassification import TextClassificationAbstract
+from ...representation import get
+from ...modules.module_KimCNN import KimCNNModule
+from ...representation import is_transformer
 ##############################################################################################
 ##############################################################################################
 #  Implementations

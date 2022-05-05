@@ -1,2 +1,3 @@
 from .embedding_weighted import EmbeddingBasedWeighted
 from .embedding_weighted_random_projection import EmbeddingRandom
+from .embedding_labeltuning import LabelTuning

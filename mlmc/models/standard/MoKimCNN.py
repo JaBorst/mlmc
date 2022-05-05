@@ -1,8 +1,8 @@
 import torch
 
-from mlmc.models.abstracts.abstracts_multi_output import TextClassificationAbstractMultiOutput
-from mlmc.modules.module_KimCNN import KimCNNModule
-from mlmc.representation import get
+from ..abstracts.abstracts_multi_output import TextClassificationAbstractMultiOutput
+from ...modules.module_KimCNN import KimCNNModule
+from ...representation import get
 
 
 class MoKimCNN(TextClassificationAbstractMultiOutput):

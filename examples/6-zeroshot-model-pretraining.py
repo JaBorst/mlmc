@@ -29,7 +29,7 @@ m = mlmc.models.zeroshot.EmbeddingBasedWeighted(
 # This does pretraining on a set of sts data and evluates on agnews
 # This should land around 68 % for max_mean model
 # m.pretrain_mnli(datasets=["trec6","agnews"],batch_size=64, steps=1000, eval_every=50)
-from mlmc.data.data_loaders_nli import load_mnli
+from mlmc_lab.mlmc_experimental.data.data.data_loaders_nli import load_mnli
 from mlmc.data.dataset_classes import EntailmentDataset
 
 data, classes = load_mnli()

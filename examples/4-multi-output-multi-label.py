@@ -12,7 +12,6 @@ import mlmc
 
 # So classes is now a list of class mappings. Every output of the model can have its own class dictionary
 # (length and names can vary and every mapping should start at zero.
-import mlmc.data.dataset_classes
 
 classes = [
     {"class1":0, "class2":1, "class3":2},
@@ -35,7 +34,7 @@ y = [
 ]
 
 # Now we can instantiate a multi output multi label dataset.
-d = mlmc.data.dataset_classes.MultiOutputMultiLabelDataset(x=x, y=y, classes=classes)
+d = mlmc_lab.data.dataset_classes.MultiOutputMultiLabelDataset(x=x, y=y, classes=classes)
 
 # The target is multi. Models with multiple outputs are prefixed with `Mo-`.
 m = mlmc.models.MoKimCNN(

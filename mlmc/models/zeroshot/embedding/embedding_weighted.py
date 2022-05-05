@@ -46,7 +46,7 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract, TextClassificat
         if self.training and self._config["augment"]:
             input_embedding = input_embedding + 0.01 * torch.rand_like(input_embedding)[:, 0, None, 0,
                                                        None].round() * torch.rand_like(input_embedding)  #
-            input_embedding = input_embedding * ((torch.rand_like(input_embedding[:, :, 0]) > 0.05).float() * 2 - 1)[
+            input_embedding = input_embedding * ((torch.rand_like(input_embedding[:, :, 0]) > 0.1).float() * 2 - 1)[
                 ..., None]
 
         if "mean" in self.mode:
@@ -79,7 +79,7 @@ class EmbeddingBasedWeighted(SentenceTextClassificationAbstract, TextClassificat
             word_maxs = word_scores.reshape((input_embedding.shape[0], label_embedding.shape[0], -1)).max(-1)[0]
             r = r * word_maxs
 
-        r = torch.log(0.5 * (r +1))
+        # r = torch.log(0.5 * (r +1))
         if emb:
             return r, (input_embedding, label_embedding)
         return r

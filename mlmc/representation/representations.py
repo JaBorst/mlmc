@@ -11,8 +11,9 @@ import numpy as np
 import tempfile
 import torch
 from io import BytesIO
-from transformers import *
+from transformers import AutoModel, AutoTokenizer
 import pathlib
+import logging
 
 
 EMBEDDINGCACHE = Path.home() / ".mlmc" / "embedding"

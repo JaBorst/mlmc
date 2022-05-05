@@ -1,12 +1,12 @@
 import torch
 from tqdm import tqdm
 
-from mlmc.models.abstracts import TextClassificationAbstract
+from .abstract_textclassification import TextClassificationAbstract
 from ...metrics import Average
 
 from ...metrics import MetricsDict
 from ...representation.character import  makemultilabels
-from mlmc.data import MultiOutputMultiLabelDataset, SingleLabelDataset
+from ...data import SingleLabelDataset
 
 
 class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
@@ -84,7 +84,6 @@ class TextClassificationAbstractMultiOutput(TextClassificationAbstract):
         :param metrics: Name of the metrics (see mlmc.metrics.metrics_dict.keys() and mlmc.metrics.metrics_config.keys())
         :return: A dictionary containing the initialized metrics
         """
-        from copy import deepcopy
         if metrics is None:
             metrics=f"default_{self.target}label"
         metrics = [MetricsDict(metrics) for i in range(len(self.classes))]

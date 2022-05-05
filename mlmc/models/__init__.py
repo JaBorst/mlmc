@@ -3,7 +3,7 @@ Submodule containing implementations of neural network models for Multilabel Arc
 """
 
 # CNN Variants
-from mlmc.models.standard import *
+from .standard import *
 
 #LSAN Variants
 # Basic transformers
@@ -15,8 +15,8 @@ from .zeroshot import *
 
 # Geometric Models
 try:
-    from mlmc.models.standard.ZAGCNNLM import ZAGCNNLM
-    from mlmc.models.standard.SKGLM import SKGLM
+    from .standard.ZAGCNNLM import ZAGCNNLM
+    from .standard.SKGLM import SKGLM
 except:
     print("pytorch_geometric not installed.")
     pass

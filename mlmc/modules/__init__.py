@@ -8,4 +8,3 @@ try:
 except:
     print("torch_geometric not installed")
 
-from .capsule import squash, norm, Squash

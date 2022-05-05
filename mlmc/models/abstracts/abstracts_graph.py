@@ -5,8 +5,8 @@ from tqdm import tqdm
 
 from ...data import MultiLabelDataset
 from ...graph import get as graph_get
-from ...models.abstracts.abstract_textclassification import TextClassificationAbstract
-from ...models.abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
+from .abstract_textclassification import TextClassificationAbstract
+from .abstracts_zeroshot import TextClassificationAbstractZeroShot
 from ...metrics import Average
 
 

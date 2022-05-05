@@ -1,6 +1,5 @@
 import torch
-from mlmc.models.abstracts.abstract_textclassification import TextClassificationAbstract
-from mlmc.models.abstracts.abstract_sentence import SentenceTextClassificationAbstract
+from ..abstracts.abstract_sentence import SentenceTextClassificationAbstract
 
 
 ##############################################################################################

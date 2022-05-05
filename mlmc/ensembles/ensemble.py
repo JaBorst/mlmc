@@ -1,6 +1,5 @@
-import torch
 import mlmc
-from mlmc.data import SingleLabelDataset, MultiLabelDataset
+from mlmc_lab.mlmc_experimental.data.data import SingleLabelDataset, MultiLabelDataset
 from mlmc.ensembles.descision_criteria import *
 d = mlmc.data.get("agnews")
 device="cuda:1"

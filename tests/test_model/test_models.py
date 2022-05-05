@@ -8,7 +8,7 @@ def assertion_function(model_type, **kwargs):
 
     mlmc.representation.representations.add_test_example()
     classes = {"label_%i" % (i,): i for i in range(5)}
-    data = mlmc.data.dataset_classes.MultiLabelDataset(
+    data = mlmc_lab.data.dataset_classes.MultiLabelDataset(
         x = ["Text 1 example", "text 2 example 2", "text 2 example 2", "text 2 example 2", "text 2 example 2"],
         y = [["label_0", "label_4"], ["label_0", "label_2"], ["label_2", "label_3"], ["label_1", "label_4"], ["label_1", "label_4"]],
         classes = classes

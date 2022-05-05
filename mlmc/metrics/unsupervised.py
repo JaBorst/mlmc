@@ -260,6 +260,4 @@ class CalinskiHarabaszScore():
     def compute(self,*args, **kwargs):
         p, (e, l) = kwargs["model"].embed_batch(self.text)
         p = p.argmax(-1)
-        import numpy as np
-        # return 1- 1/np.log(calinski_harabasz_score(e.cpu().detach(),p.cpu().detach(),))
         return (calinski_harabasz_score(e.cpu().detach(),p.cpu().detach(),))
