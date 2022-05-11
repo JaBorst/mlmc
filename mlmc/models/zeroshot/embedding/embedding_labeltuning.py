@@ -38,7 +38,7 @@ class LabelTuning(SentenceTextClassificationAbstract, TextClassificationAbstract
         self.mode = mode.split("_")
         self._config["mode"] = mode
 
-    def forward(self, x, *args, **kwargs):
+    def forward(self, x, embedding=False, *args, **kwargs):
         input_embedding = self.dropout(self.embedding(**x)[0])
         self.curr_label_embedding = self.dropout(self.embedding(**self.label_dict)[0])
         if self.training:
@@ -54,6 +54,8 @@ class LabelTuning(SentenceTextClassificationAbstract, TextClassificationAbstract
         input_embedding = input_embedding / input_embedding.norm(p=2, dim=-1, keepdim=True)
         self.curr_label_embedding = self.curr_label_embedding / self.curr_label_embedding.norm(p=2, dim=-1, keepdim=True)
         r = torch.matmul((input_embedding), (self.curr_label_embedding).t())
+        if embedding:
+            return r, input_embedding
         return r
 
     def _loss(self, x, y):
@@ -61,3 +63,18 @@ class LabelTuning(SentenceTextClassificationAbstract, TextClassificationAbstract
 
     def regularize(self):
         return 0.001*((self.projection.weight**2).sum()+(self.projection2.weight**2).sum()) #+ ((self.label_start - self.curr_label_embedding)**2).mean())
+
+    def embed(self, x, batch_size = 64):
+        data_loader = torch.utils.data.DataLoader(x, batch_size=batch_size, shuffle=True)
+        from tqdm import tqdm
+        scores = []
+        embeddings = []
+        with torch.no_grad():
+            with tqdm(data_loader, desc="Embedding", ncols=100) as pbar:
+                for i, b in enumerate(data_loader):
+                    score, emb = (self.forward(x = self.transform(b["text"]), embedding=True))
+                    scores.append(score.cpu())
+                    embeddings.append(emb.cpu())
+                    pbar.update()
+
+        return torch.cat(scores), torch.cat(embeddings)
