@@ -65,7 +65,7 @@ class LabelTuning(SentenceTextClassificationAbstract, TextClassificationAbstract
         return 0.001*((self.projection.weight**2).sum()+(self.projection2.weight**2).sum()) #+ ((self.label_start - self.curr_label_embedding)**2).mean())
 
     def embed(self, x, batch_size = 64):
-        data_loader = torch.utils.data.DataLoader(x, batch_size=batch_size, shuffle=True)
+        data_loader = torch.utils.data.DataLoader(x, batch_size=batch_size, shuffle=False)
         from tqdm import tqdm
         scores = []
         embeddings = []
