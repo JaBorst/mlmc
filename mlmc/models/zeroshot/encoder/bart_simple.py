@@ -44,8 +44,6 @@ class BartEncoder(EncoderAbstract):
         try:
             self.tokenizer = BartTokenizer.from_pretrained(self.representation)
             self.embedding = BartForSequenceClassification.from_pretrained(self.representation)
-            # self.embeddings_dim = self.embedding(**self.tokenizer("Hello, my dog is cute", return_tensors="pt"), labels=torch.tensor([[1]]))[0].shape[-1]
-
         except TypeError:
             print("If your using a model that does not support returning hiddenstates, set n_layers=1")
             import sys

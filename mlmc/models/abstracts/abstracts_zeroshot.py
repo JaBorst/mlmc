@@ -44,8 +44,8 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         :param s: The sample size  for each dataset. If s=-1 the whole test set will be used.
         :return:
         """
-        from mlmc_lab.mlmc_experimental.data.data import get, is_multilabel, sampler, SFORMATTER
-
+        from mlmc_lab.mlmc_experimental.data import get, SFORMATTER
+        from mlmc.data import is_multilabel, sampler
         if formatters is not None:
             formatters = formatters if isinstance(formatters,list) else [formatters]
             formatters = formatters if len(formatters) == len(datasets) else formatters * len(datasets)
@@ -173,8 +173,6 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         x = self.transform(b["x1"])
         y = b["labels"].to(self.device)
         output = self(x)
-        # if x.shape[0] == 1 and output.shape[0] != 1:
-        #     output = output[None]
         l = self._loss(output, y)
         l = self._regularize(l)
         return l, output

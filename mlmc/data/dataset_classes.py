@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import Dataset
 from warnings import warn
 from  .sampling_functions import subset
-
+import nlpaug
 
 
 class MultiLabelDataset(Dataset):
@@ -15,7 +15,7 @@ class MultiLabelDataset(Dataset):
     for fast training loops.
     """
 
-    def __init__(self, x, y, classes, target_dtype=torch._cast_Float, one_hot=True, **kwargs):
+    def __init__(self, x, y, classes, target_dtype=torch._cast_Float, one_hot=True, augmenter=None, **kwargs):
         """
         Class constructor
 
@@ -60,6 +60,7 @@ class MultiLabelDataset(Dataset):
         self.y = y
         self.one_hot = one_hot
         self.target_dtype = target_dtype
+        self.augmenter = augmenter
 
     def __len__(self):
         """
@@ -80,9 +81,25 @@ class MultiLabelDataset(Dataset):
         if self.one_hot:
             labels = [self.classes[tag] for tag in self.y[idx]]
             labels = torch.nn.functional.one_hot(torch.LongTensor(labels), len(self.classes)).sum(0)
-            return {'text': self.x[idx], 'labels': self.target_dtype(labels)}
+            return {'text': self._augment(self.x[idx]), 'labels': self.target_dtype(labels)}
         else:
-            return {'text': self.x[idx], 'labels': self.y[idx]}
+            return {'text': self._augment(self.x[idx]), 'labels': self.y[idx]}
+
+    def set_augmenter(self, fct ):
+        """
+        Use this function to augment on the fly
+        """
+        self.augmenter = fct
+
+    def _augment(self, x):
+        return self.augmenter(x) if self.augmenter is not None else x
+
+    def generate(self, augmenter, n=10):
+        """
+        Use this function to generate a number of exmamples at once
+        """
+        self.x = self.x + sum((augmenter.generate(x,n) for x in self.x),[])
+        self.y = self.y + sum((y*n for y in self.y), [])
 
     def transform(self, fct):
         """
@@ -308,7 +325,7 @@ class SingleLabelDataset(MultiLabelDataset):
         :param idx: Index of the entry
         :return: Dictionary containing the text and labels of the entry
         """
-        return {'text': self.x[idx], 'labels': torch.tensor(self.classes[self.y[idx][0]])}
+        return {'text': self._augment(self.x[idx]), 'labels': torch.tensor(self.classes[self.y[idx][0]])}
 
     def to_csv(self, filename):
         with open(filename, "w") as f:
