@@ -10,7 +10,7 @@ class Siamese(SentenceTextClassificationAbstract, TextClassificationAbstractZero
     """
      Zeroshot model based on cosine distance of embedding vectors.
     """
-    def __init__(self, dropout=0.5, vertical_dropout=0, word_noise=0, score ="entailment", *args, **kwargs):
+    def __init__(self, dropout=0.5, vertical_dropout=0, word_noise=0, score ="cosine", *args, **kwargs):
         """
          Zeroshot model based on cosine distance of embedding vectors.
         This changes the default activation to identity function (lambda x:x)
@@ -55,7 +55,7 @@ class Siamese(SentenceTextClassificationAbstract, TextClassificationAbstractZero
         if self._config["score"] == "cosine":
             x = x / x.norm(p=2, dim=-1, keepdim=True)
             y = y / y.norm(p=2, dim=-1, keepdim=True)
-            return torch.matmul(x, y.t())
+            return torch.matmul(x, y.t()).log_softmax(-1)
         if self._config["score"] == "entailment":
             return self._entailment_score(x, y)
 
