@@ -1,5 +1,5 @@
 def test_MultiLabelDataset():
-    d = mlmc_lab.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
+    d = mlmc.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
                                                         y=[["a"],["b"],["c"],["d"]],
                                                         classes = {"a":0,"b":1,"c":2,"d":3})
 
@@ -11,11 +11,11 @@ def test_MultiLabelDataset():
 
 
 def test_MultiLabelDataset_add():
-    a = mlmc_lab.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
+    a = mlmc.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
                                                         y=[["a"], ["b"], ["c"], ["d"]],
                                                         classes = {"a":0,"b":1,"c":2,"d":3})
 
-    b = mlmc_lab.data.dataset_classes.MultiLabelDataset(x=["1", "4", "5"],
+    b = mlmc.data.dataset_classes.MultiLabelDataset(x=["1", "4", "5"],
                                                         y=[["a", "e"], ["d"], ["e"]],
                                                         classes = {"a":0,"d":1,"e":2})
 

@@ -1,8 +1,8 @@
 import torch
-
+import mlmc
 
 def test_multilabeldataset_remove():
-    d = mlmc_lab.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
+    d = mlmc.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
                                                         y=[["a", "b"], ["b"], ["c"], ["d"]],
                                                         classes={"a": 0, "b": 1, "c": 2, "d": 3})
 
@@ -11,7 +11,7 @@ def test_multilabeldataset_remove():
     assert d.x == ['3', '4'], "Removed a relevant data example"
     assert d.y == [["c"], ["d"]], "Removed wrong label sets"
 
-    d = mlmc_lab.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
+    d = mlmc.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
                                                         y=[["a", "b"], ["b"], ["c"], ["d"]],
                                                         classes={"a": 0, "b": 1, "c": 2, "d": 3})
 
@@ -21,7 +21,7 @@ def test_multilabeldataset_remove():
 
 
 def test_multilabeldataset_reduce():
-    d = mlmc_lab.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
+    d = mlmc.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
                                                         y=[["a", "b"], ["b"], ["c"], ["d"]],
                                                         classes={"a": 0, "b": 1, "c": 2, "d": 3})
 
@@ -40,7 +40,7 @@ def test_multilabeldataset_reduce():
 
 
 def test_multilabeldataset_count():
-    d = mlmc_lab.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
+    d = mlmc.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
                                                         y=[["a", "b"], ["b"], ["c"], ["d"]],
                                                         classes={"a": 0, "b": 1, "c": 2, "d": 3})
 
@@ -52,7 +52,7 @@ def test_multilabeldataset_count():
 
 
 def test_multilabeldataset_density():
-    d = mlmc_lab.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
+    d = mlmc.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
                                                         y=[["a", "b"], ["b"], ["c"], ["d"]],
                                                         classes={"a": 0, "b": 1, "c": 2, "d": 3})
 
@@ -61,7 +61,7 @@ def test_multilabeldataset_density():
 
 
 def test_multilabeldataset_map():
-    d = mlmc_lab.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
+    d = mlmc.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
                                                         y=[["a", "b"], ["b"], ["c"], ["d"]],
                                                         classes={"a": 0, "b": 1, "c": 2, "d": 3})
 
@@ -71,10 +71,10 @@ def test_multilabeldataset_map():
 
 
 def test_multilabeldataset_add():
-    d1 = mlmc_lab.data.dataset_classes.MultiLabelDataset(x=["1", "2", "4"],
+    d1 = mlmc.data.dataset_classes.MultiLabelDataset(x=["1", "2", "4"],
                                                          y=[["a", "b"], ["b"], ["d"]],
                                                          classes={"a": 0, "b": 1, "d": 2})
-    d2 = mlmc_lab.data.dataset_classes.MultiLabelDataset(x=["2", "3", "4"],
+    d2 = mlmc.data.dataset_classes.MultiLabelDataset(x=["2", "3", "4"],
                                                          y=[["e"], ["c"], ["d"]],
                                                          classes={"e": 0, "b": 1, "c": 2, "d": 3})
 
@@ -87,14 +87,14 @@ def test_multilabeldataset_add():
 
 def test_singlelabeldataset():
     try:
-        mlmc_lab.data.dataset_classes.SingleLabelDataset(x=["1", "2", "4"],
+        mlmc.data.dataset_classes.SingleLabelDataset(x=["1", "2", "4"],
                                                          y=[["a", "b"], ["b"], ["d"]],
                                                          classes={"a": 0, "b": 1, "d": 2})
         assert False, "SingleLabelDataset  should not accept multiple labels per instance!"
     except AssertionError:
         pass
 
-    d1 = mlmc_lab.data.dataset_classes.SingleLabelDataset(x=["1", "2", "4"],
+    d1 = mlmc.data.dataset_classes.SingleLabelDataset(x=["1", "2", "4"],
                                                           y=[["a"], ["b"], ["d"]],
                                                           classes={"a": 0, "b": 1, "d": 2})
 
@@ -108,14 +108,14 @@ def test_singlelabeldataset():
 
 def test_multioutputsinglelabeldataset():
     try:
-        mlmc_lab.data.dataset_classes.MultiOutputSingleLabelDataset(x=["1", "2", "4"],
+        mlmc.data.dataset_classes.MultiOutputSingleLabelDataset(x=["1", "2", "4"],
                                                                     y=[[["a"]], [["b"], ["c"]], [["d"], ["e"]]],
                                                                     classes={"a": 0, "b": 1, "d": 2})
         assert False, "SingleLabelDataset  should not accept multiple labels per instance!"
     except AssertionError:
         pass
 
-    d1 = mlmc_lab.data.dataset_classes.MultiOutputSingleLabelDataset(
+    d1 = mlmc.data.dataset_classes.MultiOutputSingleLabelDataset(
         x=["1", "2", "4"],
         y=[[["a"], ["b"]], [["b"], ["c"]], [["d"], ["e"]]],
         classes={"a": 0, "b": 1, "c": 3, "d": 2, "e": 4})
@@ -129,7 +129,7 @@ def test_multioutputsinglelabeldataset():
                                          [1, 3],
                                          [2, 4]])).all()
 
-    d2 = mlmc_lab.data.dataset_classes.MultiOutputSingleLabelDataset(
+    d2 = mlmc.data.dataset_classes.MultiOutputSingleLabelDataset(
         x=["5", "6", "2"],
         y=[[["a"], ["b"]], [["b"], ["c"]], [["d"], ["e"]]],
         classes={"a": 0, "b": 1, "c": 3, "d": 2, "e": 4})
@@ -139,14 +139,14 @@ def test_multioutputsinglelabeldataset():
 
 def test_multioutputmultilabeldataset():
     try:
-        mlmc_lab.data.dataset_classes.MultiOutputMultiLabelDataset(x=["1", "2", "4"],
+        mlmc.data.dataset_classes.MultiOutputMultiLabelDataset(x=["1", "2", "4"],
                                                                    y=[[["a"]], [["b"], ["c"]], [["d"], ["e"]]],
                                                                    classes={"a": 0, "b": 1, "d": 2})
         assert False, "SingleLabelDataset  should not accept multiple labels per instance!"
     except AssertionError:
         pass
 
-    d1 = mlmc_lab.data.dataset_classes.MultiOutputMultiLabelDataset(
+    d1 = mlmc.data.dataset_classes.MultiOutputMultiLabelDataset(
         x=["1", "2", "4"],
         y=[[["a", "b"], ["b"]], [["b", "d"], ["c"]], [["d", "e"], ["e"]]],
         classes={"a": 0, "b": 1, "c": 3, "d": 2, "e": 4})
