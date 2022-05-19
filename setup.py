@@ -49,6 +49,7 @@ setup(
     author_email='borst@informatik.uni-leipzig.de',
     description='A package specialized in neural multilabel and multiclass text classification.',
     install_requires=['transformers',
+                      'nlpaug',
                       'nltk',
                       'scikit-learn',
                       'datasets',
