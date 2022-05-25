@@ -521,7 +521,26 @@ class EntailmentDataset(Dataset):
         return len(self.x1)
 
     def __getitem__(self, item):
-        return {"x1": self.x1[item], "x2": self.x2[item], "labels": self.classes[self.labels[item]]}
+        return {"x1": self._augment(self.x1[item]),
+                "x2": self._augment(self.x2[item]),
+                "labels": self.classes[self.labels[item]]}
+
+    def set_augmenter(self, fct ):
+        """
+        Use this function to augment on the fly
+        """
+        self.augmenter = fct
+
+    def _augment(self, x):
+        return self.augmenter(x) if self.augmenter is not None else x
+
+    def generate(self, augmenter, n=10):
+        """
+        Use this function to generate a number of exmamples at once
+        """
+        self.x1 = self.x1 + sum((augmenter.generate(x,n) for x in self.x1),[])
+        self.x2 = self.x2 + sum((augmenter.generate(x,n) for x in self.x2),[])
+        self.labels = self.labels + sum(([y]*n for y in self.labels), [])
 
 class PredictionDataset(MultiLabelDataset):
     def __init__(self, x, **kwargs):
