@@ -516,6 +516,7 @@ class EntailmentDataset(Dataset):
         self.x2 = x2
         self.labels = labels
         self.classes = classes
+        self.augmenter=None
 
     def __len__(self):
         return len(self.x1)
