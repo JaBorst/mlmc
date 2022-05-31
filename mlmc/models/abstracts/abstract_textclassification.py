@@ -11,6 +11,7 @@ from ...metrics import MetricsDict
 from ...representation import is_transformer, get
 from ...thresholds import get as thresholdget
 from ...representation.character import makemultilabels
+from ...modules.augment import Augment
 
 class TextClassificationAbstract(torch.nn.Module):
     """
@@ -26,7 +27,9 @@ class TextClassificationAbstract(torch.nn.Module):
     """
     def __init__(self, classes, target=None, representation="google/bert_uncased_L-2_H-128_A-2",
                  activation=None, loss=None, optimizer=torch.optim.Adam, max_len=450, label_len=20,
-                 optimizer_params=None, device="cpu", finetune=False, threshold=None,  **kwargs):
+                 optimizer_params=None, device="cpu", finetune=False, threshold=None,
+                 word_cutoff=0.0, feature_cutoff=0.0, span_cutoff=0.0, word_noise=0.0,
+                 **kwargs):
         """
         Abstract initializer of a Text Classification network.
         Args:
@@ -73,8 +76,16 @@ class TextClassificationAbstract(torch.nn.Module):
             "optimizer": optimizer, "max_len": max_len,
             "optimizer_params": optimizer_params, "device": device,
             "finetune": finetune, "threshold": threshold,
-            "label_len": label_len,}
-
+            "label_len": label_len,
+            "word_cutoff": word_cutoff,
+            "feature_cutoff": feature_cutoff,
+            "span_cutoff": span_cutoff,
+            "word_noise": word_noise,
+        }
+        self._augment = Augment( word_cutoff=word_cutoff,
+                                 feature_cutoff=feature_cutoff,
+                                 span_cutoff=span_cutoff,
+                                 word_noise=word_noise)
         self._init_input_representations()
 
         # Setting default values for learning mode
@@ -661,9 +672,22 @@ class TextClassificationAbstract(torch.nn.Module):
             else:
                 with torch.no_grad():
                     embeddings = self.embedding(**x)
+        embeddings = self._augment(embeddings, x["attention_mask"].unsqueeze(-1))
         return embeddings
 
 
+    def _release_training_memory(self):
+        import gc
+        self.optimizer.zero_grad(set_to_none=True)
+        otype = type(self.optimizer)
+        del self.optimizer
+        gc.collect()
+        torch.cuda.empty_cache()
+        self.optimizer = otype
+
+    def reset_memory(self):
+        self._release_training_memory()
+        self.build()
 
     def _mean_pooling(self, token_embeddings, attention_mask):
         """
