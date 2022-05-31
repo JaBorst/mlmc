@@ -1,6 +1,6 @@
 import torch
 from .abstract_label import LabelEmbeddingAbstract
-
+from transformers.tokenization_utils import TruncationStrategy
 
 
 class EncoderAbstract(LabelEmbeddingAbstract):
@@ -17,12 +17,11 @@ class EncoderAbstract(LabelEmbeddingAbstract):
             label = list([self._config["sformatter"](x) for x in self._config["classes"]]) * len(x)
             text = [s for s in x for _ in range(len(self._config["classes"]))]
         else:
-            label = list([self._config["sformatter"](x) for x in self._config["classes"]])
+            label = self._config["classes"]
             text = x
-        tok = self.tokenizer( label, text, return_tensors="pt", add_special_tokens=True, padding=True,
-                                       truncation=True,
+        tok = self.tokenizer( list(zip(text,label)), return_tensors="pt", add_special_tokens=True, padding=True,
+                                       truncation=TruncationStrategy.ONLY_FIRST,
                                        max_length=self.max_len)
-
         if reshape:
             tok = {k:v.reshape((len(x), len(self._config["classes"]), -1)).to(device) for k,v in tok.items()}
         else:
