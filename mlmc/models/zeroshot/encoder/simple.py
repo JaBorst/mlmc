@@ -11,17 +11,20 @@ class SimpleEncoder(EncoderAbstract, TextClassificationAbstractZeroShot):
         """Only there to initialize a projection for binary classification"""
         super(SimpleEncoder, self).__init__(*args, **kwargs)
         self._all_compare = True
+        self.entailment_id = self._entailment_classes["entailment"]
+        self.contradiction_id = self._entailment_classes["contradiction"]
         self.build()
+
 
     def forward(self, x):
         e = self.embedding(**x)[0]
         if self._config["target"] == "entailment":
             pass
         elif self._config["target"] == "single":
-            e = e[:,-1]
+            e = e[:,self.entailment_id]
             e = e.reshape((int(x["input_ids"].shape[0] / self._config["n_classes"]), self._config["n_classes"]))
         elif self._config["target"] == "multi":
-            e = e[:, [0, 2]].log_softmax(-1)[:, -1]
+            e = e[:, [[self.contradiction_id, self.entailment_id]]].log_softmax(-1)[:, -1]
             e = e.reshape((int(x["input_ids"].shape[0] / len(self._config["classes"])), len(self._config["classes"])))
         else:
             assert not self._config["target"], f"Target {self._config['target']} not defined"
