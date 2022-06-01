@@ -64,7 +64,6 @@ class TextClassificationAbstract(torch.nn.Module):
         self.optimizer_params = optimizer_params
         self.PRECISION_DIGITS = 4
         self.representation = representation
-
         self.max_len = max_len
 
         self._config = {
@@ -87,6 +86,7 @@ class TextClassificationAbstract(torch.nn.Module):
                                  span_cutoff=span_cutoff,
                                  word_noise=word_noise)
         self._init_input_representations()
+        self._set_entailment_classes()
 
         # Setting default values for learning mode
         if self._config["target"] is None:
@@ -748,6 +748,17 @@ class TextClassificationAbstract(torch.nn.Module):
         self.set_loss(loss)
         self._config.update(**kwargs)
 
+    def _set_entailment_classes(self, classes=None):
+        if classes is None:
+            classes = {"contradiction": 0, "neutral": 1, "entailment": 2}
+        if hasattr(self, "_entailment_classes"):
+            if self.embedding.config.label2id != classes:
+                raise RuntimeError("Dataset defined entailment classes are different from model set classes")
+        if set(self.embedding.config.label2id.keys()) == set(classes.keys()):
+            self._entailment_classes =  self.embedding.config.label2id
+        else:
+            self._entailment_classes =  classes
+
     def finetune_lm(self, file, epochs=1, batch_size=8 , valid = 0.1):
         import subprocess, pathlib, tempfile, os, sys
         my_env = os.environ.copy()
@@ -760,95 +771,6 @@ class TextClassificationAbstract(torch.nn.Module):
                 env=my_env
             )
             self.embedding = transformers.AutoModel.from_pretrained(f + "/model")
-
-
-    def grok(self, train, valid=None, steps=1000, evaluate_every=100,
-             batch_size=16, valid_batch_size=50, callbacks=None, metrics=None, lr_schedule=None, lr_param={}, log_mlflow=False):
-        """
-        Training function
-
-        Args:
-            train: MultilabelDataset used as training data
-            valid: MultilabelDataset to keep track of generalization
-            epochs: Number of epochs (times to iterate the train data)
-            batch_size: Number of instances in one batch.
-            valid_batch_size: Number of instances in one batch  of validation.
-            patience: (default -1) Early Stopping Arguments.
-            Number of epochs to wait for performance improvements before exiting the training loop.
-            tolerance: (default 1e-2) Early Stopping Arguments.
-            Minimum improvement of an epoch over the best validation loss so far.
-
-        Returns:
-            A history dictionary with the loss and the validation evaluation measurements.
-
-        """
-        if callbacks is None:
-            callbacks = []
-        self.validation = []
-        self.train_history = {"loss": []}
-
-        assert not (type(train) == SingleLabelDataset and self._config["target"] == "multi"), \
-            "You inserted a SingleLabelDataset but chose multi as target."
-        assert not (type(train) == MultiLabelDataset and self._config["target"] == "single"), \
-            "You inserted a MultiLabelDataset but chose single as target."
-
-        if lr_schedule is not None:
-            scheduler = lr_schedule(self.optimizer, **lr_param)
-
-        # For 'steps' optimizations
-        batch_steps_in_data = int(len(train)/batch_size)
-        n_time_dataset = int(evaluate_every / batch_steps_in_data)
-        evaluations = int(steps/n_time_dataset)
-        train_duplicated = copy(train)
-        train_duplicated.x = train_duplicated.x * n_time_dataset
-        train_duplicated.y = train_duplicated.y * n_time_dataset
-
-        print(f"For {steps} optimization steps we do {evaluations} Evaluations.")
-        for s in range(evaluations):
-            self._callback_epoch_start(callbacks)
-
-            # An epoch
-            losses = {"loss": str(0.)}
-            train_loader = torch.utils.data.DataLoader(train_duplicated, batch_size=batch_size, shuffle=True)
-            with tqdm(train_loader,
-                      postfix=[losses], desc="Epoch %i/%i" % (s*evaluate_every, steps), ncols=100) as pbar:
-
-                loss = self._epoch(train_loader, pbar=pbar)
-                if lr_schedule is not None: scheduler.step()
-                self.train_history["loss"].append(loss)
-                if log_mlflow:
-                    import mlflow
-                    mlflow.log_metric("loss", loss, step=s)
-
-                # Validation if available
-                if valid is not None:
-                    valid_loss, result_metrics = self.evaluate(
-                        data=valid,
-                        batch_size=valid_batch_size,
-                        metrics=metrics,
-                        _fit=True)
-
-                    if log_mlflow:
-                        import mlflow
-                        mlflow.log_metric("valid_loss" ,valid_loss, step=s)
-                        result_metrics.log_mlflow(step=s, prefix="valid")
-
-                    valid_loss_dict = {"valid_loss": valid_loss}
-                    valid_loss_dict.update(result_metrics.compute())
-                    self.validation.append(valid_loss_dict)
-
-                    printables = {"valid_loss": valid_loss}
-                    printables.update(result_metrics.print())
-                    pbar.postfix[0].update(printables)
-                    pbar.update()
-
-            # Callbacks
-            self._callback_epoch_end(callbacks)
-        self._callback_train_end(callbacks)
-        # Load best
-        return_copy = {"train": copy(self.train_history), "valid": copy(self.validation)}
-        return return_copy
-
 
     def embed_batch(self, data, batch_size=50):
         """
