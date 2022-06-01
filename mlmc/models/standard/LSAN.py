@@ -70,8 +70,7 @@ class LSAN(TextClassificationAbstract):
         # step1 get LSTM outputs
         # hidden_state = self.init_hidden(x.shape[0])
         outputs = self.projection_input(embeddings)
-        if not is_transformer(self._config["representation"]):
-            outputs = outputs[0]
+
         # step2 get self-attention
         selfatt = torch.tanh(self.linear_first(outputs))
         selfatt = self.linear_second(selfatt)

@@ -36,17 +36,8 @@ class LSANNC(LabelEmbeddingAbstract,TextClassificationAbstractZeroShot):
         # Original
         self.create_labels(self.classes)
 
-        if is_transformer(self.representation):
-            self.projection_input = torch.nn.Linear(self.embeddings_dim,
-                                                    self._config["hidden_representations"] * 2)
-        else:
-            self.projection_input = torch.nn.LSTM(self.embeddings_dim,
-                                                  hidden_size=self._config["hidden_representations"],
-                                                  num_layers=1,
-                                                  batch_first=True,
-                                                  bidirectional=True)
-
-        # self.projection_labels = torch.nn.Linear(self.label_embedding_dim, self.hidden_representations)
+        self.projection_input = torch.nn.Linear(self.embeddings_dim,
+                                                self._config["hidden_representations"] * 2)
 
         from ...modules import LSANNCModule
 
@@ -95,7 +86,7 @@ class LSANNC(LabelEmbeddingAbstract,TextClassificationAbstractZeroShot):
         import re
         with torch.no_grad():
             l = get_word_embedding_mean(
-                [" ".join(re.split("[/ _-]", x.lower())) for x in self.classes.keys()],
+                list(self.classes.keys()),
                 self._config["label_model"])
             self.label_embedding_dim = l.shape[-1]
         return l

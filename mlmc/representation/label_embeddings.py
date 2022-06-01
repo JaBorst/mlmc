@@ -13,9 +13,11 @@ def get_word_embedding_mean(words, model):
         Tensor of shape (1, embedding_dim)
     """
     emb, tok = get(model)
-    transformed = tok(words)["input"]
-    mask = (transformed!=0).int()
-    embeddings = emb(transformed)
+    toks =  tok(words, padding=True, truncation=True,
+                add_special_tokens=True, return_tensors='pt')
+    transformed = toks["input_ids"]
+    mask = toks["attention_mask"]
+    embeddings = emb(transformed)[1]
     return embeddings.sum(-2)/mask.sum(-1, keepdim=True)
 
 def get_word_embeddings(words, model):

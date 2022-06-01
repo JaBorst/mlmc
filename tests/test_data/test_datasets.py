@@ -30,7 +30,7 @@ def test_multilabeldataset_reduce():
     assert d.x == ['1', '2'], "Removed a relevant data example"
     assert d.y == [["a", "b"], ["b"]], "Removed wrong label sets"
 
-    d = mlmc_lab.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
+    d = mlmc.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
                                                         y=[["a", "b"], ["b"], ["c"], ["d"]],
                                                         classes={"a": 0, "b": 1, "c": 2, "d": 3})
 

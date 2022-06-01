@@ -14,7 +14,7 @@ class XMLCNN(TextClassificationAbstract):
     Added support for Language Model as a feature.
     """
 
-    def __init__(self, mode="transformer",  bottle_neck= None, kernel_sizes=[3, 4, 5, 6], filters=100,
+    def __init__(self, multichannel=False,  bottle_neck= None, kernel_sizes=[3, 4, 5, 6], filters=100,
                  dropout=0.5, **kwargs):
         """
         Class constructor and initialization of every hyperparameter.
@@ -36,13 +36,11 @@ class XMLCNN(TextClassificationAbstract):
         self._config["filters"] = filters
         self._config["dropout"] = dropout
         self._config["bottle_neck"] = bottle_neck if bottle_neck is not None else int(self.n_classes**0.5)
-        self._config["mode"] = mode
+        self._config["multichannel"] = multichannel
 
-        self.modes = ("trainable", "untrainable", "multichannel")
-        assert self._config["mode"] in self.modes, "%s not in (%s, %s, %s, %s, %s)" % (self.mode, *self.modes)
 
         self.l = 1
-        if self._config["mode"] =="multichannel":
+        if self._config["multichannel"]:
             self.l = 2
             self.embedding_channel2, self.tokenizer_channel2 = get(model=self.representation, freeze=not self.finetune)
 
@@ -70,7 +68,7 @@ class XMLCNN(TextClassificationAbstract):
         """
         e = self.embed_input(x)
         c = self.kimcnn_module(e.permute(0, 2, 1))
-        if self._config["mode"] == "multichannel":
+        if self._config["multichannel"]:
             e2 = self.embedding_channel2(x)
             c = torch.cat([c, self.kimcnn_module(e2.permute(0, 2, 1))], -1)
         c = torch.relu(self.bottle_neck_layer(c))

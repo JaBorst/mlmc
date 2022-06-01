@@ -11,7 +11,7 @@ class MoKimCNN(TextClassificationAbstractMultiOutput):
     (added support for Language Models).
     """
 
-    def __init__(self, mode="transformer", kernel_sizes=(3, 4, 5, 6), filters=100, dropout=0.5, **kwargs):
+    def __init__(self, multichannel=False, kernel_sizes=(3, 4, 5, 6), filters=100, dropout=0.5, **kwargs):
         """
         Class constructor and initialization of every hyperparameter
 
@@ -33,17 +33,13 @@ class MoKimCNN(TextClassificationAbstractMultiOutput):
         self._config["kernel_sizes"] = kernel_sizes
         self._config["filters"] = filters
         self._config["dropout"] = dropout
-        self._config["mode"] = mode
+        self._config["multichannel"] = multichannel
 
-        self.modes = ("trainable", "untrainable", "multichannel")
-        assert self._config["mode"]  in self.modes, f"{self._config['mode'] } not in ({self.modes})"
-
-        self.l = 2 if  self._config["mode"] == "multichannel" else 1
-
-        if self._config["mode"]  == "multichannel":
+        self.l = 2 if  self._config["multichannel"] else 1
+        if self._config["multichannel"]:
             self.embedding_channel2, self.tokenizer_channel2 = get(model=self.representation, freeze=not self.finetune)
 
-            # Layers
+        # Layers
         self.kimcnn_module = KimCNNModule(in_features=self.embeddings_dim, kernel_sizes= self._config["kernel_sizes"],
                                           filters=self._config["filters"], dropout=self._config["dropout"])
         self.dropout_layer = torch.nn.Dropout(self._config["dropout"])
@@ -62,7 +58,7 @@ class MoKimCNN(TextClassificationAbstractMultiOutput):
         """
         e = self.embed_input(x)
         c = self.kimcnn_module(e.permute(0, 2, 1))
-        if self._config["mode"] == "multichannel":
+        if self._config["multichannel"]:
             e2 = self.embedding_channel2(x)
             c = torch.cat([c, self.kimcnn_module(e2.permute(0, 2, 1))], -1)
         output = [x(self.dropout_layer(c)) for x in self.projection]

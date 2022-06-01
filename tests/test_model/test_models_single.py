@@ -16,14 +16,10 @@ def assertion_function(model_type, **kwargs):
     assert len(history["train"]["loss"]) == 5, "Number of Epochs not reached"
 
 def test_KimCNN():
-    assertion_function(model_type=mlmc.models.KimCNN, mode="untrainable", filters=10, kernel_sizes=[3,4])
+    assertion_function(model_type=mlmc.models.KimCNN,  filters=10, kernel_sizes=[3,4])
 
 def test_XMLCNN():
-    assertion_function(model_type=mlmc.models.XMLCNN, mode="untrainable", filters=10, kernel_sizes=[3,4])
+    assertion_function(model_type=mlmc.models.XMLCNN,  filters=10, kernel_sizes=[3,4])
 
 def test_LSAN_transformer():
-    assertion_function(model_type=mlmc.models.LSANNC, label_model="test", hidden_representations=10, d_a=10)
-
-def test_ewb_transformer():
-    assertion_function(model_type=mlmc.models.zeroshot.EmbeddingBasedWeighted, finetune=True)
-
+    assertion_function(model_type=mlmc.models.LSANNC, label_model="google/bert_uncased_L-2_H-128_A-2", hidden_representations=10, d_a=10)

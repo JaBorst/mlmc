@@ -66,13 +66,13 @@ def test_LSAN():
     assertion_function(model_type=mlmc.models.LSAN, target="multi",representation="google/bert_uncased_L-2_H-128_A-2", hidden_representations=10, d_a=10)
 
 def test_LSANNC():
-    assertion_function(model_type=mlmc.models.LSANNC, target="multi",representation="google/bert_uncased_L-2_H-128_A-2", label_model="test", hidden_representations=10, d_a=10)
+    assertion_function(model_type=mlmc.models.LSANNC, target="multi",representation="google/bert_uncased_L-2_H-128_A-2", label_model="google/bert_uncased_L-2_H-128_A-2", hidden_representations=10, d_a=10)
 
 def test_MoKimCNN():
     assertion_function(model_type=mlmc.models.MoKimCNN, representation="google/bert_uncased_L-2_H-128_A-2", target="single", kernel_sizes=(2,3))
 
 def test_MoLSANNC():
-    assertion_function(model_type=mlmc.models.MoLSANNC, representation="google/bert_uncased_L-2_H-128_A-2",label_model="test", target="single", hidden_representations=10, d_a=10)
+    assertion_function(model_type=mlmc.models.MoLSANNC, representation="google/bert_uncased_L-2_H-128_A-2",label_model="google/bert_uncased_L-2_H-128_A-2", target="single", hidden_representations=10, d_a=10)
 
 def test_MoTransformer():
     assertion_function(model_type=mlmc.models.MoTransformer, representation="google/bert_uncased_L-2_H-128_A-2", target="single")

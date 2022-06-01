@@ -1,3 +1,5 @@
+import mlmc
+
 def test_MultiLabelDataset():
     d = mlmc.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
                                                         y=[["a"],["b"],["c"],["d"]],

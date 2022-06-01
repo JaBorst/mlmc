@@ -32,12 +32,12 @@ def assertion_function(model_type, **kwargs):
     assert len(history["train"]["loss"]) == 5, "Number of Epochs not reached"
 
 def test_MoKimCNN():
-    assertion_function(model_type=mlmc.models.MoKimCNN, mode="untrainable",  filters=10, kernel_sizes=[3,4])
+    assertion_function(model_type=mlmc.models.MoKimCNN, filters=10, kernel_sizes=[3,4])
 
 def test_MoLSANNC():
-    assertion_function(model_type=mlmc.models.MoLSANNC, mode="untrainable", filters=10, kernel_sizes=[3,4])
+    assertion_function(model_type=mlmc.models.MoLSANNC, filters=10, kernel_sizes=[3,4])
 
 def test_MoTransformer():
-    assertion_function(model_type=mlmc.models.MoTransformer, label_model="test", hidden_representations=10, d_a=10)
+    assertion_function(model_type=mlmc.models.MoTransformer, label_model="google/bert_uncased_L-2_H-128_A-2", hidden_representations=10, d_a=10)
 
 
