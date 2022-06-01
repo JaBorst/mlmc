@@ -34,4 +34,3 @@ class EncoderAbstract(LabelEmbeddingAbstract):
         self.embedding = AutoModelForSequenceClassification.from_pretrained(self.representation, num_labels=3)
         self.tokenizer = AutoTokenizer.from_pretrained(self.representation)
         self.embeddings_dim = self.embedding(**self.tokenizer(["test"], return_tensors="pt"))[0].shape[-1]
-        for param in self.embedding.parameters(): param.requires_grad = self.finetune

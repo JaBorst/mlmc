@@ -6,7 +6,6 @@ import re
 from ..abstracts.abstracts_multi_output import TextClassificationAbstractMultiOutput
 from ..abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
 from ...modules import *
-from ...representation import is_transformer
 
 
 class MoLSANNC(TextClassificationAbstractMultiOutput, TextClassificationAbstractZeroShot):
@@ -36,15 +35,8 @@ class MoLSANNC(TextClassificationAbstractMultiOutput, TextClassificationAbstract
         # Original
         self.create_labels(self.classes)
 
-        if is_transformer(self.representation):
-            self.projection_input = torch.nn.Linear(self.embeddings_dim,
-                                                    self._config["hidden_representations"] * 2)
-        else:
-            self.projection_input = torch.nn.LSTM(self.embeddings_dim,
-                                                  hidden_size= self._config["hidden_representations"],
-                                                  num_layers=1,
-                                                  batch_first=True,
-                                                  bidirectional=True)
+        self.projection_input = torch.nn.Linear(self.embeddings_dim,
+                                                self._config["hidden_representations"] * 2)
 
         # self.projection_labels = torch.nn.Linear(self.label_embedding_dim, self.hidden_representations)
         from ...modules import LSANNCModule
@@ -68,8 +60,6 @@ class MoLSANNC(TextClassificationAbstractMultiOutput, TextClassificationAbstract
         outputs = self.projection_input(self.embed_input(x) / self.embeddings_dim)
         label_embed = torch.cat([x for x in self.label_embedding],0)
 
-        if not is_transformer(self.representation):
-            outputs = outputs[0]
         outputs = self.dropout_layer(outputs)
         doc, weights = self.lsannc(outputs,label_embed,return_weights=True)
         # if self.log_bw:

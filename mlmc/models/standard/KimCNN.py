@@ -1,7 +1,7 @@
 import torch
 from ..abstracts.abstract_textclassification import TextClassificationAbstract
 from ...modules.module_KimCNN import KimCNNModule
-from ...representation import get, is_transformer
+from ...representation import get
 ##############################################################################################
 ##############################################################################################
 #  Implementations
@@ -32,10 +32,7 @@ class KimCNN(TextClassificationAbstract):
         self._config["dropout"] = dropout
 
 
-        self.modes = ("trainable", "untrainable", "multichannel", "transformer")
-        if is_transformer(self._config["representation"]):
-            print("Setting mode to transformer")
-            self._config["mode"] = "transformer"
+        self.modes = ("trainable", "untrainable", "multichannel")
         assert mode in self.modes, f"{mode} not in ({self.modes})"
         self._config["mode"] = mode
 

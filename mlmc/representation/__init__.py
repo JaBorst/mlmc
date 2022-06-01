@@ -27,11 +27,8 @@ embedding_tensor = embedder(tokenizer("Some text you want to embed"))
 ```
 """
 
-from .representations import load_static, get_transformer, map_vocab,get_embedding,get,get_white_space_tokenizer, is_transformer, empty_cache, custom_embedding, delete_custom_embeddings
-from .character import charindex
-from .embedder import Embedder
+from .representations import  get_transformer, get
 from .label_embeddings import get_word_embedding_mean, get_wikidata_desc
-from .tokenizer_wrapper import TokenizerWrapper
 
 
 

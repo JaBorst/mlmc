@@ -5,8 +5,6 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def assertion_function(model_type, **kwargs):
-    mlmc.representation.representations.add_test_example()
-
     classes = [
         {"class1": 0, "class2": 1, "class3": 2},
         {"class1": 0, "class3": 1},
@@ -34,10 +32,10 @@ def assertion_function(model_type, **kwargs):
     assert len(history["train"]["loss"]) == 5, "Number of Epochs not reached"
 
 def test_MoKimCNN():
-    assertion_function(model_type=mlmc.models.MoKimCNN, mode="untrainable", representation="test", filters=10, kernel_sizes=[3,4])
+    assertion_function(model_type=mlmc.models.MoKimCNN, mode="untrainable",  filters=10, kernel_sizes=[3,4])
 
 def test_MoLSANNC():
-    assertion_function(model_type=mlmc.models.MoLSANNC, representation="test", mode="untrainable", filters=10, kernel_sizes=[3,4])
+    assertion_function(model_type=mlmc.models.MoLSANNC, mode="untrainable", filters=10, kernel_sizes=[3,4])
 
 def test_MoTransformer():
     assertion_function(model_type=mlmc.models.MoTransformer, label_model="test", hidden_representations=10, d_a=10)

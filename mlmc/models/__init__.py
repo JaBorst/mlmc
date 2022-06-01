@@ -8,8 +8,6 @@ from .standard import *
 #LSAN Variants
 # Basic transformers
 
-from mlmc.models.abstracts.bayes_model import  BayesNetwork
-
 from .zeroshot import *
 
 

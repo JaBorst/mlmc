@@ -3,7 +3,6 @@ https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
 """
 from ..abstracts.abstract_label import LabelEmbeddingAbstract
 from ..abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
-from ...representation import is_transformer
 import re
 from mlmc.modules import *
 
@@ -67,8 +66,6 @@ class LSANNC(LabelEmbeddingAbstract,TextClassificationAbstractZeroShot):
         :return: Output tensor
         """
         outputs = self.projection_input(self.embed_input(x) / self.embeddings_dim)
-        if not is_transformer(self.representation):
-            outputs = outputs[0]
         # outputs = self.dropout_layer(outputs)
         # label_embed = self.dropout_layer(self.label_embedding)
         doc, weights = self.lsannc(outputs, self.label_dict, return_weights=True)

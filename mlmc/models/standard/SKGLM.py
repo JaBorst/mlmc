@@ -53,29 +53,6 @@ class SKGLM(TextClassificationAbstractGraph):
         beliefs = self.skg_module(embeddings, self.embedding_to_embedding3(label_embeddings), self.adj.to(x.device))
         return beliefs
 
-    def transform(self, x):
-        """
-        Transforms textual input into model input.
-
-        :param x: A string or a list of strings
-        :return: Tokenized input according to the models tokenizer
-        """
-        def clean(x):
-            """
-            Removes whitespace characters and punctuation from a string.
-
-            :param x: A string
-            :return: Cleaned string
-            """
-            import string
-            import re
-            x = re.sub("[" + string.punctuation + "]+", " ", x)
-            x = re.sub("\s+", " ", x)
-            x = "".join([c for c in x.lower() if c not in string.punctuation])
-            return x
-
-        return self.tokenizer([clean(sent) for sent in x], self.max_len).to(self.device)
-
     def create_labels(self, classes):
         """
         Creates label embeddings and adds them to the model.

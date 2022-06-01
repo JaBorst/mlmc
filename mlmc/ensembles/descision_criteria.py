@@ -9,16 +9,16 @@ class Decision(torch.nn.Module):
 
 class MajorityDecision(Decision):
     def forward(self, scores):
-        scores_stack = torch.stack(scores, -1)
-        return scores_stack.argmax(-2).mode().indices
+        s_max = scores.argmax(-2)
+        s = torch.nn.functional.one_hot(s_max, scores.shape[-2])
+        who = (s.sum(-2).argmax(-1).unsqueeze(-1) == s_max).int()
+        return who.argmax(-1)
 
 class ConfidenceDecision(Decision):
     def forward(self, scores):
-        scores_stack = torch.stack(scores,-1)
-        return scores_stack.max(-2)[0].argmax(-1)
+        return scores.max(-2)[0].argmax(-1)
 
 class EntropyDecision(Decision):
     def forward(self, scores):
-        scores_stack = torch.stack(scores,-1)
-        return (-(scores_stack.softmax(-2)*scores_stack.log_softmax(-2)).sum(-2)).argmin(-1)
+        return (-(scores.softmax(-2)*scores.log_softmax(-2)).sum(-2)).argmin(-1)
 

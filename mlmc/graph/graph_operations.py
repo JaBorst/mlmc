@@ -14,24 +14,6 @@ def cos(x,y):
     return torch.matmul((x/x.norm(p=2,dim=-1,keepdim=True)) , (y/y.norm(p=2,dim=-1,keepdim=True)).t())
 
 
-
-def embed_align(classes, graph, model="glove50", topk=10, batch_size=50, device="cpu"):
-    # TODO: Documentation
-    from ..representation import Embedder
-    e = Embedder(model, device=device, return_device=device)
-    classes_tokens = [" ".join(re.split("[/ _-]", x.lower())) for x in classes.keys()]
-
-    class_embeddings = torch.stack([x.mean(-2) for x in e.embed(classes_tokens, None)],0)
-
-    scores = []
-    for batch in e.embed_batch_iterator(list(graph.nodes), batch_size=batch_size):
-        scores.append(cos(class_embeddings, torch.stack([x.mean(-2) for x in batch],0)).t())
-
-    scores = torch.cat(scores, 0)
-    similar_nodes = scores.topk(topk, dim=0)[1].t().cpu()
-    return {k:[list(graph.nodes)[x.item()] for x in v] for k,v in zip(classes.keys(), similar_nodes)}
-
-
 def extend(classes, graph, depth=1, topk=20, allow_non_alignment=False, device="cpu"):
     """
     Return a subgraph of relevant nodes.

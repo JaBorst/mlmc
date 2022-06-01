@@ -4,7 +4,6 @@ import mlmc
 import torch
 import networkx as nx
 
-mlmc.representation.representations.add_test_example()
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def compare_models(model_1, model_2):
@@ -29,13 +28,13 @@ def save_and_load(model):
 
 def assertion_function(model_type, **kwargs):
 
-    data = mlmc_lab.data.dataset_classes.MultiLabelDataset(
+    data = mlmc.data.dataset_classes.MultiLabelDataset(
         x = ["Sample 1", "Sample 2", "Sample 3", "Sample 4", "Sample 5"],
         y = [["label_0", "label_4"], ["label_0", "label_2"], ["label_2", "label_3"], ["label_1", "label_4"], ["label_1", "label_4"]],
         classes = {"label_%i" % (i,): i for i in range(5)}
     )
 
-    mo_data = mlmc_lab.data.dataset_classes.MultiOutputSingleLabelDataset(
+    mo_data = mlmc.data.dataset_classes.MultiOutputSingleLabelDataset(
         x=["Sample 1", "Sample 2", "Sample 3", "Sample 4", "Sample 5"],
         y=[[["label_0"], ["label_2"]], [["label_3"], ["label_1"]], [["label_4"], ["label_2"]], [["label_1"], ["label_2"]], [["label_3"], ["label_0"]]],
         classes= {"label_0": 0, "label_1": 1, "label_2": 3, "label_3": 2, "label_4": 4})
@@ -83,10 +82,3 @@ def test_Transformer():
 
 def test_XMLCNN():
     assertion_function(model_type=mlmc.models.XMLCNN, target="multi", representation="google/bert_uncased_L-2_H-128_A-2", kernel_sizes=(2,3))
-
-#Geometric Models:
-# def test_SKGLM():
-#     assertion_function(model_type=mlmc.models.SKGLM, representation="google/bert_uncased_L-2_H-128_A-2")
-#
-# def test_ZAGCNNLM():
-#     assertion_function(model_type=mlmc.models.ZAGCNNLM, representation="google/bert_uncased_L-2_H-128_A-2", n_layers=1)

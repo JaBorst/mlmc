@@ -4,7 +4,6 @@ https://raw.githubusercontent.com/EMNLP2019LSAN/LSAN/master/attention/model.py
 import torch
 import torch.nn.functional as F
 from ..abstracts.abstract_textclassification import TextClassificationAbstract
-from ...representation import is_transformer
 
 class LSAN(TextClassificationAbstract):
     """
@@ -41,15 +40,8 @@ class LSAN(TextClassificationAbstract):
         else:
             self.label_embed = torch.nn.Embedding(self.n_classes, self._config["lstm_hid_dim"])
 
-        if is_transformer(self.representation):
-            self.projection_input = torch.nn.Linear(self.embeddings_dim,
-                                                    self._config["lstm_hid_dim"] * 2)
-        else:
-            self.projection_input = torch.nn.LSTM(self.embeddings_dim,
-                                                  hidden_size=self._config["lstm_hid_dim"],
-                                                  num_layers=1,
-                                                  batch_first=True,
-                                                  bidirectional=True)
+        self.projection_input = torch.nn.Linear(self.embeddings_dim,
+                                                self._config["lstm_hid_dim"] * 2)
 
         self.linear_first = torch.nn.Linear(self._config["lstm_hid_dim"] * 2, d_a)
         self.linear_second = torch.nn.Linear(self._config["d_a"], self.n_classes)

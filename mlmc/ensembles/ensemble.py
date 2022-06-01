@@ -1,14 +1,6 @@
 import mlmc
-from mlmc_lab.mlmc_experimental.data.data import SingleLabelDataset, MultiLabelDataset
+from mlmc.data import SingleLabelDataset, MultiLabelDataset
 from mlmc.ensembles.descision_criteria import *
-d = mlmc.data.get("agnews")
-device="cuda:1"
-# m = [mlmc.models.Transformer(classes=d["classes"], target="single", device=device),
-#      mlmc.models.Transformer(classes=d["classes"], target="single", device=device),
-#      mlmc.models.Transformer(classes=d["classes"], target="single", device=device),
-#      mlmc.models.Transformer(classes=d["classes"], target="single", device=device),
-#      mlmc.models.Transformer(classes=d["classes"], target="single", device=device)]
-
 
 
 class Ensemble:
@@ -82,26 +74,30 @@ class Ensemble:
         else:
             return initialized_metrics.compute()
 
-    def predict_ensemble(self, *args, **kwargs):
-        [m.eval() for m in self.m]  # set mode to evaluation to disable dropout
-        kwargs["return_scores"]=True
-        scores=[m.predict(*args,**kwargs) for m in self.m]
-        idx = self.vote([s[1] for s in scores])
-        s = torch.stack([x[i]  for x,i in zip(zip(*[s[1] for s in scores]), idx.tolist())],0)
-        p = torch.stack([x[i]  for x,i in zip(zip(*[s[2] for s in scores]), idx.tolist())],0)
-        [m.train() for m in self.m]
-        return [x[i] for x,i in zip(zip(*[s[0] for s in scores]),idx)], s, p
+    def predict_ensemble(self, *args, vote=True, **kwargs):
+        scores = self._get_ensemble_single(*args, **kwargs)
 
-    def predict_ensemble_batch(self, *args, **kwargs):
-        [m.eval() for m in self.m]  # set mode to evaluation to disable dropout
-        kwargs["return_scores"]=True
-        scores=[m.predict_batch(*args,**kwargs) for m in self.m]
-        idx = self.vote([s[1] for s in scores])
-        s = torch.stack([x[i]  for x,i in zip(zip(*[s[1] for s in scores]), idx.tolist())],0)
-        p = torch.stack([x[i]  for x,i in zip(zip(*[s[2] for s in scores]), idx.tolist())],0)
-        [m.train() for m in self.m]
-        return [x[i] for x,i in zip(zip(*[s[0] for s in scores]),idx)], s, p
+        if vote:
+            idx = self.vote(scores[1])
+            s = torch.stack([x[:, i] for x, i in zip(scores[1], idx.tolist())], 0)
+            p = torch.stack([x[:, i] for x, i in zip(scores[2], idx.tolist())], 0)
+            l = [x[i] for x, i in zip(scores[0], idx)]
+            return l, s, p
+        else:
+            return scores
 
+    def _get_ensemble_single(self, *args, **kwargs):
+        [m.eval() for m in self.m]  # set mode to evaluation to disable dropout
+        kwargs["return_scores"] = True
+        scores = [m.predict_batch(*args, **kwargs) for m in self.m]
+        def _combine(t):
+            if isinstance(t[0], list):
+                return list(zip(*t))
+            else:
+                return torch.stack(t,-1)
+
+        tup = [_combine([x[i] for x in scores]) for i in range(len(scores[0]))]
+        return tup
 
     def single(self, *args, **kwargs):
         [m.single(*args,**kwargs) for m in self.m]
@@ -109,22 +105,28 @@ class Ensemble:
         [m.multi(*args,**kwargs) for m in self.m]
     def entailment(self, *args, **kwargs):
         [m.entailment(*args,**kwargs) for m in self.m]
+    def set_sformatter(self, *args, **kwargs):
+        [m.set_sformatter(*args,**kwargs) for m in self.m]
+    def create_labels(self, *args, **kwargs):
+        [m.create_labels(*args,**kwargs) for m in self.m]
 #
 # r = "google/bert_uncased_L-4_H-256_A-4"
 # from mlmc_lab import mlmc_experimental as mlmce
-# m = [mlmc.models.EmbeddingBasedWeighted(mode="vanilla", representation=r, sformatter=mlmc.data.SFORMATTER["agnews"], finetune=True, classes=d["classes"], target="single", loss=mlmce.loss.EncourageLoss(0.75), device=device),
-#      mlmc.models.EmbeddingBasedWeighted(mode="max", representation=r, sformatter=mlmc.data.SFORMATTER["agnews"],  finetune=True, classes=d["classes"], target="single",loss=mlmce.loss.EncourageLoss(0.75), device=device),
-#      mlmc.models.EmbeddingBasedWeighted(mode="mean", representation=r, sformatter=mlmc.data.SFORMATTER["agnews"], finetune=True, classes=d["classes"], target="single",loss=mlmce.loss.EncourageLoss(0.75),device=device),
-#      mlmc.models.EmbeddingBasedWeighted(mode="max_mean",representation=r,  sformatter=mlmc.data.SFORMATTER["agnews"], finetune=True, classes=d["classes"], target="single", loss=mlmce.loss.EncourageLoss(0.75),device=device),
-#      mlmc.models.EmbeddingBasedWeighted(mode="attention_max_mean", representation=r, sformatter=mlmc.data.SFORMATTER["agnews"], finetune=True, classes=d["classes"], target="single", loss=mlmce.loss.EncourageLoss(0.75),device=device)]
+# d = mlmce.data.get("agnews")
+# device="cuda:0"
+# m = [
+#     mlmc.models.Siamese(representation=r, sformatter=mlmce.data.SFORMATTER["agnews"], finetune="all", classes=d["classes"], target="single", loss=mlmce.loss.EncourageLoss(0.75), device=device),
+#     mlmc.models.Siamese(representation=r, sformatter=mlmce.data.SFORMATTER["agnews"],  finetune="all", classes=d["classes"], target="single",loss=mlmce.loss.EncourageLoss(0.75), device=device),
+#     mlmc.models.Siamese(epresentation=r, sformatter=mlmce.data.SFORMATTER["agnews"], finetune="all", classes=d["classes"], target="single",loss=mlmce.loss.EncourageLoss(0.75),device=device),
+# ]
 # # m = m+[mlmc.models.SimpleEncoder(representation="roberta-large-mnli", sformatter=mlmc.data.SFORMATTER["agnews"], finetune=True, classes=d["classes"], target="single", device=device)]
 #
 # e = Ensemble(m)
 # # e.t[-1] = False
 # # e.fit(mlmc.data.sampler(d["train"], absolute=100), epochs=50)
-# test=mlmc.data.sampler(d["test"], absolute=1000)
+# test=mlmc.data.sampler(d["test"], absolute=100)
 #
 # print(e.evaluate(test))
-# e.predict_ensemble_batch(test)
+# e.predict_ensemble(test.x, vote=False)
 #
-
+#

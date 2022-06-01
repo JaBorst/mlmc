@@ -35,7 +35,7 @@ class MoKimCNN(TextClassificationAbstractMultiOutput):
         self._config["dropout"] = dropout
         self._config["mode"] = mode
 
-        self.modes = ("trainable", "untrainable", "multichannel", "transformer")
+        self.modes = ("trainable", "untrainable", "multichannel")
         assert self._config["mode"]  in self.modes, f"{self._config['mode'] } not in ({self.modes})"
 
         self.l = 2 if  self._config["mode"] == "multichannel" else 1

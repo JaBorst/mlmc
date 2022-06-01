@@ -1,8 +1,5 @@
-import mlmc
 from mlmc.ensembles.descision_criteria import *
 from tqdm import tqdm
-d = mlmc.data.get("agnews")
-device="cuda:1"
 
 
 

@@ -8,7 +8,7 @@ import mlmc.loss
 from ...data import SingleLabelDataset, MultiLabelDataset
 from ...data import PredictionDataset
 from ...metrics import MetricsDict
-from ...representation import is_transformer, get
+from ...representation import get
 from ...thresholds import get as thresholdget
 from ...representation.character import makemultilabels
 from ...modules.augment import Augment
@@ -27,7 +27,7 @@ class TextClassificationAbstract(torch.nn.Module):
     """
     def __init__(self, classes, target=None, representation="google/bert_uncased_L-2_H-128_A-2",
                  activation=None, loss=None, optimizer=torch.optim.Adam, max_len=450, label_len=20,
-                 optimizer_params=None, device="cpu", finetune=False, threshold=None,
+                 optimizer_params=None, device="cpu", finetune="fixed", threshold=None,
                  word_cutoff=0.0, feature_cutoff=0.0, span_cutoff=0.0, word_noise=0.0,
                  **kwargs):
         """
@@ -161,6 +161,7 @@ class TextClassificationAbstract(torch.nn.Module):
         """
         Internal build method.
         """
+        self._finetune_mode(self._config["finetune"])
         if isinstance(self._config["loss"], type) and self._config["loss"] is not None:
             self.loss = self._config["loss"]().to(self.device)
         else:
@@ -609,28 +610,42 @@ class TextClassificationAbstract(torch.nn.Module):
 
     def _init_input_representations(self):
         # TODO: Documentation
-        if is_transformer(self.representation):
-            if not hasattr(self, "n_layers"): self.n_layers = 1
-            try:
-                if self.n_layers == 1:
-                    self.embedding, self.tokenizer = get(model=self.representation)
-                    self.embeddings_dim = self.embedding(torch.tensor([[0]]))[0].shape[-1]
+        if not hasattr(self, "n_layers"): self.n_layers = 1
+        try:
+            if self.n_layers == 1:
+                self.embedding, self.tokenizer = get(model=self.representation)
+                self.embeddings_dim = self.embedding(torch.tensor([[0]]))[0].shape[-1]
+            else:
+                self.embedding, self.tokenizer = get(model=self.representation, output_hidden_states=True)
+                self.embeddings_dim = \
+                    torch.cat(self.embedding(self.embedding.dummy_inputs["input_ids"])[2][-self.n_layers:],
+                              -1).shape[-1]
+        except TypeError:
+            print("If your using a model that does not support returning hiddenstates, set n_layers=1")
+            import sys
+            sys.exit()
+        self._finetune_mode(self._config["finetune"])
+
+    def _finetune_mode(self, mode):
+        modes = ("all", "bias", "random", "fixed")
+        assert mode in modes
+        if mode == "all":
+            for x in self.parameters(recurse=True):
+                x.requires_grad=True
+        elif mode == "bias":
+            for name, param in self.named_parameters():
+                if "bias" in name.lower():  # isinstance(layer, torch.nn.Linear):
+                    param.requires_grad = True
                 else:
-                    self.embedding, self.tokenizer = get(model=self.representation, output_hidden_states=True)
-                    self.embeddings_dim = \
-                        torch.cat(self.embedding(self.embedding.dummy_inputs["input_ids"])[2][-self.n_layers:],
-                                  -1).shape[-1]
-            except TypeError:
-                print("If your using a model that does not support returning hiddenstates, set n_layers=1")
-                import sys
-                sys.exit()
-            for param in self.embedding.parameters(): param.requires_grad = self.finetune
-            if self.finetune:
-                self.embedding.requires_grad = True
+                    param.requires_grad = False
+        elif mode == "random":
+            for name, param in self.named_parameters():
+                param.requires_grad = bool(torch.rand(1).round())
+        elif mode == "fixed":
+            self.embedding.requires_grad = False
+            for param in self.embedding.parameters(): param.requires_grad = False
         else:
-            self.embedding, self.tokenizer = get(self.representation, freeze=not self.finetune)
-            self.embeddings_dim = self.embedding(torch.LongTensor([[0]])).shape[-1]
-            for param in self.embedding.parameters(): param.requires_grad = self.finetune
+            raise ValueError(f"Finetuning mode [{mode}] unknown. Must be one of {modes}")
 
     def num_params(self):
         """
@@ -654,24 +669,17 @@ class TextClassificationAbstract(torch.nn.Module):
         :param x: Input tensor
         :return: Embedded tensor
         """
-        if is_transformer(self.representation):
-            if self.finetune:
+        if self._config["finetune"] != "fixed":
+            if self.n_layers == 1:
+                embeddings = self.embedding(**x)[0]
+            else:
+                embeddings = torch.cat(self.embedding(**x)[2][-self.n_layers:], -1)
+        else:
+            with torch.no_grad():
                 if self.n_layers == 1:
                     embeddings = self.embedding(**x)[0]
                 else:
                     embeddings = torch.cat(self.embedding(**x)[2][-self.n_layers:], -1)
-            else:
-                with torch.no_grad():
-                    if self.n_layers == 1:
-                        embeddings = self.embedding(**x)[0]
-                    else:
-                        embeddings = torch.cat(self.embedding(**x)[2][-self.n_layers:], -1)
-        else:
-            if self.finetune:
-                embeddings = self.embedding(**x)
-            else:
-                with torch.no_grad():
-                    embeddings = self.embedding(**x)
         embeddings = self._augment(embeddings, x["attention_mask"].unsqueeze(-1))
         return embeddings
 
@@ -709,8 +717,7 @@ class TextClassificationAbstract(torch.nn.Module):
         """
         Internal build method.
         """
-        for param in self.embedding.parameters(): param.requires_grad = self.finetune
-        self.embedding.requires_grad = self.finetune
+        self._finetune_mode(self._config["finetune"])
         self.loss = type(self.loss)().to(self.device)
         self.optimizer = type(self.optimizer)(filter(lambda p: p.requires_grad, self.parameters()),
                                               **self.optimizer_params)
@@ -815,3 +822,32 @@ class TextClassificationAbstract(torch.nn.Module):
         import mlflow
         mlflow.log_params({k:v for k,v in self._config.items() if k not in ["classes"]})
         mlflow.log_param("model", self.__class__.__name__)
+
+    def evaluate_word_importance(self, x, plot=False):
+        text = x
+        text_split = text.split(" ")
+        text = [text] + [" ".join(text_split[:i] + text_split[i + 1:]) for i in range(len(text_split))]
+        p, scores, _ = self.predict_batch(text, return_scores=True, batch_size=12)
+
+        # change = (-(scores[1:]-scores[0])).relu()#[:,sbb.classes[p[0][0]]]
+        change = scores[0] - scores[1:]
+
+        if plot:
+            try:
+                import pandas as pd
+            except:
+                raise ImportError("When trying to plot the word importance, you need pandas installed")
+            try:
+                import matplotlib.pyplot as plt
+            except:
+                raise ImportError("When trying to plot the word importance, you need matplotlib installed")
+            
+            df = pd.DataFrame(change, columns=self.classes.keys(), index=text_split)
+            fig = plt.figure(figsize=(16, 8))
+            plt.plot(df.values, label=self.classes.keys())
+            plt.xticks(range(len(text_split)), labels=text_split, rotation=90)
+            plt.grid("True")
+            plt.tight_layout()
+            plt.legend()
+            plt.show()
+        return change

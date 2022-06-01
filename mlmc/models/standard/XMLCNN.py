@@ -2,7 +2,6 @@ import torch
 from ..abstracts.abstract_textclassification import TextClassificationAbstract
 from ...representation import get
 from ...modules.module_KimCNN import KimCNNModule
-from ...representation import is_transformer
 ##############################################################################################
 ##############################################################################################
 #  Implementations
@@ -39,18 +38,13 @@ class XMLCNN(TextClassificationAbstract):
         self._config["bottle_neck"] = bottle_neck if bottle_neck is not None else int(self.n_classes**0.5)
         self._config["mode"] = mode
 
-        self.modes = ("trainable", "untrainable", "multichannel", "transformer")
-        if is_transformer(self.representation):
-            print("Setting mode to transformer")
-            self._config["mode"] = "transformer"
+        self.modes = ("trainable", "untrainable", "multichannel")
         assert self._config["mode"] in self.modes, "%s not in (%s, %s, %s, %s, %s)" % (self.mode, *self.modes)
 
         self.l = 1
         if self._config["mode"] =="multichannel":
             self.l = 2
             self.embedding_channel2, self.tokenizer_channel2 = get(model=self.representation, freeze=not self.finetune)
-
-
 
         # Layers
         self.kimcnn_module = KimCNNModule(in_features=self.embeddings_dim,
