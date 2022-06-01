@@ -27,7 +27,6 @@ class Siamese(SentenceTextClassificationAbstract, TextClassificationAbstractZero
         self._config["score"] = score
         self.create_labels(self.classes)
         self.dropout = torch.nn.Dropout(dropout)
-        self.aug = Augment(vertical_dropout=vertical_dropout, word_noise=word_noise)
 
 
         if score == "entailment":
@@ -36,10 +35,8 @@ class Siamese(SentenceTextClassificationAbstract, TextClassificationAbstractZero
         self.build()
 
     def forward(self, x, embedding=False, *args, **kwargs):
-        input_embedding = self.dropout(self.embedding(**x)[0])
+        input_embedding = self.embed_input(x)
         label_embedding = self.dropout(self.embedding(**self.label_dict)[0])
-
-        input_embedding = self.aug(input_embedding, x["attention_mask"].unsqueeze(-1))
 
         input_embedding = self._mean_pooling(input_embedding, x["attention_mask"])
         label_embedding = self._mean_pooling(label_embedding, self.label_dict["attention_mask"])
