@@ -11,7 +11,7 @@ from ...modules import *
 class MoLSANNC(TextClassificationAbstractMultiOutput, TextClassificationAbstractZeroShot):
 
     def __init__(self, scale="mean", share_weighting=False, weight_norm="norm", branch_noise=0., dropout=0.3,
-                 hidden_representations=400, label_model="glove300", d_a=200, **kwargs):
+                 hidden_representations=400, label_model="google/bert_uncased_L-2_H-128_A-2", d_a=200, **kwargs):
         """
         Class constructor and initialization of every hyperparameter.
 
