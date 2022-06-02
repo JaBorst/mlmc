@@ -4,19 +4,25 @@ from mlmc.ensembles.descision_criteria import *
 
 
 class Ensemble:
-    def __init__(self, m):
+    def __init__(self, m, device="cpu"):
         self.m = m if isinstance(m, list) else [m]
+        self.m = [m.cpu() for m in self.m]
         self.vote = MajorityDecision()
         self.set_train()
+        self.device = device
+
 
     def set_train(self, t=None):
         if t==None:
             self.t=[True]*len(self.m)
-    def fit(self, *args, **kwargs):
 
+    def fit(self, *args, **kwargs):
         for m, train in zip(self.m, self.t):
             if train:
+                m = m.set_device(self.device)
                 m.fit(*args, **kwargs)
+                m.reset_memory()
+                m = m.set_device("cpu")
 
     def evaluate(self, *args, **kwargs):
         return [m.evaluate(*args, **kwargs) for m in self.m]
@@ -60,12 +66,8 @@ class Ensemble:
         assert not (type(data) == MultiLabelDataset and self.m[0]._config["target"] == "single"), \
             "You inserted a MultiLabelDataset but chose single as target."
         initialized_metrics = self._init_metrics(metrics)
-        data_loader = torch.utils.data.DataLoader(data, batch_size=batch_size)
-        with torch.no_grad():
-            for i, b in enumerate(data_loader):
-                y = b["labels"]
-                _, output, pred = self.predict_ensemble(b["text"])
-                initialized_metrics.update_metrics((output, y, pred))
+        _, output, pred = self.predict_ensemble(data.x, batch_size=batch_size)
+        initialized_metrics.update_metrics((output,torch.stack([x["labels"] for x in data]), pred))
 
         [m.train() for m in self.m]  # set mode to evaluation to disable dropout
 
@@ -89,7 +91,12 @@ class Ensemble:
     def _get_ensemble_single(self, *args, **kwargs):
         [m.eval() for m in self.m]  # set mode to evaluation to disable dropout
         kwargs["return_scores"] = True
-        scores = [m.predict_batch(*args, **kwargs) for m in self.m]
+        scores = []
+        for m in self.m:
+            m.set_device(self.device)
+            scores.append(m.predict_batch(*args, **kwargs))
+            m.set_device("cpu")
+            m.reset_memory()
         def _combine(t):
             if isinstance(t[0], list):
                 return list(zip(*t))
