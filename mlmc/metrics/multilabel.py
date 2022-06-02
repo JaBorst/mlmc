@@ -43,7 +43,7 @@ class MultiLabelReport():
         truth = torch.cat(self.truth)
         if not self.is_multilabel:
             truth = torch.nn.functional.one_hot(truth, len(self.classes))
-        return skm.classification_report(truth,
+        return skm.classification_report(truth.numpy(),
                                          pred.numpy(),
                                          output_dict=True,
                                          target_names=list(self.classes.keys()))

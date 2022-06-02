@@ -12,7 +12,7 @@ class EncoderAbstract(LabelEmbeddingAbstract):
     def transform(self,x, max_length=400, reshape=False, device=None):
         x = [x] if isinstance(x, str) else x
         if device is None:
-            device=self._config["device"]
+            device=self.device
         if self._config["target"] == "single" or self._config["target"] == "multi":
             label = list([self._config["sformatter"](x) for x in self._config["classes"]]) * len(x)
             text = [s for s in x for _ in range(len(self._config["classes"]))]

@@ -153,6 +153,12 @@ class TextClassificationAbstract(torch.nn.Module):
         else:
             self.loss = self._config["loss"].to(self.device)
 
+    def set_device(self, device):
+        self.device=device
+        self = self.to(device)
+        if hasattr(self, "label_dict"):
+            self.label_dict = {k: v.to(self.device) for k, v in self.label_dict.items()}
+
     def set_optimizer(self, optimizer, optimizer_params={}):
         self._config["optimizer"] = optimizer
         self.optimizer = self._config["optimizer"](filter(lambda p: p.requires_grad, self.parameters()), **self.optimizer_params)
