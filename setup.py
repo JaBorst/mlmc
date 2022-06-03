@@ -34,7 +34,7 @@ setup(
               'mlmc.models',
               'mlmc.models.abstracts',
               'mlmc.models.standard',
-              'mlmc.models.ensembles',
+              'mlmc.ensembles',
               'mlmc.models.zeroshot',
               'mlmc.models.zeroshot.encoder',
               'mlmc.models.zeroshot.embedding',
