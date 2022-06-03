@@ -41,8 +41,6 @@ def test_threshold_wrapper():
     example2 = torch.tensor([[0.3, 0.4, 0.5, 0.6]])
     example3 = torch.tensor([[0.75, 0.5, 0.2, 0.75]])
     example4 = torch.tensor([[0.9, 0.8, 0.7, 0.6, 0.4, 0.3]])
-    example5 = torch.tensor([[0.8, 0.7, 0.2, 0.5, 0.1, 0.15]])
-    ind = torch.tensor([0, 0, 1, 0, 1, 1])
     assert torch.equal(mlmc.thresholds.get(name="max").__call__(example1), torch.tensor([[0., 1., 0., 0.]]))
     assert torch.equal(mlmc.thresholds.get(name="hard").__call__(example2), torch.tensor([[0, 0, 0, 1]], dtype = torch.int))
     assert torch.equal(mlmc.thresholds.get(name="mean").__call__(example3), torch.tensor([[1., 0., 0., 1.]]))
