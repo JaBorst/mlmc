@@ -18,6 +18,7 @@ import mlmc.modules
 import mlmc.callbacks
 import mlmc.loss
 import mlmc.ensembles
+import mlmc.pipelines
 # Save and load models for inference
 from .save_and_load import save, load
 

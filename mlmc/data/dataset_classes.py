@@ -1,8 +1,7 @@
 import torch
 from torch.utils.data import Dataset
 from warnings import warn
-from  .sampling_functions import subset
-import nlpaug
+from mlmc.data.sampler.random import subset
 
 
 class MultiLabelDataset(Dataset):
@@ -511,7 +510,9 @@ class MultiOutputSingleLabelDataset(Dataset):
 
 
 class EntailmentDataset(Dataset):
-    def __init__(self, x1, x2, labels, classes={"entailment":2, "neutral": 1, "contradiction":0}):
+    def __init__(self, x1, x2, labels, classes=None):
+        if classes is None:
+            classes = {"contradiction": 0, "neutral": 1, "entailment": 2}
         self.x1 = x1
         self.x2 = x2
         self.labels = labels
