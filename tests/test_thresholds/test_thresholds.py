@@ -24,7 +24,6 @@ def test_threshold_mean():
     assert torch.equal(thresholds.threshold_mean(example2), torch.tensor([[0., 1., 0., 1.]]))
 
 def test_threshold_mcut():
-
     example1 = torch.tensor([[0.9, 0.8, 0.8, 0.7, 0.3, 0.2]])
     example2 = torch.tensor([[0.9, 0.7, 0.2, 0.2, 0.1]])
     example3 = torch.tensor([[0.8, 0.797, 0.795, 0.793, 0.79]])
