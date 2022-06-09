@@ -1,4 +1,0 @@
-artifact_location: file.///data/mlflow/zeroshot/1
-experiment_id: '1'
-lifecycle_stage: active
-name: 7 - Fewshot
