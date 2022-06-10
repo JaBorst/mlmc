@@ -274,7 +274,7 @@ class TextClassificationAbstract(torch.nn.Module):
         Returns:
             loss, output: loss tensor, and the raw prediction output of the network
         """
-        x = self.transform(b["text"])
+        x = self.transform(b["text"], b.get("hypothesis",None))
         y = b["labels"].to(self.device)
         output = self(x)
         # if x.shape[0] == 1 and output.shape[0] != 1:
@@ -590,7 +590,7 @@ class TextClassificationAbstract(torch.nn.Module):
             self.train()
             return scores
 
-    def transform(self, x, max_length=None) -> dict:
+    def transform(self, x, h=None, max_length=None) -> dict:
         """
         A standard transformation function from text to network input format
 
@@ -606,12 +606,12 @@ class TextClassificationAbstract(torch.nn.Module):
         """
         assert hasattr(self, 'tokenizer'), "If the model does not have a tokenizer attribute, please implement the" \
                                            "transform(self, x)  method yourself. TOkenizer can be allocated with " \
-                                           "embedder, tokenizer = mlmc.helpers.get_embedding() or " \
-                                           "embedder, tokenizer = mlmc.helpers.get_transformer()"
+                                           "embedder, tokenizer = mlmc.representation.get_embedding() or " \
+                                           "embedder, tokenizer = mlmc.representation.get_transformer()"
         if max_length is None:
             max_length = self._config["max_len"]
         return {k: v.to(self.device) for k, v in
-                self.tokenizer(x, padding=True, max_length=max_length, truncation=True,
+                self.tokenizer(x, h, padding=True, max_length=max_length, truncation=True,
                                add_special_tokens=True, return_tensors='pt').items()}
 
     def _init_input_representations(self):

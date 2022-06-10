@@ -169,7 +169,6 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         Returns:
             loss, output: loss tensor, and the raw prediction output of the network
         """
-        self.create_labels(b["x2"])
         x = self.transform(b["x1"])
         y = b["labels"].to(self.device)
         output = self(x)
@@ -201,7 +200,7 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         with torch.no_grad():
             for i, b in enumerate(data_loader):
                 y = b["labels"]
-                l, output = self._entailment_step(b)
+                l, output = self._step(b)
                 output = self.act(output).cpu()
                 pred = self._threshold_fct(output)
                 average.update(l.item())

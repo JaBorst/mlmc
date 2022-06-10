@@ -9,7 +9,7 @@ class EncoderAbstract(LabelEmbeddingAbstract):
         self._all_compare = True
 
 
-    def transform(self,x, max_length=400, reshape=False, device=None):
+    def transform(self,x, h=None, max_length=400, reshape=False, device=None):
         x = [x] if isinstance(x, str) else x
         if device is None:
             device=self.device
@@ -17,7 +17,7 @@ class EncoderAbstract(LabelEmbeddingAbstract):
             label = list([self._config["sformatter"](x) for x in self._config["classes"]]) * len(x)
             text = [s for s in x for _ in range(len(self._config["classes"]))]
         else:
-            label = self._config["classes"]
+            label = h
             text = x
         tok = self.tokenizer( list(zip(text,label)), return_tensors="pt", add_special_tokens=True, padding=True,
                                        truncation=TruncationStrategy.ONLY_FIRST,
