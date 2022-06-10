@@ -159,23 +159,6 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         return_copy = {"train": copy(self.train_history), "valid": copy(self.validation)}
         return return_copy
 
-    def _entailment_step(self, b):
-        """
-        This method gets input and output for of one batch and calculates output and predictions
-        Args:
-            x: input tensor
-            y: tensor of truth indices
-
-        Returns:
-            loss, output: loss tensor, and the raw prediction output of the network
-        """
-        x = self.transform(b["x1"])
-        y = b["labels"].to(self.device)
-        output = self(x)
-        l = self._loss(output, y)
-        l = self._regularize(l)
-        return l, output
-
     def _entailment_evaluate(self, data, batch_size=50,  metrics=[Accuracy()], _fit=False):
         """
         Evaluation, return accuracy and loss and some multilabel measure
