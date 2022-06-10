@@ -141,7 +141,7 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
                     self.entailment()
 
                     self.optimizer.zero_grad()
-                    l, _ = self._entailment_step(b)
+                    l, _ = self._step(b)
                     l.backward()
                     self.optimizer.step()
                     average.update(l.item())
