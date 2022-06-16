@@ -19,7 +19,8 @@ class EncoderAbstract(LabelEmbeddingAbstract):
         else:
             label = h
             text = x
-        tok = self.tokenizer( list(zip(text,label)), return_tensors="pt", add_special_tokens=True, padding=True,
+        tok = self.tokenizer( text,label, return_tensors="pt",
+                              add_special_tokens=True, padding=True,
                                        truncation=TruncationStrategy.ONLY_FIRST,
                                        max_length=self.max_len)
         if reshape:

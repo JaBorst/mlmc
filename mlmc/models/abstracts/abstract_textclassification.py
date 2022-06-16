@@ -771,6 +771,7 @@ class TextClassificationAbstract(torch.nn.Module):
             self._entailment_classes =  self.embedding.config.label2id
         else:
             self._entailment_classes =  classes
+            self.embedding.config.label2id = classes
 
     def finetune_lm(self, file, epochs=1, batch_size=8 , valid = 0.1):
         import subprocess, pathlib, tempfile, os, sys

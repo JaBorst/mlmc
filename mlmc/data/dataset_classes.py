@@ -112,10 +112,11 @@ class MultiLabelDataset(Dataset):
         """
         Use this function to generate a number of exmamples at once
         """
-        self.x = self.x + sum((augmenter.generate(x,n) for x in self.x),[])
-        if self.hypothesis is not None:
-            self.hypothesis = self.hypothesis + sum((augmenter.generate(x,n) for x in self.hypothesis),[])
-        self.y = self.y + sum(([y]*n for y in self.y), [])
+        if n > 0 :
+            self.x = self.x + sum((augmenter.generate(x,n) for x in self.x),[])
+            if self.hypothesis is not None:
+                self.hypothesis = self.hypothesis + sum((augmenter.generate(x,n) for x in self.hypothesis),[])
+            self.y = self.y + sum(([y]*n for y in self.y), [])
 
     def transform(self, fct):
         """

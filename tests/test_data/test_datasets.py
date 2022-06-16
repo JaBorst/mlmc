@@ -160,3 +160,15 @@ def test_multioutputmultilabeldataset():
     assert (b["labels"][0] == torch.tensor([[1, 1, 0, 0, 0],
                                            [0, 1, 1, 0, 0],
                                            [0, 0, 1, 0, 1]])).all()
+
+def test_augmentation():
+    d = mlmc.data.dataset_classes.SingleLabelDataset(x=["the quick fox", "This is it", "A very short sentence"],
+                                                           y=[["a"], ["b"], ["c"]],
+                                                           classes={"a": 0, "b": 1, "d": 2})
+    a = mlmc.data.Augmenter("sometimes", 0.1,0.1,0.1,0.1)
+    d.generate(a, 0)
+    assert len(d) == 3
+
+    d.generate(a, 5)
+    assert len(d) == 3 + 5*3
+    assert len(d.x) == len(d.y)
