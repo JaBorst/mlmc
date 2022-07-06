@@ -16,7 +16,7 @@ class CallbackSaveAndRestore(Callback):
         else:
             self._using_tempdir=False
             self.dir = pathlib.Path(path)
-            if not self.dir.exists(): self.dir.mkdir(parents=True)
+            if not self.dir.exists(): self.dir.mkdir(parents=True, exist_ok=True)
         self.file = file
         self.metric = metric.split(".")
         self.mode = mode
@@ -31,7 +31,20 @@ class CallbackSaveAndRestore(Callback):
 
     def on_epoch_end(self, model):
         self._add_metric(model)
-        torch.save(model.state_dict(), self.dir / f"{self.file}_{len(self.training_procedure)-1}.pt")
+        overwrite = False
+        if self.mode == "max":
+            if max(self.training_procedure) == self.training_procedure[-1]:
+                overwrite = True
+        else:
+            if min(self.training_procedure) == self.training_procedure[-1]:
+                overwrite = True
+        if overwrite:
+            for f in self.dir.glob('*.pt'):
+                try:
+                    f.unlink()
+                except OSError as e:
+                    print("Error: %s : %s" % (f, e.strerror))
+            torch.save(model.state_dict(), self.dir / f"{self.file}_{len(self.training_procedure)-1}.pt")
 
     def on_train_end(self, model):
         i = torch.argmax(torch.tensor(self.training_procedure)) if self.mode=="max" else torch.argmin(torch.tensor(self.training_procedure))
