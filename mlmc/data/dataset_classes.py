@@ -14,7 +14,7 @@ class MultiLabelDataset(Dataset):
     for fast training loops.
     """
 
-    def __init__(self, x, y, classes, target_dtype=torch._cast_Float, one_hot=True, augmenter=None, **kwargs):
+    def __init__(self, x, y, classes, hypothesis=None, target_dtype=torch._cast_Float, one_hot=True, augmenter=None, **kwargs):
         """
         Class constructor
 
@@ -60,6 +60,7 @@ class MultiLabelDataset(Dataset):
         self.one_hot = one_hot
         self.target_dtype = target_dtype
         self.augmenter = augmenter
+        self.hypothesis = hypothesis
 
     def __len__(self):
         """
@@ -77,12 +78,26 @@ class MultiLabelDataset(Dataset):
         :param idx: Index of the entry
         :return: Dictionary containing the text and labels of the entry
         """
-        if self.one_hot:
-            labels = [self.classes[tag] for tag in self.y[idx]]
-            labels = torch.nn.functional.one_hot(torch.LongTensor(labels), len(self.classes)).sum(0)
-            return {'text': self._augment(self.x[idx]), 'labels': self.target_dtype(labels)}
+        if self.hypothesis is None:
+            if self.one_hot:
+                labels = [self.classes[tag] for tag in self.y[idx]]
+                labels = torch.nn.functional.one_hot(torch.LongTensor(labels), len(self.classes)).sum(0)
+                return {'text': self._augment(self.x[idx]),
+                        'labels': self.target_dtype(labels)}
+            else:
+                return {'text': self._augment(self.x[idx]),
+                        'labels': torch.tensor(self.classes[self.y[idx][0]])}
         else:
-            return {'text': self._augment(self.x[idx]), 'labels': self.y[idx]}
+            if self.one_hot:
+                labels = [self.classes[tag] for tag in self.y[idx]]
+                labels = torch.nn.functional.one_hot(torch.LongTensor(labels), len(self.classes)).sum(0)
+                return {'text': self._augment(self.x[idx]),
+                        "hypothesis": self._augment(self.hypothesis[idx]),
+                        'labels': self.target_dtype(labels)}
+            else:
+                return {'text': self._augment(self.x[idx]),
+                        "hypothesis": self._augment(self.hypothesis[idx]),
+                        'labels': torch.tensor(self.classes[self.y[idx][0]])}
 
     def set_augmenter(self, fct ):
         """
@@ -97,8 +112,11 @@ class MultiLabelDataset(Dataset):
         """
         Use this function to generate a number of exmamples at once
         """
-        self.x = self.x + sum((augmenter.generate(x,n) for x in self.x),[])
-        self.y = self.y + sum(([y]*n for y in self.y), [])
+        if n > 0 :
+            self.x = self.x + sum((augmenter.generate(x,n) for x in self.x),[])
+            if self.hypothesis is not None:
+                self.hypothesis = self.hypothesis + sum((augmenter.generate(x,n) for x in self.hypothesis),[])
+            self.y = self.y + sum(([y]*n for y in self.y), [])
 
     def transform(self, fct):
         """
@@ -303,32 +321,16 @@ class SingleLabelDataset(MultiLabelDataset):
         super(SingleLabelDataset, self).__init__(*args, **kwargs)
         assert all(
             [len(x) == 1 for x in self.y]), "This is not a single label dataset. Some labels contain multiple labels."
-
-    @staticmethod
-    def from_pandas(df, x, y, sep=" ", classes=None):
-        y = y if isinstance(y, str) else y[0]
-        return SingleLabelDataset(
-            x = df[x].applymap(str).agg(sep.join, axis=1).to_list(),
-            y = df[y].tolist(),
-            classes=classes if classes is not None else {cls:i for i, cls in enumerate(sorted(df[y].map(str).unique()))}
-        )
-
-    def to_pandas(self):
-        import pandas as pd
-        return pd.DataFrame.from_dict({"x": self.x, "y": self.y})
-
-    def __getitem__(self, idx):
-        """
-        Retrieves a single entry from the dataset.
-
-        :param idx: Index of the entry
-        :return: Dictionary containing the text and labels of the entry
-        """
-        return {'text': self._augment(self.x[idx]), 'labels': torch.tensor(self.classes[self.y[idx][0]])}
-
-    def to_csv(self, filename):
-        with open(filename, "w") as f:
-            f.write("\n".join([v[0] + "|" + k.replace("\n", "").replace("\\", " ").replace("\"", " ") for k, v in zip(self.x, self.y)]))
+        self.one_hot=False
+    #
+    # def __getitem__(self, idx):
+    #     """
+    #     Retrieves a single entry from the dataset.
+    #
+    #     :param idx: Index of the entry
+    #     :return: Dictionary containing the text and labels of the entry
+    #     """
+    #     return {'text': self._augment(self.x[idx]), 'labels': torch.tensor(self.classes[self.y[idx][0]])}
 
 class MultiOutputMultiLabelDataset(Dataset):
     def __init__(self, classes, x, y, target_dtype=torch._cast_Float, **kwargs):
@@ -509,40 +511,10 @@ class MultiOutputSingleLabelDataset(Dataset):
         return MultiOutputSingleLabelDataset(x=new_data, y=new_labels, classes=new_classes)
 
 
-class EntailmentDataset(Dataset):
-    def __init__(self, x1, x2, labels, classes=None):
-        if classes is None:
-            classes = {"contradiction": 0, "neutral": 1, "entailment": 2}
-        self.x1 = x1
-        self.x2 = x2
-        self.labels = labels
-        self.classes = classes
-        self.augmenter=None
-
-    def __len__(self):
-        return len(self.x1)
-
-    def __getitem__(self, item):
-        return {"x1": self._augment(self.x1[item]),
-                "x2": self._augment(self.x2[item]),
-                "labels": self.classes[self.labels[item]]}
-
-    def set_augmenter(self, fct ):
-        """
-        Use this function to augment on the fly
-        """
-        self.augmenter = fct
-
-    def _augment(self, x):
-        return self.augmenter(x) if self.augmenter is not None else x
-
-    def generate(self, augmenter, n=10):
-        """
-        Use this function to generate a number of exmamples at once
-        """
-        self.x1 = self.x1 + sum((augmenter.generate(x,n) for x in self.x1),[])
-        self.x2 = self.x2 + sum((augmenter.generate(x,n) for x in self.x2),[])
-        self.labels = self.labels + sum(([y]*n for y in self.labels), [])
+class EntailmentDataset(SingleLabelDataset):
+    def __init__(self, *args, **kwargs):
+        super(EntailmentDataset, self).__init__(*args, **kwargs)
+        assert self.hypothesis is not None
 
 class PredictionDataset(MultiLabelDataset):
     def __init__(self, x, **kwargs):

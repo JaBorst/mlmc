@@ -141,7 +141,7 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
                     self.entailment()
 
                     self.optimizer.zero_grad()
-                    l, _ = self._entailment_step(b)
+                    l, _ = self._step(b)
                     l.backward()
                     self.optimizer.step()
                     average.update(l.item())
@@ -158,24 +158,6 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         from copy import copy
         return_copy = {"train": copy(self.train_history), "valid": copy(self.validation)}
         return return_copy
-
-    def _entailment_step(self, b):
-        """
-        This method gets input and output for of one batch and calculates output and predictions
-        Args:
-            x: input tensor
-            y: tensor of truth indices
-
-        Returns:
-            loss, output: loss tensor, and the raw prediction output of the network
-        """
-        self.create_labels(b["x2"])
-        x = self.transform(b["x1"])
-        y = b["labels"].to(self.device)
-        output = self(x)
-        l = self._loss(output, y)
-        l = self._regularize(l)
-        return l, output
 
     def _entailment_evaluate(self, data, batch_size=50,  metrics=[Accuracy()], _fit=False):
         """
@@ -201,7 +183,7 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         with torch.no_grad():
             for i, b in enumerate(data_loader):
                 y = b["labels"]
-                l, output = self._entailment_step(b)
+                l, output = self._step(b)
                 output = self.act(output).cpu()
                 pred = self._threshold_fct(output)
                 average.update(l.item())
