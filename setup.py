@@ -43,7 +43,8 @@ setup(
               'mlmc.callbacks',
               'mlmc.modules',
               'mlmc.thresholds',
-              'mlmc.representation'
+              'mlmc.representation',
+              'mlmc.pipelines'
               ],
     url='',
     license='',
