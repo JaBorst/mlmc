@@ -4,7 +4,7 @@ from ...metrics import Average
 from tqdm import tqdm
 from copy import copy
 
-from ...data import loss
+from ... import loss
 from ...data import SingleLabelDataset, MultiLabelDataset
 from ...data import PredictionDataset
 from ...metrics import MetricsDict
