@@ -4,7 +4,7 @@ from ...metrics import Average
 from tqdm import tqdm
 from copy import copy
 
-import mlmc.loss
+from ...data import loss
 from ...data import SingleLabelDataset, MultiLabelDataset
 from ...data import PredictionDataset
 from ...metrics import MetricsDict
@@ -745,7 +745,7 @@ class TextClassificationAbstract(torch.nn.Module):
         self.set_loss(loss)
         self._config.update(**kwargs)
 
-    def sts(self, threshold="mcut", activation=lambda x:x, loss=mlmc.loss.RelativeRankingLoss, **kwargs):
+    def sts(self, threshold="mcut", activation=lambda x:x, loss=loss.RelativeRankingLoss, **kwargs):
         """Helper function to set model into default sts mode"""
         self._config["target"] = "sts"
         self.set_threshold(threshold)
