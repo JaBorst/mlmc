@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 import os
 import subprocess
 
@@ -26,26 +26,7 @@ setup(
     name='melmac',
     python_requires='>=3.7',
     version=version,
-    packages=['mlmc',
-              'mlmc.data',
-              'mlmc.data.sampler',
-              'mlmc.graph',
-              'mlmc.loss',
-              'mlmc.metrics',
-              'mlmc.models',
-              'mlmc.models.abstracts',
-              'mlmc.models.standard',
-              'mlmc.ensembles',
-              'mlmc.models.zeroshot',
-              'mlmc.models.zeroshot.encoder',
-              'mlmc.models.zeroshot.embedding',
-              'mlmc.models.zeroshot.graph',
-              'mlmc.callbacks',
-              'mlmc.modules',
-              'mlmc.thresholds',
-              'mlmc.representation',
-              'mlmc.pipelines'
-              ],
+    packages=find_packages(),
     url='',
     license='',
     author='Janos Borst',
