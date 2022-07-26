@@ -28,6 +28,7 @@ setup(
     version=version,
     packages=['mlmc',
               'mlmc.data',
+              'mlmc.data.sampler',
               'mlmc.graph',
               'mlmc.loss',
               'mlmc.metrics',
