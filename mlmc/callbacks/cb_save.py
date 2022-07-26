@@ -22,6 +22,7 @@ class CallbackSaveAndRestore(Callback):
         self.mode = mode
         self.training_procedure = []
         self.delete_after = delete_after
+        self._restore_index = -1
 
     def _add_metric(self, m):
         tmp = m.validation[-1]
@@ -39,6 +40,7 @@ class CallbackSaveAndRestore(Callback):
             if min(self.training_procedure) == self.training_procedure[-1]:
                 overwrite = True
         if overwrite:
+            self._restore_index = len(self.training_procedure)-1
             for f in self.dir.glob('*.pt'):
                 try:
                     f.unlink()
@@ -47,9 +49,8 @@ class CallbackSaveAndRestore(Callback):
             torch.save(model.state_dict(), self.dir / f"{self.file}_{len(self.training_procedure)-1}.pt")
 
     def on_train_end(self, model):
-        i = torch.argmax(torch.tensor(self.training_procedure)) if self.mode=="max" else torch.argmin(torch.tensor(self.training_procedure))
-        print(f"Restoring epoch {i+1}")
-        model.load_state_dict(torch.load(self.dir / f"{self.file}_{i}.pt"))
+        print(f"Restoring epoch {self._restore_index+1}")
+        model.load_state_dict(torch.load(self.dir / f"{self.file}_{self._restore_index}.pt"))
 
         if self._using_tempdir:
             self.tmpdir.cleanup()
