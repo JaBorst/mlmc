@@ -306,7 +306,6 @@ class SingleLabelDataset(MultiLabelDataset):
             x = ["This is a text about science",
                 "This is another text about philosophy"]
 
-
             y = [['science'],
                 ['politics']]
 
@@ -322,15 +321,6 @@ class SingleLabelDataset(MultiLabelDataset):
         assert all(
             [len(x) == 1 for x in self.y]), "This is not a single label dataset. Some labels contain multiple labels."
         self.one_hot=False
-    #
-    # def __getitem__(self, idx):
-    #     """
-    #     Retrieves a single entry from the dataset.
-    #
-    #     :param idx: Index of the entry
-    #     :return: Dictionary containing the text and labels of the entry
-    #     """
-    #     return {'text': self._augment(self.x[idx]), 'labels': torch.tensor(self.classes[self.y[idx][0]])}
 
 class MultiOutputMultiLabelDataset(Dataset):
     def __init__(self, classes, x, y, target_dtype=torch._cast_Float, **kwargs):
@@ -517,10 +507,14 @@ class EntailmentDataset(SingleLabelDataset):
         assert self.hypothesis is not None
 
 class PredictionDataset(MultiLabelDataset):
-    def __init__(self, x, **kwargs):
-        super().__init__(x, y=None, classes=None, target_dtype=torch._cast_Float, one_hot=True, **kwargs)
+    def __init__(self, x, hypothesis=None, **kwargs):
+        super().__init__(x, y=None, hypothesis=hypothesis, classes=None, target_dtype=torch._cast_Float, one_hot=True, **kwargs)
     def __getitem__(self, idx):
-        return {'text': self.x[idx]}
+        if self.hypothesis is None:
+                return {'text': self._augment(self.x[idx])}
+        else:
+            return {'text': self._augment(self.x[idx]),
+                    "hypothesis": self._augment(self.hypothesis[idx]),}
 
 
 def is_multilabel(x):

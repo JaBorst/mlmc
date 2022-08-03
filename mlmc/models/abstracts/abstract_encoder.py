@@ -1,9 +1,10 @@
 import torch
 from .abstract_label import LabelEmbeddingAbstract
+from .abstract_aspect_based import AspectBasedSentimentAbstract
 from transformers.tokenization_utils import TruncationStrategy
 
 
-class EncoderAbstract(LabelEmbeddingAbstract):
+class EncoderAbstract(LabelEmbeddingAbstract, AspectBasedSentimentAbstract):
     def __init__(self, *args, **kwargs):
         super(EncoderAbstract, self).__init__(*args, **kwargs)
         self._all_compare = True
