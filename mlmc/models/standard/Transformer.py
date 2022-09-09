@@ -1,5 +1,5 @@
 import torch
-from ..abstracts.abstract_sentence import SentenceTextClassificationAbstract
+from ..abstracts.abstract_embedding import LabelEmbeddingAbstract
 
 
 ##############################################################################################
@@ -8,7 +8,7 @@ from ..abstracts.abstract_sentence import SentenceTextClassificationAbstract
 ##############################################################################################
 
 
-class Transformer(SentenceTextClassificationAbstract):
+class Transformer(LabelEmbeddingAbstract):
     """
     Implementation of a simple transformer model.
     """

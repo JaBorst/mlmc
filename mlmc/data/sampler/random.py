@@ -25,7 +25,8 @@ def sampler(dataset, fraction=None, absolute=None):
     ind = np.random.choice(range(len(dataset)), n_samples, replace=False)
     x = [dataset.x[i] for i in ind]
     y = [dataset.y[i] for i in ind]
-    return type(dataset)(x=x, y=y, classes=dataset.classes, target_dtype=dataset.target_dtype)
+    h = [dataset.hypothesis[i] for i in ind] if dataset.hypothesis is not None else None
+    return type(dataset)(x=x, y=y,hypothesis=h, classes=dataset.classes, target_dtype=dataset.target_dtype)
 
 def subset(dataset, index):
     if isinstance(index[0], bool) or isinstance(index[0].item(), bool):

@@ -1,12 +1,7 @@
 import torch
-from ...abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
-from ...abstracts.abstract_sentence import SentenceTextClassificationAbstract
-from ....modules.augment import Augment
-import functools
+from ...abstracts.abstract_embedding import LabelEmbeddingAbstract
 
-
-
-class Siamese(SentenceTextClassificationAbstract, TextClassificationAbstractZeroShot):
+class Siamese(LabelEmbeddingAbstract):
     """
      Zeroshot model based on cosine distance of embedding vectors.
     """
@@ -24,22 +19,27 @@ class Siamese(SentenceTextClassificationAbstract, TextClassificationAbstractZero
         self._config["dropout"] = dropout
         self._config["vertical_dropout"] = vertical_dropout
         self._config["word_noise"] = word_noise
-        self._config["score"] = score
+        if  self._config["target"] == "entailment" and score != "entailment":
+            print("Setting scoring to entailment automatically")
+            self.entailment()
+            self._config["score"] = "entailment"
+        else:
+            self._config["score"] = score
         self.create_labels(self.classes)
         self.dropout = torch.nn.Dropout(dropout)
 
 
-        if score == "entailment":
-            self.entailment_projection = torch.nn.Linear(self.embeddings_dim*3, 3)
+        if self._config["score"] == "entailment":
+            self.entailment_projection = torch.nn.Linear(self.embeddings_dim*3, self.embeddings_dim)
             self.entailment_projection2 = torch.nn.Linear(self.embeddings_dim, 3)
+
         self.build()
 
     def forward(self, x, embedding=False, *args, **kwargs):
-        input_embedding = self.embed_input(x)
-        label_embedding = self.dropout(self.embedding(**self.label_dict)[0])
-
-        input_embedding = self._mean_pooling(input_embedding, x["attention_mask"])
-        label_embedding = self._mean_pooling(label_embedding, self.label_dict["attention_mask"])
+        input_embedding = self.embed_input(x[0])
+        label_embedding = self.dropout(self.embedding(**x[1])[0])
+        input_embedding = self._mean_pooling(input_embedding, x[0]["attention_mask"])
+        label_embedding = self._mean_pooling(label_embedding, x[1]["attention_mask"])
 
         r = self._score(input_embedding, label_embedding)
         if embedding:
@@ -48,26 +48,55 @@ class Siamese(SentenceTextClassificationAbstract, TextClassificationAbstractZero
 
     def _score(self, x, y):
         if self._config["score"] == "scalar":
-            return torch.matmul(x, y.t())
+            return self._scalar_score(x,y)
         if self._config["score"] == "cosine":
-            x = x / x.norm(p=2, dim=-1, keepdim=True)
-            y = y / y.norm(p=2, dim=-1, keepdim=True)
-            return torch.matmul(x, y.t()).log_softmax(-1)
+            return self._cosine_score(x,y)
         if self._config["score"] == "entailment":
             return self._entailment_score(x, y)
 
+    def _cosine_score(self, x, y):
+        x = x / x.norm(p=2, dim=-1, keepdim=True)
+        y = y / y.norm(p=2, dim=-1, keepdim=True)
+        if self._config["target"] in ["entailment"]:
+            return torch.matmul(x, y.t()).log_softmax(-1)
+        if self._config["target"] in ["abc"]:
+            y = y.reshape((x.shape[0], len(self.classes), x.shape[-1]))
+            return (x[:,None] * y).sum(-1)
+        else:
+            return (x*y).sum(-1).log_softmax(-1)
+
+    def _scalar_score(self, x, y):
+        if self._config["target"] in ["entailment"]:
+            return torch.matmul(x, y.t())
+        if self._config["target"] in ["abc"]:
+            y = y.reshape((x.shape[0], len(self.classes), x.shape[-1]))
+            return (x[:,None] * y).sum(-1)
+        else:
+            return (x*y).sum(-1)
+
     def _entailment_score(self, x, y):
-        e = torch.cat([
-            x[:, None].repeat(1, y.shape[0], 1),
-            y[None].repeat(x.shape[0], 1, 1),
-            (x[:, None] - y[None]).abs()
-        ], -1)
-        r = self.entailment_projection(e)
         if self._config["target"] == "entailment":
-            r = r.diagonal(dim1=0,dim2=1).transpose(0,1)
+            e = torch.cat([x, y, (x - y).abs()], -1)
+            r = self.entailment_projection2(self.entailment_projection(e).relu())
+        if self._config["target"] == "abc":
+            y = y.reshape((x.shape[0], len(self.classes), x.shape[-1]))
+            e = torch.cat([x[:, None].repeat(1, y.shape[1], 1), y, (x[:, None] - y).abs()], -1)
+            r = self.entailment_projection2(self.entailment_projection(e).relu())[..., -1]
         elif self._config["target"] == "single":
+            e = torch.cat([
+                x[:, None].repeat(1, y.shape[0], 1),
+                y[None].repeat(x.shape[0], 1, 1),
+                (x[:, None] - y[None]).abs()
+            ], -1)
+            r = self.entailment_projection2(self.entailment_projection(e).relu())
             r = r[..., -1]
         elif self._config["target"] == "multi":
+            e = torch.cat([
+                x[:, None].repeat(1, y.shape[0], 1),
+                y[None].repeat(x.shape[0], 1, 1),
+                (x[:, None] - y[None]).abs()
+            ], -1)
+            r = self.entailment_projection2(self.entailment_projection(e).relu())
             r = r[:, [0, 2]].log_softmax(-1)[..., -1]
         else:
             assert not self._config["target"], f"Target {self._config['target']} not defined"

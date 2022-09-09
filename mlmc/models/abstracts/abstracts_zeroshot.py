@@ -35,47 +35,6 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
         return printable
 
 
-    def _eval_data_list(self, datasets, formatters=None,  batch_size=50, log_mlflow=False, c=0, s=-1):
-        """
-        Evaluate a list of datasets (either single or multilabel)
-        :param datasets: List of dataset names
-        :param log_mlflow: If True this method calls the appropriate mlflow logging functions and logs to an activae run.
-        :param c: The index of the step to log the results with (usually the epoch)
-        :param s: The sample size  for each dataset. If s=-1 the whole test set will be used.
-        :return:
-        """
-        from mlmc_lab.mlmc_experimental.data import get, SFORMATTER
-        from mlmc.data import is_multilabel, sampler
-        if formatters is not None:
-            formatters = formatters if isinstance(formatters,list) else [formatters]
-            formatters = formatters if len(formatters) == len(datasets) else formatters * len(datasets)
-        for i,d in  enumerate(datasets):
-            if isinstance(d, str):
-                test_data = get(d)["test"]
-                if d == "rcv1" or d == "amazonfull":
-                    test_data = sampler(test_data, absolute=15000)
-                if s > 0:
-                    test_data = sampler(test_data, absolute=s)
-                prefix = d
-            else:
-                test_data = d
-                prefix = f"set_{i}"
-            if formatters is not None:
-                self.set_sformatter(formatters[i])
-            else:
-                self.set_sformatter(SFORMATTER[d])
-            self.create_labels(test_data.classes)
-
-            if is_multilabel(test_data):
-                self.multi()
-                _, ev = self.evaluate(test_data, _fit=True, batch_size=batch_size)
-                if log_mlflow: ev.log_mlflow(c, prefix=prefix)
-                print(f"\n{d}:\n", ev.print())
-            else:
-                self.single()
-                _, ev = self.evaluate(test_data, _fit=True, batch_size=batch_size)
-                if log_mlflow: ev.log_mlflow(c, prefix=prefix)
-                print(f"\n{d}:\n", ev.print())
 
     def pretrain_entailment(self, train,
             valid=None, steps=1000, eval_every=100, datasets = None, formatters=None,

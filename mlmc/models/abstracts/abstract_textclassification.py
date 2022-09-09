@@ -29,6 +29,7 @@ class TextClassificationAbstract(torch.nn.Module):
                  activation=None, loss=None, optimizer=torch.optim.Adam, max_len=450, label_len=20,
                  optimizer_params=None, device="cpu", finetune="fixed", threshold=None,
                  word_cutoff=0.0, feature_cutoff=0.0, span_cutoff=0.0, word_noise=0.0,
+                 sformatter=lambda x: f"This is about {x}",
                  **kwargs):
         """
         Abstract initializer of a Text Classification network.
@@ -65,7 +66,6 @@ class TextClassificationAbstract(torch.nn.Module):
         self.PRECISION_DIGITS = 4
         self.representation = representation
         self.max_len = max_len
-
         self._config = {
             "classes": classes,
             "n_classes": len(classes),
@@ -76,6 +76,7 @@ class TextClassificationAbstract(torch.nn.Module):
             "optimizer_params": optimizer_params, "device": device,
             "finetune": finetune, "threshold": threshold,
             "label_len": label_len,
+            "sformatter": sformatter,
             "word_cutoff": word_cutoff,
             "feature_cutoff": feature_cutoff,
             "span_cutoff": span_cutoff,
@@ -93,11 +94,17 @@ class TextClassificationAbstract(torch.nn.Module):
             assert activation is not None, "Did not specify a target type from ('single', 'multi') and activation function is not set"
             assert loss is not None, "Did not specify a target type from ('single', 'multi') and loss function is not set"
         else:
-            assert self._config["target"] in ("multi", "single",), 'target must be one of "multi" or "single"'
+            assert self._config["target"] in ("multi", "single", "abc", "sts", "entailment"), 'target must be one of "multi" or "single"'
             if self._config["target"] == "single":
                 self.single()
             elif   self._config["target"]=="multi":
                 self.multi()
+            elif   self._config["target"]=="abc":
+                self.abc()
+            elif   self._config["target"]=="sts":
+                self.sts()
+            elif   self._config["target"]=="entailment":
+                self.entailment()
             else:
                 Warning(f"Unknown target {target}. Not in ('single', 'multi')")
 
@@ -264,6 +271,20 @@ class TextClassificationAbstract(torch.nn.Module):
                 pbar.update()
         return average.compute().item()
 
+    def set_sformatter(self, c):
+        """
+        Setter for the label sformatter
+        Args:
+            c: callable that takes and returns a string
+
+        Returns:
+
+        """
+        assert callable(c)
+        from inspect import signature
+        if self._config["target"] in ["abc"]: assert len(signature(c).parameters) == 2, "The formatter for the ABC Task needs two arugments lambda aspect, cls: (...)"
+        self._config["sformatter"] = c
+
     def _step(self, b):
         """
         This method gets input and output for of one batch and calculates output and predictions
@@ -355,17 +376,17 @@ class TextClassificationAbstract(torch.nn.Module):
         import datetime
         id = str(hash(datetime.datetime.now()))[1:7]
         from ...data import SingleLabelDataset
-        if isinstance(train, SingleLabelDataset) and self._config["target"] != "single":
-            print("You are using the model in multi mode but input is SingeleLabelDataset.")
-            return 0
-
+        # if isinstance(train, SingleLabelDataset) and self._config["target"] != "single":
+        #     print("You are using the model in multi mode but input is SingeleLabelDataset.")
+        #     return 0
+        #
         self.validation = []
         self.train_history = {"loss": []}
-
-        assert not (type(train) == SingleLabelDataset and self._config["target"] == "multi"), \
-            "You inserted a SingleLabelDataset but chose multi as target."
-        assert not (type(train) == MultiLabelDataset and self._config["target"] == "single"), \
-            "You inserted a MultiLabelDataset but chose single as target."
+        #
+        # assert not (type(train) == SingleLabelDataset and self._config["target"] == "multi"), \
+        #     "You inserted a SingleLabelDataset but chose multi as target."
+        # assert not (type(train) == MultiLabelDataset and self._config["target"] == "single"), \
+        #     "You inserted a MultiLabelDataset but chose single as target."
 
         best_loss = 10000000
         last_best_loss_update = 0
@@ -450,7 +471,7 @@ class TextClassificationAbstract(torch.nn.Module):
         return_copy = {"train": copy(self.train_history), "valid": copy(self.validation)}
         return return_copy
 
-    def predict(self, x, return_scores=False):
+    def predict(self, x, h=None, return_scores=False):
         """
         Classify sentence string  or a list of strings.
 
@@ -462,7 +483,7 @@ class TextClassificationAbstract(torch.nn.Module):
 
         """
         self.eval()
-        output = self.scores(x)
+        output = self.scores(x, h=h)
         prediction = self._threshold_fct(output).cpu()
         self.train()
 
@@ -474,7 +495,7 @@ class TextClassificationAbstract(torch.nn.Module):
             return labels, output.cpu(), prediction.cpu()==1
         return labels
 
-    def scores(self, x):
+    def scores(self, x, h=None):
         """
         Returns 2D tensor with length of x and number of labels as shape: (N, L)
         Args:
@@ -484,7 +505,7 @@ class TextClassificationAbstract(torch.nn.Module):
 
         """
         self.eval()
-        x = self.transform(x)
+        x = self.transform(x, h=h)
         with torch.no_grad():
             output = self.act(self(x))
         self.train()
@@ -509,7 +530,7 @@ class TextClassificationAbstract(torch.nn.Module):
         if not hasattr(self, "classes_rev"):
             self.classes_rev = {v: k for k, v in self.classes.items()}
         for b in tqdm(train_loader, ncols=100):
-            predictions.extend(self.predict(b["text"], return_scores=return_scores))
+            predictions.extend(self.predict(b["text"], h=b.get("hypothesis",None), return_scores=return_scores))
         del self.classes_rev
         return predictions
 
@@ -532,7 +553,7 @@ class TextClassificationAbstract(torch.nn.Module):
         if not hasattr(self, "classes_rev"):
             self.classes_rev = {v: k for k, v in self.classes.items()}
         for b in tqdm(train_loader, ncols=100):
-            predictions.extend(self.predict(b["text"], return_scores=return_scores))
+            predictions.extend(self.predict(b["text"], h=b.get("hypothesis",None), return_scores=return_scores))
         del self.classes_rev
         if return_scores:
             labels = sum([predictions[x] for x in list(range(0, len(predictions), 3))],[])
@@ -745,6 +766,13 @@ class TextClassificationAbstract(torch.nn.Module):
         self.set_loss(loss)
         self._config.update(**kwargs)
 
+    def abc(self, threshold="max", activation=torch.softmax, loss=torch.nn.CrossEntropyLoss, **kwargs):
+        self._config["target"] = "abc"
+        self.set_threshold(threshold)
+        self.set_activation(activation)
+        self.set_loss(loss)
+        self._config.update(**kwargs)
+
     def sts(self, threshold="mcut", activation=lambda x:x, loss=loss.RelativeRankingLoss, **kwargs):
         """Helper function to set model into default sts mode"""
         self._config["target"] = "sts"
@@ -858,3 +886,46 @@ class TextClassificationAbstract(torch.nn.Module):
             plt.legend()
             plt.show()
         return change
+
+
+    def _eval_data_list(self, datasets, formatters=None,  batch_size=50, log_mlflow=False, c=0, s=-1):
+        """
+        Evaluate a list of datasets (either single or multilabel)
+        :param datasets: List of dataset names
+        :param log_mlflow: If True this method calls the appropriate mlflow logging functions and logs to an activae run.
+        :param c: The index of the step to log the results with (usually the epoch)
+        :param s: The sample size  for each dataset. If s=-1 the whole test set will be used.
+        :return:
+        """
+        from mlmc_lab.mlmc_experimental.data import get, SFORMATTER
+        from mlmc.data import is_multilabel, sampler
+        if formatters is not None:
+            formatters = formatters if isinstance(formatters,list) else [formatters]
+            formatters = formatters if len(formatters) == len(datasets) else formatters * len(datasets)
+        for i,d in  enumerate(datasets):
+            if isinstance(d, str):
+                test_data = get(d)["test"]
+                if d == "rcv1" or d == "amazonfull":
+                    test_data = sampler(test_data, absolute=15000)
+                if s > 0:
+                    test_data = sampler(test_data, absolute=s)
+                prefix = d
+            else:
+                test_data = d
+                prefix = f"set_{i}"
+            if formatters is not None:
+                self.set_sformatter(formatters[i])
+            else:
+                self.set_sformatter(SFORMATTER[d])
+            self.create_labels(test_data.classes)
+
+            if is_multilabel(test_data):
+                self.multi()
+                _, ev = self.evaluate(test_data, _fit=True, batch_size=batch_size)
+                if log_mlflow: ev.log_mlflow(c, prefix=prefix)
+                print(f"\n{d}:\n", ev.print())
+            else:
+                self.single()
+                _, ev = self.evaluate(test_data, _fit=True, batch_size=batch_size)
+                if log_mlflow: ev.log_mlflow(c, prefix=prefix)
+                print(f"\n{d}:\n", ev.print())

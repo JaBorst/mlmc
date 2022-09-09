@@ -506,6 +506,11 @@ class EntailmentDataset(SingleLabelDataset):
         super(EntailmentDataset, self).__init__(*args, **kwargs)
         assert self.hypothesis is not None
 
+class ABCDataset(SingleLabelDataset):
+    def __init__(self, *args, **kwargs):
+        super(ABCDataset, self).__init__(*args, **kwargs)
+        assert self.hypothesis is not None
+
 class PredictionDataset(MultiLabelDataset):
     def __init__(self, x, hypothesis=None, **kwargs):
         super().__init__(x, y=None, hypothesis=hypothesis, classes=None, target_dtype=torch._cast_Float, one_hot=True, **kwargs)

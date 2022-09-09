@@ -1,9 +1,8 @@
 import torch
-from ...abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
-from ...abstracts.abstract_sentence import SentenceTextClassificationAbstract
+from ...abstracts.abstract_embedding import LabelEmbeddingAbstract
 from ....modules import Augment
 
-class LabelTuning(SentenceTextClassificationAbstract, TextClassificationAbstractZeroShot):
+class LabelTuning(LabelEmbeddingAbstract):
     """
      https://arxiv.org/pdf/2203.14655.pdf
     """

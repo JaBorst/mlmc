@@ -28,7 +28,9 @@ metrics_dict= {
 metrics_config = {
     "default_multilabel": ["p@1", "p@3", "p@5", "tr@0.5", "mcut", "auc_roc", "multilabel_report"],
     "default_singlelabel": ["accuracy", "singlelabel_report"],
-    "default_unsupervised": ["keyword_coherence",  "silhouette", "daviesbouldinscore", "calinskiharabaszscore"]
+    "default_unsupervised": ["keyword_coherence",  "silhouette", "daviesbouldinscore", "calinskiharabaszscore"],
+    "default_entailmentlabel":  ["accuracy", "singlelabel_report"],
+    "default_abclabel":  ["accuracy", "singlelabel_report"]
 }
 
 def get(s) -> dict:

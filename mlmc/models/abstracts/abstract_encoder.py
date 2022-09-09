@@ -1,5 +1,5 @@
 import torch
-from .abstract_label import LabelEmbeddingAbstract
+from .abstract_embedding import LabelEmbeddingAbstract
 from .abstract_aspect_based import AspectBasedSentimentAbstract
 from transformers.tokenization_utils import TruncationStrategy
 
@@ -7,8 +7,6 @@ from transformers.tokenization_utils import TruncationStrategy
 class EncoderAbstract(LabelEmbeddingAbstract, AspectBasedSentimentAbstract):
     def __init__(self, *args, **kwargs):
         super(EncoderAbstract, self).__init__(*args, **kwargs)
-        self._all_compare = True
-
 
     def transform(self,x, h=None, max_length=400, reshape=False, device=None):
         x = [x] if isinstance(x, str) else x
@@ -17,9 +15,15 @@ class EncoderAbstract(LabelEmbeddingAbstract, AspectBasedSentimentAbstract):
         if self._config["target"] == "single" or self._config["target"] == "multi":
             label = list([self._config["sformatter"](x) for x in self._config["classes"]]) * len(x)
             text = [s for s in x for _ in range(len(self._config["classes"]))]
-        else:
+        elif self._config["target"] == "entailment":
             label = h
             text = x
+        elif self._config["target"] == "abc":
+            label =[self._config["sformatter"](hypo,cls) for hypo in h for cls in self.classes]
+            text = [s for s in x for _ in range(len(self._config["classes"]))]
+        else:
+            # ToDo: Implement
+            print(f"{self._config['target']} not yet implemented")
         tok = self.tokenizer( text,label, return_tensors="pt",
                               add_special_tokens=True, padding=True,
                                        truncation=TruncationStrategy.ONLY_FIRST,
