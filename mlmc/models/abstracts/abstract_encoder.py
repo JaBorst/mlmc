@@ -19,7 +19,7 @@ class EncoderAbstract(LabelEmbeddingAbstract, AspectBasedSentimentAbstract):
             label = h
             text = x
         elif self._config["target"] == "abc":
-            label =[self._config["sformatter"](hypo,cls) for hypo in h for cls in self.classes]
+            label =[self._config["sformatter"](hypo, cls) for hypo in h for cls in self.classes]
             text = [s for s in x for _ in range(len(self._config["classes"]))]
         else:
             # ToDo: Implement
@@ -34,6 +34,15 @@ class EncoderAbstract(LabelEmbeddingAbstract, AspectBasedSentimentAbstract):
             tok = {k: v.to(device) for k, v in tok.items()}
 
         return tok
+    #
+    # def _label_transform(self, x):
+    #     if self._config["target"] in ("abc", ):
+    #         _tmp = torch.nn.functional.one_hot(x, len(self.classes)).flatten()
+    #         t = torch.zeros(tuple(_tmp.shape) + (3,))
+    #         t[:,self._entailment_classes["contradiction"]] = (_tmp == 0).int()
+    #         t[:,self._entailment_classes["entailment"]] = (_tmp == 1).int()
+    #         return t
+    #     else: return x
 
     def _init_input_representations(self):
         from transformers import AutoModelForSequenceClassification, AutoTokenizer

@@ -296,13 +296,17 @@ class TextClassificationAbstract(torch.nn.Module):
             loss, output: loss tensor, and the raw prediction output of the network
         """
         x = self.transform(b["text"], b.get("hypothesis",None))
-        y = b["labels"].to(self.device)
+        y = self._label_transform(b["labels"]).to(self.device)
         output = self(x)
         # if x.shape[0] == 1 and output.shape[0] != 1:
         #     output = output[None]
         l = self._loss(output, y)
         l = self._regularize(l)
         return l, output
+
+    def _label_transform(self, x):
+        """Transformes the label tensor into  a task or network specific format. This can be reimplemented at the class level."""
+        return x
 
     def _loss(self, x, y):
         """

@@ -19,7 +19,7 @@ class SimpleEncoder(EncoderAbstract):
         if  self.training:
             pass
         elif self._config["target"] == "single":
-            e = e[:, self.entailment_id]
+            e = e.log_softmax(-1)[:, self.entailment_id]
             e = e.reshape((int(x["input_ids"].shape[0] / self._config["n_classes"]), self._config["n_classes"]))
         elif self._config["target"] == "multi":
             e = e[:, [self.contradiction_id, self.entailment_id]].log_softmax(-1)[:, -1]
@@ -28,7 +28,7 @@ class SimpleEncoder(EncoderAbstract):
         elif self._config["target"] == "entailment":
             pass
         elif self._config["target"] == "abc":
-            e = e[:, self.entailment_id]
+            e = e.log_softmax(-1)[:, self.entailment_id]
             e = e.reshape((int(x["input_ids"].shape[0] / self._config["n_classes"]), self._config["n_classes"]))
         else:
             assert not self._config["target"], f"Target {self._config['target']} not defined"
@@ -40,7 +40,7 @@ class SimpleEncoder(EncoderAbstract):
         When implementing new models with more complex loss functions, you can reimplement this method in the
         child class to apply them.
         Args:
-            x: ouput tensor of the foward pass
+            x: ouput tensor of the forward pass
             y: true labels
 
         Returns:

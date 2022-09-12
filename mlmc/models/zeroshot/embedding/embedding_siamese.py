@@ -59,20 +59,20 @@ class Siamese(LabelEmbeddingAbstract):
         y = y / y.norm(p=2, dim=-1, keepdim=True)
         if self._config["target"] in ["entailment"]:
             return torch.matmul(x, y.t()).log_softmax(-1)
-        if self._config["target"] in ["abc"]:
+        elif self._config["target"] in ["abc"]:
             y = y.reshape((x.shape[0], len(self.classes), x.shape[-1]))
             return (x[:,None] * y).sum(-1)
         else:
-            return (x*y).sum(-1).log_softmax(-1)
+            return (torch.matmul(x,y.t())).log_softmax(-1)
 
     def _scalar_score(self, x, y):
         if self._config["target"] in ["entailment"]:
-            return torch.matmul(x, y.t())
+            return torch.matmul(x, y.t()).log_softmax(-1)
         if self._config["target"] in ["abc"]:
             y = y.reshape((x.shape[0], len(self.classes), x.shape[-1]))
-            return (x[:,None] * y).sum(-1)
+            return (x[:,None] * y).sum(-1).log_softmax(-1)
         else:
-            return (x*y).sum(-1)
+            return (torch.matmul(x,y.t())).log_softmax(-1)
 
     def _entailment_score(self, x, y):
         if self._config["target"] == "entailment":
