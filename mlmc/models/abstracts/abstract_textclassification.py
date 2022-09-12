@@ -465,7 +465,7 @@ class TextClassificationAbstract(torch.nn.Module):
 
                     if last_best_loss_update >= patience:
                         print("Early Stopping.")
-                        break
+                        breaks
 
         self._callback_train_end(callbacks)
         if patience > -1:
@@ -538,7 +538,7 @@ class TextClassificationAbstract(torch.nn.Module):
         del self.classes_rev
         return predictions
 
-    def predict_batch(self, data, batch_size=50, return_scores=False):
+    def predict_batch(self, data, h=None, batch_size=50, return_scores=False):
         """
         Predict all labels for a dataset int the mlmc.data.MultilabelDataset format.
 
@@ -552,7 +552,7 @@ class TextClassificationAbstract(torch.nn.Module):
             A list of labels
 
         """
-        train_loader = torch.utils.data.DataLoader(PredictionDataset(x=data), batch_size=batch_size, shuffle=False)
+        train_loader = torch.utils.data.DataLoader(PredictionDataset(x=data, hypothesis=h), batch_size=batch_size, shuffle=False)
         predictions = []
         if not hasattr(self, "classes_rev"):
             self.classes_rev = {v: k for k, v in self.classes.items()}
@@ -933,3 +933,19 @@ class TextClassificationAbstract(torch.nn.Module):
                 _, ev = self.evaluate(test_data, _fit=True, batch_size=batch_size)
                 if log_mlflow: ev.log_mlflow(c, prefix=prefix)
                 print(f"\n{d}:\n", ev.print())
+
+    def predict_aspect_based_sentiment(self, x, aspects, mode="commonaspects"):
+        if mode == "commonaspects":
+            _x = sum([[s]*len(aspects) for s in x],[])
+            hypotheses = aspects * len(x)
+        elif mode == "aspectlist":
+            _x = x
+            hypotheses = aspects
+
+        o = self.predict(_x, h=hypotheses)
+
+        if mode == "commonaspects":
+            r = [[list(zip(aspects, o[i:(i+len(aspects))]))] for i in range(0,len(o), len(aspects))]
+        elif mode == "aspectlist":
+            r = list(zip(aspects,o))
+        return r

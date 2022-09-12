@@ -78,7 +78,7 @@ class Siamese(LabelEmbeddingAbstract):
         if self._config["target"] == "entailment":
             e = torch.cat([x, y, (x - y).abs()], -1)
             r = self.entailment_projection2(self.entailment_projection(e).relu())
-        if self._config["target"] == "abc":
+        elif self._config["target"] == "abc":
             y = y.reshape((x.shape[0], len(self.classes), x.shape[-1]))
             e = torch.cat([x[:, None].repeat(1, y.shape[1], 1), y, (x[:, None] - y).abs()], -1)
             r = self.entailment_projection2(self.entailment_projection(e).relu())[..., -1]

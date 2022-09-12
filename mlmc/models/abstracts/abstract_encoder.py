@@ -1,10 +1,9 @@
 import torch
 from .abstract_embedding import LabelEmbeddingAbstract
-from .abstract_aspect_based import AspectBasedSentimentAbstract
 from transformers.tokenization_utils import TruncationStrategy
 
 
-class EncoderAbstract(LabelEmbeddingAbstract, AspectBasedSentimentAbstract):
+class EncoderAbstract(LabelEmbeddingAbstract):
     def __init__(self, *args, **kwargs):
         super(EncoderAbstract, self).__init__(*args, **kwargs)
 
@@ -34,18 +33,9 @@ class EncoderAbstract(LabelEmbeddingAbstract, AspectBasedSentimentAbstract):
             tok = {k: v.to(device) for k, v in tok.items()}
 
         return tok
-    #
-    # def _label_transform(self, x):
-    #     if self._config["target"] in ("abc", ):
-    #         _tmp = torch.nn.functional.one_hot(x, len(self.classes)).flatten()
-    #         t = torch.zeros(tuple(_tmp.shape) + (3,))
-    #         t[:,self._entailment_classes["contradiction"]] = (_tmp == 0).int()
-    #         t[:,self._entailment_classes["entailment"]] = (_tmp == 1).int()
-    #         return t
-    #     else: return x
 
     def _init_input_representations(self):
         from transformers import AutoModelForSequenceClassification, AutoTokenizer
         self.embedding = AutoModelForSequenceClassification.from_pretrained(self.representation, num_labels=3)
         self.tokenizer = AutoTokenizer.from_pretrained(self.representation)
-        self.embeddings_dim = self.embedding(**self.tokenizer(["test"], return_tensors="pt"))[0].shape[-1]
+        with torch.no_grad(): self.embeddings_dim = self.embedding(**self.tokenizer(["test"], return_tensors="pt"))[0].shape[-1]
