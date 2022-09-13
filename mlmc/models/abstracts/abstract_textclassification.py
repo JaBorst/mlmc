@@ -97,16 +97,16 @@ class TextClassificationAbstract(torch.nn.Module):
             assert self._config["target"] in ("multi", "single", "abc", "sts", "entailment"), 'target must be one of "multi" or "single"'
             if self._config["target"] == "single":
                 self.single()
-            elif   self._config["target"]=="multi":
+            elif self._config["target"]=="multi":
                 self.multi()
-            elif   self._config["target"]=="abc":
+            elif self._config["target"]=="abc":
                 self.abc()
-            elif   self._config["target"]=="sts":
+            elif self._config["target"]=="sts":
                 self.sts()
-            elif   self._config["target"]=="entailment":
+            elif self._config["target"]=="entailment":
                 self.entailment()
             else:
-                Warning(f"Unknown target {target}. Not in ('single', 'multi')")
+                Warning(f'Unknown target {target}. Not in ("multi", "single", "abc", "sts", "entailment")')
 
         # If there were external arguments we will overwrite
         if activation is not None:
