@@ -30,12 +30,12 @@ abc = mlmc.data.dataset_classes.ABCDataset(
 
 def f(model):
     m = model(classes = classes, target="entailment", finetune="all", device="cuda:0")
-    # try:
-    #     m.single()
-    #     m.evaluate(sl)
-    #     m.fit(sl)
-    # except:
-    #     assert False, f"Error in {model} for single label"
+    try:
+        m.single()
+        m.evaluate(sl)
+        m.fit(sl)
+    except:
+        assert False, f"Error in {model} for single label"
     try:
         m.multi()
         m.evaluate(ml)
