@@ -32,6 +32,3 @@ def test_KimCNN():
 
 def test_XMLCNN():
     assertion_function(model_type=mlmc.models.XMLCNN, target="multi", filters=10, kernel_sizes=[3,4])
-
-def test_LSAN_transformer():
-    assertion_function(model_type=mlmc.models.LSANNC, target="multi", label_model="google/bert_uncased_L-2_H-128_A-2",n_layers=1, hidden_representations=10, d_a=10)

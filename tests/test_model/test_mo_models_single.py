@@ -34,9 +34,6 @@ def assertion_function(model_type, **kwargs):
 def test_MoKimCNN():
     assertion_function(model_type=mlmc.models.MoKimCNN, filters=10, kernel_sizes=[3,4])
 
-def test_MoLSANNC():
-    assertion_function(model_type=mlmc.models.MoLSANNC, filters=10, kernel_sizes=[3,4])
-
 def test_MoTransformer():
     assertion_function(model_type=mlmc.models.MoTransformer, label_model="google/bert_uncased_L-2_H-128_A-2", hidden_representations=10, d_a=10)
 
