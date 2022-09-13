@@ -36,8 +36,8 @@ class Transformer(TextClassificationAbstract):
         :return: Output tensor
         """
         embedded = self.embed_input(x)
-        embedded = self._mean_pooling(embedded, x["attention_mask"])
         embedded = self.dropout_layer(embedded)
+        embedded = self._mean_pooling(embedded, x["attention_mask"])
         output = self.projection(self.dropout_layer(embedded))
         if emb:
             return output, (embedded, torch.tensor([0.]))
