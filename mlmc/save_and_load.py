@@ -2,10 +2,10 @@
 A save and load function for models..
 """
 from pathlib import Path
+import dill
 
 import torch
 import warnings
-import dill
 
 def save(model, path, only_inference=False):
     """Saving a model to disk
