@@ -39,10 +39,7 @@ def assertion_function(model_type, **kwargs):
         y=[[["label_0"], ["label_2"]], [["label_3"], ["label_1"]], [["label_4"], ["label_2"]], [["label_1"], ["label_2"]], [["label_3"], ["label_0"]]],
         classes= {"label_0": 0, "label_1": 1, "label_2": 3, "label_3": 2, "label_4": 4})
 
-    if model_type.__name__ in ["ZAGCNNLM", "SKGLM"]:
-        G = nx.DiGraph([("label_0", "label_1"), ("label_0", "label_4"), ("label_1", "label_2"), ("label_1", "label_3"), ("label_2", "label_4")])
-        model = model_type(classes=data.classes, graph=G, **kwargs)
-    elif model_type.__name__ in ["MoLSANNC", "MoTransformer", "MoKimCNN"]:
+    if model_type.__name__ in ["MoLSANNC", "MoTransformer", "MoKimCNN"]:
         model = model_type(classes=mo_data.classes, **kwargs)
     else:
         model = model_type(classes=data.classes, **kwargs)
@@ -64,9 +61,6 @@ def test_KimCNN():
 
 def test_LSAN():
     assertion_function(model_type=mlmc.models.LSAN, target="multi",representation="google/bert_uncased_L-2_H-128_A-2", hidden_representations=10, d_a=10)
-
-def test_LSANNC():
-    assertion_function(model_type=mlmc.models.LSANNC, target="multi",representation="google/bert_uncased_L-2_H-128_A-2", label_model="google/bert_uncased_L-2_H-128_A-2", hidden_representations=10, d_a=10)
 
 def test_MoKimCNN():
     assertion_function(model_type=mlmc.models.MoKimCNN, representation="google/bert_uncased_L-2_H-128_A-2", target="single", kernel_sizes=(2,3))
