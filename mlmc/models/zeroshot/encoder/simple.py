@@ -16,9 +16,7 @@ class SimpleEncoder(EncoderAbstract):
 
     def forward(self, x):
         e = self.embedding(**x)[0]
-        if  self.training:
-            pass
-        elif self._config["target"] == "single":
+        if self._config["target"] == "single":
             e = e.log_softmax(-1)[:, self.entailment_id]
             e = e.reshape((int(x["input_ids"].shape[0] / self._config["n_classes"]), self._config["n_classes"]))
         elif self._config["target"] == "multi":
@@ -46,10 +44,4 @@ class SimpleEncoder(EncoderAbstract):
         Returns:
             loss tensor
         """
-        if self.training:
-            ent_l = torch.nn.functional.one_hot(y, len(self._config["classes"])).flatten()
-            l = torch.full_like(ent_l, self._entailment_classes["contradiction"])
-            l[ent_l == 1] = self._entailment_classes["entailment"]
-            return self.loss(x, l)
-        else:
-            return self.loss(x,y)
+        return self.loss(x,y)
