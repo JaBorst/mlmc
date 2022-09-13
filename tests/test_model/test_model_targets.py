@@ -1,6 +1,4 @@
 import mlmc
-import mlmc_lab.mlmc_experimental as mlmce
-
 
 classes = {"label_0": 0, "label_1": 1, "label_2": 2, "label_3": 3, "label_4": 4}
 
