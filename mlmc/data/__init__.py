@@ -6,3 +6,4 @@ from .caching import _load_from_tmp, _save_to_tmp
 from .augmenter import Augmenter
 from .sampler import strategies
 from .corpus import Corpus
+from .example_data_loader import load_agnews

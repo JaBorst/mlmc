@@ -1,14 +1,14 @@
 from mlmc.models.abstracts.abstract_encoder import EncoderAbstract
 import torch
 
-class SimpleEncoder(EncoderAbstract):
+class Encoder(EncoderAbstract):
     """
     Trainin a model by entailing text and label into an entailment task. Offers good zeroshot capacities when pretrained
     on an NLI task. (you can pretrain (almost) any  transformer model with model.pretrain_snli() or model.pretrain_mnli().
     """
     def __init__(self, *args, **kwargs):
         """Only there to initialize a projection for binary classification"""
-        super(SimpleEncoder, self).__init__(*args, **kwargs)
+        super(Encoder, self).__init__(*args, **kwargs)
         self.entailment_id = self._entailment_classes["entailment"]
         self.contradiction_id = self._entailment_classes["contradiction"]
         self.build()

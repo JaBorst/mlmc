@@ -58,5 +58,5 @@ def f(model):
 
 
 def test_generator():  f(mlmc.models.Generator)
-def test_encoder(): f(mlmc.models.SimpleEncoder)
+def test_encoder(): f(mlmc.models.Encoder)
 def test_siamese(): f(mlmc.models.Siamese)

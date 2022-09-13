@@ -1,1 +1,1 @@
-from .simple import SimpleEncoder
+from .simple import Encoder
