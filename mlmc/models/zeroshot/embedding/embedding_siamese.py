@@ -97,7 +97,7 @@ class Siamese(LabelEmbeddingAbstract):
                 (x[:, None] - y[None]).abs()
             ], -1)
             r = self.entailment_projection2(self.entailment_projection(e).relu())
-            r = r[:, [0, 2]].log_softmax(-1)[..., -1]
+            r = r[:,:, [0, 2]].log_softmax(-1)[..., -1]
         else:
             assert not self._config["target"], f"Target {self._config['target']} not defined"
         return r
