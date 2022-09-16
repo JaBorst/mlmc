@@ -65,12 +65,14 @@ def load(path, device="cpu"):
         The loaded model.
 
     """
+    import mlmc
     additional_arguments = {}
     additional_arguments["map_location"] = torch.device(device)
 
     #load all information
     loaded = torch.load(Path(path), pickle_module=dill, **additional_arguments)
     loaded["args"]["device"] = device
+    loaded["args"]["finetune"] = "all"
     # Create a model with the same parameters
     model = loaded["type"](**loaded["args"])
     model.load_state_dict(loaded["model_state_dict"])
