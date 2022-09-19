@@ -177,9 +177,11 @@ def validation_split(dataset, fraction=None, absolute=None):
     n_samples = (len(dataset)-absolute) if absolute is not None else int((1-fraction) * len(dataset))
     return type(dataset)(x=[dataset.x[i] for i in ind[:n_samples]],
                          y=[dataset.y[i] for i in ind[:n_samples]],
+                         hypothesis = None if dataset.hypothesis is None else [dataset.hypothesis[i] for i in ind[:n_samples]],
                          classes=dataset.classes), \
            type(dataset)(x=[dataset.x[i] for i in ind[n_samples:]],
                          y=[dataset.y[i] for i in ind[n_samples:]],
+                         hypothesis = None if dataset.hypothesis is None else [dataset.hypothesis[i] for i in ind[n_samples:]],
                          classes=dataset.classes)
 
 def kfolds(dataset, k=10):
@@ -189,12 +191,15 @@ def kfolds(dataset, k=10):
             type(dataset)(
                 x = [i for n, i in enumerate(dataset.x) if n in i1],
                 y = [i for n, i in enumerate(dataset.y) if n in i1],
+                hypothesis=None if dataset.hypothesis is None else [i for n, i in enumerate(dataset.hypothesis) if n in i1],
+
                 classes=dataset.classes
             ),
         "test":
             type(dataset)(
                 x=[i for n, i in enumerate(dataset.x) if n in i2],
                 y=[i for n, i in enumerate(dataset.y) if n in i2],
+                hypothesis=None if dataset.hypothesis is None else [i for n, i in enumerate(dataset.hypothesis) if n in i2],
                 classes=dataset.classes
             )
         }

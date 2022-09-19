@@ -16,7 +16,7 @@ class PrecisionK(Precision):
 
         :param output: output of classification task in form (scores, truth, pred)
         """
-        transformed = torch.zeros_like(output[0]).scatter(1, torch.topk(output[0], k=self.k)[1], 1)
+        transformed = torch.zeros_like(output[0]).scatter(1, torch.topk(output[0], k=self.k, dim=-1)[1], 1)
         super(PrecisionK, self).update((transformed.int(), output[1].int()))
 
     def compute(self, *args, **kwargs):

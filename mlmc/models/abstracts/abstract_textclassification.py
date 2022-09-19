@@ -465,7 +465,7 @@ class TextClassificationAbstract(torch.nn.Module):
 
                     if last_best_loss_update >= patience:
                         print("Early Stopping.")
-                        breaks
+                        break
 
         self._callback_train_end(callbacks)
         if patience > -1:
@@ -474,6 +474,37 @@ class TextClassificationAbstract(torch.nn.Module):
         from copy import copy
         return_copy = {"train": copy(self.train_history), "valid": copy(self.validation)}
         return return_copy
+
+    def kfold(self, data, validation=0.1, *args, k=10, **kwargs):
+        from ...data import kfolds, validation_split
+        from ...metrics import flt
+        import tempfile
+        from pathlib import Path
+        import pandas as pd
+        with tempfile.TemporaryDirectory() as f:
+            torch.save(self.state_dict(),Path(f)/"zero-model.pth")
+            history = []
+            data_sizes = []
+            for split in kfolds(dataset=data, k=k):
+                print("Reloading model parameters")
+                self.load_state_dict(torch.load(Path(f)/"zero-model.pth"))
+                if validation:
+                    train, valid = validation_split(split["train"], validation)
+                    print(f"Train: {len(train)}, Valid: {len(valid)}, Test: {len(split['test'])}")
+                else:
+                    train,valid = split["train"], None
+                    print(f"Train: {len(train)}, Valid: {0}, Test: {len(split['test'])}")
+
+                _ = self.fit(train, valid, *args, **kwargs)
+                history.append(self.evaluate(split["test"], batch_size=kwargs["valid_batch_size"], metrics=kwargs.get("metrics")))
+                data_sizes = ((len(train), len(valid) if valid is not None else 0, len(split["test"])))
+                print(history[-1])
+
+        r = pd.DataFrame.from_records([flt(e[1]) for e in history])
+        r = r.applymap(lambda x: x[0])
+        r = r.agg(["mean", "std", "min", "max"]).transpose().apply(tuple, axis=1).transpose()
+        r["lengths"] = data_sizes
+        return r
 
     def predict(self, x, h=None, return_scores=False):
         """
