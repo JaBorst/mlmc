@@ -11,7 +11,7 @@ except:
     __version__ = "unknown"
 
 import mlmc.models
-import mlmc.graph
+# import mlmc.graph
 import mlmc.metrics
 import mlmc.representation
 import mlmc.modules
