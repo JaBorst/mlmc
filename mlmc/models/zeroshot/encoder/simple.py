@@ -15,7 +15,9 @@ class Encoder(EncoderAbstract):
 
 
     def forward(self, x):
-        e = self.embedding(**x)[0]
+        e = self.embedding(**x).logits
+        if self.training:
+            return e
         if self._config["target"] == "single":
             e = e.log_softmax(-1)[:, self.entailment_id]
             e = e.reshape((int(x["input_ids"].shape[0] / self._config["n_classes"]), self._config["n_classes"]))
@@ -44,4 +46,15 @@ class Encoder(EncoderAbstract):
         Returns:
             loss tensor
         """
-        return self.loss(x,y)
+        if self.training:
+            if self._config["target"] in ["abc", "single"]:
+                cls = torch.nn.functional.one_hot(y, len(self.classes)).flatten()
+                label = torch.full_like(cls, self.contradiction_id)
+                label[cls==1] = self.entailment_id
+            torch.zeros((x.shape[0], len(self._entailment_classes)))
+            if self._config["target"] == "multi":
+                label = torch.zeros_like(x)
+                label[..., self.entailment_id] = torch.nn.functional.one_hot(y, len(self.classes)).flatten()
+                label[..., self.contradiction_id] = 1 - torch.nn.functional.one_hot(y, len(self.classes)).flatten()
+        else: label=y
+        return self.loss(x,label)

@@ -229,6 +229,7 @@ def fewshot_sampler(dataset, k):
             sample_x.extend([x[0] for x in e])
             sample_y.extend([x[1] for x in e])
 
+
             for lset in [x[1] for x in e]:
                 for l in lset:
                     counter[l] = counter[l] + 1
@@ -253,16 +254,20 @@ def fewshot_sampler(dataset, k):
         random.shuffle(index)
         sample_x = []
         sample_y = []
+        sample_h = [] if dataset.hypothesis is not None else None
+
         counter = {k: 0 for k in dataset.classes}
         for i in index:
             if counter[dataset.y[i][0]] < k:
                 sample_x.append(dataset.x[i])
                 sample_y.append(dataset.y[i])
+                if sample_h is not None: sample_h.extend(dataset.hypothesis[i])
+
                 counter[dataset.y[i][0]] = counter[dataset.y[i][0]] + 1
 
             if all([k <= v for v in counter.values()]):
                 break
-        return type(dataset)(x = sample_x, y = sample_y, classes = dataset.classes)
+        return type(dataset)(x = sample_x, hypothesis= sample_h, y = sample_y, classes = dataset.classes)
 
 def entailment_split(dataset, fraction=None, absolute=None):
     """

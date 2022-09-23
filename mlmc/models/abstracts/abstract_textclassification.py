@@ -506,6 +506,33 @@ class TextClassificationAbstract(torch.nn.Module):
         r["lengths"] = data_sizes
         return r
 
+
+    def ktrain(self, data, test, n, *args, runs=5, **kwargs):
+        from ...data import sampler
+        from ...metrics import flt
+        import tempfile
+        from pathlib import Path
+        import pandas as pd
+        with tempfile.TemporaryDirectory() as f:
+            torch.save(self.state_dict(),Path(f)/"zero-model.pth")
+            history = []
+            data_sizes = []
+            for run in range(runs):
+                print("Reloading model parameters")
+                self.load_state_dict(torch.load(Path(f)/"zero-model.pth"))
+                train = sampler(data, absolute=n)
+
+                _ = self.fit(train, test, *args, **kwargs)
+                history.append(self.evaluate(test, batch_size=kwargs["valid_batch_size"], metrics=kwargs.get("metrics")))
+                data_sizes = ((len(train), len(test)))
+                print(history[-1])
+
+        r = pd.DataFrame.from_records([flt(e[1]) for e in history])
+        r = r.applymap(lambda x: x[0])
+        r = r.agg(["mean", "std", "min", "max"]).transpose().apply(tuple, axis=1).transpose()
+        r["lengths"] = data_sizes
+        return r
+
     def predict(self, x, h=None, return_scores=False):
         """
         Classify sentence string  or a list of strings.
