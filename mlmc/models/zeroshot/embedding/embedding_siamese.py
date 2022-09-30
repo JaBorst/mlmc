@@ -119,3 +119,14 @@ class Siamese(LabelEmbeddingAbstract):
                     pbar.update()
 
         return torch.cat(scores), torch.cat(embeddings)
+
+
+
+    def _contrastive_embedding(self, x, y):
+        x = self.transform(x)
+        input_embedding = self.embed_input(x)
+        input_embedding = self._mean_pooling(input_embedding, x["attention_mask"])
+        y = self.transform(y)
+        y_embedding = self.embed_input(y)
+        y_embedding = self._mean_pooling(y_embedding, y["attention_mask"])
+        return input_embedding, y_embedding

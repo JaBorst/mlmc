@@ -58,3 +58,32 @@ class Encoder(EncoderAbstract):
                 label[..., self.contradiction_id] = 1 - torch.nn.functional.one_hot(y, len(self.classes)).flatten()
         else: label=y
         return self.loss(x,label)
+
+
+    def _sample(self, C, n=10000):
+        import random
+        labels = torch.rand((n,)).round()
+        triplets = []
+        for label in  labels:
+            if label == 1:
+                cls = random.choices(list(self.classes.keys()), k=2)
+                if random.choice(["entailment", "not"]) == "entailment":
+                    sp1 = random.choices(C[cls[0]],k=2)
+                    sp2 = random.choices(C[cls[1]],k=2)
+                else:
+                    sp1 = random.choice(C[cls[0]]), random.choice(C[random.choice(list(set(self.classes.keys()) - set([cls[0]])))])
+                    sp2 = random.choice(C[cls[1]]), random.choice(C[random.choice(list(set(self.classes.keys()) - set([cls[1]])))])
+            else:
+                cls = random.choices(list(self.classes.keys()), k=2)
+                sp1 = random.choices(C[cls[0]],k=2)
+                sp2 = random.choice(C[cls[1]]),  random.choice(C[random.choice(list(set(self.classes.keys()) - set([cls[1]])))])
+            triplets.append((sp1, sp2, label,))
+
+        return triplets
+
+    def _contrastive_embedding(self, x, y):
+        h = self.transform(*x)
+        h = self.embedding(**h).logits
+        h2 = self.transform(*y)
+        h2 = self.embedding(**h2).logits
+        return h, h2
