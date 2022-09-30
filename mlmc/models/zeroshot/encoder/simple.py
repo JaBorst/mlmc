@@ -19,7 +19,7 @@ class Encoder(EncoderAbstract):
         if self.training:
             return e
         if self._config["target"] == "single":
-            e = e.log_softmax(-1)[:, self.entailment_id]
+            e = e[:, self.entailment_id]
             e = e.reshape((int(x["input_ids"].shape[0] / self._config["n_classes"]), self._config["n_classes"]))
         elif self._config["target"] == "multi":
             e = e[:, [self.contradiction_id, self.entailment_id]].log_softmax(-1)[:, -1]
@@ -28,7 +28,7 @@ class Encoder(EncoderAbstract):
         elif self._config["target"] == "entailment":
             pass
         elif self._config["target"] == "abc":
-            e = e.log_softmax(-1)[:, self.entailment_id]
+            e = e[:, self.entailment_id]
             e = e.reshape((int(x["input_ids"].shape[0] / self._config["n_classes"]), self._config["n_classes"]))
         else:
             assert not self._config["target"], f"Target {self._config['target']} not defined"

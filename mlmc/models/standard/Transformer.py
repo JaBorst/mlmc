@@ -12,7 +12,7 @@ class Transformer(TextClassificationAbstract):
     """
     Implementation of a simple transformer model.
     """
-    def __init__(self, dropout=0.5, **kwargs):
+    def __init__(self, dropout=0.3, **kwargs):
         """
         Class constructor and initialization of every hyperparameter.
 

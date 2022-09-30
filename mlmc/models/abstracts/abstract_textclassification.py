@@ -87,7 +87,8 @@ class TextClassificationAbstract(torch.nn.Module):
                                  span_cutoff=span_cutoff,
                                  word_noise=word_noise)
         self._init_input_representations()
-        self._set_entailment_classes()
+        self._finetune_mode(self._config["finetune"])
+
 
         # Setting default values for learning mode
         if self._config["target"] is None:
@@ -174,7 +175,6 @@ class TextClassificationAbstract(torch.nn.Module):
         """
         Internal build method.
         """
-        self._finetune_mode(self._config["finetune"])
         if isinstance(self._config["loss"], type) and self._config["loss"] is not None:
             self.loss = self._config["loss"]().to(self.device)
         else:
@@ -623,8 +623,7 @@ class TextClassificationAbstract(torch.nn.Module):
             bools = torch.cat([predictions[x] for x in list(range(2, len(predictions), 3))], dim=0)
             return labels, scores, bools
         else:
-            labels = sum([predictions[x] for x in list(range(0, len(predictions)))], [])
-            return labels
+            return predictions
 
     def run(self, x):
         """
@@ -699,24 +698,12 @@ class TextClassificationAbstract(torch.nn.Module):
 
     def _init_input_representations(self):
         # TODO: Documentation
-        if not hasattr(self, "n_layers"): self.n_layers = 1
-        try:
-            if self.n_layers == 1:
-                self.embedding, self.tokenizer = get(model=self.representation)
-                self.embeddings_dim = self.embedding(torch.tensor([[0]]))[0].shape[-1]
-            else:
-                self.embedding, self.tokenizer = get(model=self.representation, output_hidden_states=True)
-                self.embeddings_dim = \
-                    torch.cat(self.embedding(self.embedding.dummy_inputs["input_ids"])[2][-self.n_layers:],
-                              -1).shape[-1]
-        except TypeError:
-            print("If your using a model that does not support returning hiddenstates, set n_layers=1")
-            import sys
-            sys.exit()
-        self._finetune_mode(self._config["finetune"])
+        self.embedding, self.tokenizer = get(model=self.representation)
+        self.embeddings_dim = self.embedding(torch.tensor([[0]]))[0].shape[-1]
+        self._set_entailment_classes()
 
     def _finetune_mode(self, mode):
-        modes = ("all", "bias", "random", "fixed")
+        modes = ("all", "bias", "random", "fixed", "compacter", "LoRA")
         assert mode in modes
         if mode == "all":
             for x in self.parameters(recurse=True):
@@ -733,6 +720,21 @@ class TextClassificationAbstract(torch.nn.Module):
         elif mode == "fixed":
             self.embedding.requires_grad = False
             for param in self.embedding.parameters(): param.requires_grad = False
+        elif mode == "compacter":
+            from transformers.adapters import  CompacterConfig
+            self.embedding.add_adapter(
+                "compacter",
+                config=CompacterConfig()
+            )
+            self.embedding.train_adapter("compacter")
+        elif mode == "LoRA":
+            from transformers.adapters import LoRAConfig
+            config = LoRAConfig(r=8, alpha=16)
+            self.embedding.add_adapter(
+                "LoRA",
+                config=config
+            )
+            self.embedding.train_adapter("LoRA")
         else:
             raise ValueError(f"Finetuning mode [{mode}] unknown. Must be one of {modes}")
 
@@ -759,16 +761,10 @@ class TextClassificationAbstract(torch.nn.Module):
         :return: Embedded tensor
         """
         if self._config["finetune"] != "fixed":
-            if self.n_layers == 1:
-                embeddings = self.embedding(**x)[0]
-            else:
-                embeddings = torch.cat(self.embedding(**x)[2][-self.n_layers:], -1)
+            embeddings = self.embedding(**x)[0]
         else:
             with torch.no_grad():
-                if self.n_layers == 1:
-                    embeddings = self.embedding(**x)[0]
-                else:
-                    embeddings = torch.cat(self.embedding(**x)[2][-self.n_layers:], -1)
+                embeddings = self.embedding(**x)[0]
         embeddings = self._augment(embeddings, x["attention_mask"].unsqueeze(-1))
         return embeddings
 
@@ -860,6 +856,7 @@ class TextClassificationAbstract(torch.nn.Module):
         if set(self.embedding.config.label2id.keys()) == set(classes.keys()):
             self._entailment_classes =  self.embedding.config.label2id
         else:
+            Warning("entailment classes were overridden")
             self._entailment_classes =  classes
             self.embedding.config.label2id = classes
 

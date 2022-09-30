@@ -26,3 +26,10 @@ class Augment(torch.nn.Module):
             if self.span_cutoff > 0:
                 raise NotImplementedError
         return x*mask
+
+    def off(self):
+        self.word_cutoff = 0
+        self.word_noise = 0
+        self.span_cutoff = 0
+        self.feature_cutoff = 0
+

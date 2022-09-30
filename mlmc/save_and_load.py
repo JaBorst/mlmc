@@ -72,7 +72,7 @@ def load(path, device="cpu"):
     #load all information
     loaded = torch.load(Path(path), pickle_module=dill, **additional_arguments)
     loaded["args"]["device"] = device
-    loaded["args"]["finetune"] = "all"
+    loaded["args"]["finetune"] = "all" if loaded["args"]["finetune"] == "fixed" else loaded["args"]["finetune"]
     # Create a model with the same parameters
     model = loaded["type"](**loaded["args"])
     model.load_state_dict(loaded["model_state_dict"])

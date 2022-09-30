@@ -39,3 +39,4 @@ class EncoderAbstract(LabelEmbeddingAbstract):
         self.embedding = AutoModelForSequenceClassification.from_pretrained(self.representation, num_labels=3)
         self.tokenizer = AutoTokenizer.from_pretrained(self.representation)
         with torch.no_grad(): self.embeddings_dim = self.embedding(**self.tokenizer(["test"], return_tensors="pt"))[0].shape[-1]
+        self._set_entailment_classes()
