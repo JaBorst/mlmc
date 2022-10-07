@@ -57,7 +57,7 @@ def test_MultiLabelReport():
                     'f1-score': 1.0,
                     'support': 8}}
 
-    d1.init(classes1, None)
+    d1.init(classes1)
     d1.update(example1)
     assert d1.print() == results1
 
@@ -73,7 +73,7 @@ def test_MultiLabelReport():
                     'support': 8}}
 
     d1.reset()
-    d1.init(classes1, None)
+    d1.init(classes1)
     d1.update(example2)
     assert d1.print() == results2
 
@@ -89,7 +89,7 @@ def test_MultiLabelReport():
                     'support': 4}}
 
     d1.reset()
-    d1.init(classes2, None)
+    d1.init(classes2)
     d1.update(example3)
     assert d1.print() == results3
 
@@ -109,12 +109,12 @@ def test_MultiLabelReport():
                     'f1-score': 0.3333333333333333,
                     'support': 3}}
 
-    d2.init(classes2, None)
+    d2.init(classes2)
     d2.update(example4)
     assert d2.print() == results4
 
     d2.reset()
-    d2.init(classes1, None)
+    d2.init(classes1)
     d2.update(example5)
     assert d2.print() == results3
 

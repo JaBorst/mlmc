@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 import os
 import subprocess
 
@@ -26,34 +26,29 @@ setup(
     name='melmac',
     python_requires='>=3.7',
     version=version,
-    packages=['mlmc',
-              'mlmc.data',
-              'mlmc.graph',
-              'mlmc.metrics',
-              'mlmc.models',
-              'mlmc.modules',
-              'mlmc.models.abstracts',
-              'mlmc.thresholds',
-              'mlmc.representation'
-              ],
+    packages=find_packages(),
     url='',
     license='',
     author='Janos Borst',
     author_email='borst@informatik.uni-leipzig.de',
     description='A package specialized in neural multilabel and multiclass text classification.',
     install_requires=['transformers',
+                      'nlpaug',
                       'nltk',
                       'scikit-learn',
+                      'datasets',
                       'pytorch-ignite',
                       'tqdm',
                       'networkx',
                       'bs4',
+                      "dill",
                       'pytest',
                       'pytest-cov',
                       'rdflib',
                       'h5py',
                       'datasketch',
-                      'torch>=1.5.1'
+                      'torch>=1.5.1',
+                      'sentencepiece'
     ],
     include_package_data=True,
 )

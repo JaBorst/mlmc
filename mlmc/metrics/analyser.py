@@ -50,11 +50,4 @@ class History:
         plt.ylim(0,1)
         plt.plot()
         plt.legend()
-#
-# import matplotlib.pyplot as plt
-# path ="/home/jb/history.json"
-# h = History(path)
-#
-# h.plot_labels(["Energy markets", "Sports"],  "f1-score")
-# plt.show()
-# r = h.get("valid", "Religion", None)
+

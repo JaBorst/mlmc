@@ -9,7 +9,7 @@ class MultiLabelReport():
         self.is_multilabel = is_multilabel
         self.reset()
 
-    def init(self, classes, target, **kwargs):
+    def init(self, classes, **kwargs):
         "an extra function for model specific parameters of the metric"
         self.classes = classes
 
@@ -33,7 +33,7 @@ class MultiLabelReport():
             self.truth.append(batch[1])
             self.pred.append(batch[2])
 
-    def compute(self):
+    def compute(self,*args, **kwargs):
         """
         Computes metric.
 
@@ -43,17 +43,17 @@ class MultiLabelReport():
         truth = torch.cat(self.truth)
         if not self.is_multilabel:
             truth = torch.nn.functional.one_hot(truth, len(self.classes))
-        return skm.classification_report(truth,
+        return skm.classification_report(truth.numpy(),
                                          pred.numpy(),
                                          output_dict=True,
                                          target_names=list(self.classes.keys()))
-    def print(self):
+    def print(self, *args, **kwargs):
         """
         Computes metric.
 
         :return: Classification report
         """
-        r = self.compute()
+        r = self.compute(*args, **kwargs)
         return {k:v for k,v in r.items() if "micro" in k or "macro" in k}
 
 
@@ -124,7 +124,7 @@ class AUC_ROC():
             fpr = fpr.mean(-1)
         return fpr,tpr
 
-    def compute(self):
+    def compute(self,*args, **kwargs):
         """
         Computes metric.
 
@@ -134,7 +134,7 @@ class AUC_ROC():
         return (skm.auc(fpr, tpr), (fpr.tolist(), tpr.tolist()) ) if self.return_roc else skm.auc(fpr, tpr)
 
 
-    def print(self):
+    def print(self,*args, **kwargs):
         """
         Computes metric.
 

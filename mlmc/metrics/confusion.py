@@ -30,7 +30,7 @@ class ConfusionMatrix():
             self.truth.append(batch[1])
             self.pred.append(batch[0])
 
-    def compute(self):
+    def compute(self,*args, **kwargs):
         """
         Computes metric.
 

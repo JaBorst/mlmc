@@ -29,29 +29,6 @@ class NC_LabelSelfAttention(torch.nn.Module):
         label_att = torch.bmm(m1, x)
         return torch.relu(label_att)
 
-#
-# class GraphSpecificSelfAttention(torch.nn.Module):
-#     def __init__(self, hidden_features, n_layers=3, dropout=0.2):
-#         super(GraphSpecificSelfAttention, self).__init__()
-#         self.hidden_features = hidden_features
-#         self.n_layers = n_layers
-#         self.dropout = dropout
-#         self.gcn = torch.nn.ModuleList(
-#             [GraphConv(in_feats=self.hidden_features, out_feats=self.hidden_features)
-#              for _ in range(self.n_layers)]
-#         )
-#         self.act = torch.nn.LeakyReLU(negative_slope=0.01, inplace=False)
-#         self.dropout_layer = torch.nn.Dropout(dropout)
-#
-#     def forward(self, x, nodes, graph: dgl.DGLGraph):
-#         for l in self.gcn:
-#             nodes = l(graph, nodes)
-#             nodes = self.dropout_layer(nodes)
-#         graph_att = torch.bmm(nodes.expand(x.shape[0], *nodes.shape), x.transpose(1, 2))
-#         graph_att = torch.bmm(graph_att, x)
-#         return torch.relu(graph_att)
-
-
 class SplitWrapper(torch.nn.Module):
     def __init__(self, size, layer: torch.nn.Module):
         super(SplitWrapper, self).__init__()

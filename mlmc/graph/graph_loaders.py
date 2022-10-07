@@ -10,8 +10,7 @@ from rdflib import Graph as RDFGraph
 from rdflib.extras.external_graph_libs import rdflib_to_networkx_graph
 from tqdm import tqdm
 
-from ..data.data_loaders import _save_to_tmp, _load_from_tmp
-
+from ..data import _save_to_tmp, _load_from_tmp
 
 def transform(x, rg, lang="en"):
     """
@@ -256,21 +255,23 @@ def load_wordnet():
             print("To use this function you have to install nltk.")
         G = nx.OrderedDiGraph()
         for ss in wn.all_synsets():
+            for word in ss.lemmas():
+                G.add_node(word.name().replace("_", " "), label=word.name().replace("_", " "), pos=ss.pos())
+                for word2 in ss.lemmas():
+                    G.add_edge(word2.name().replace("_", " "), word.name().replace("_", " "), label="synonym")
+
             if ss.hypernyms() != []:
                 for hypernym in ss.hypernyms():
                     for hh in hypernym.lemmas():
+                        G.add_node(hh.name().replace("_"," "), label=hh.name().replace("_"," "), pos=hypernym.pos())
                         for word in ss.lemmas():
-                            G.add_node(hh.name().replace("_"," "), label=hh.name().replace("_"," "))
-                            G.add_node(word.name().replace("_"," "), label=word.name().replace("_"," "))
                             G.add_edge(hh.name().replace("_"," "), word.name().replace("_"," "), label="hypernym")
-                            for word2 in ss.lemmas():
-                                G.add_edge(word2.name().replace("_"," "), word.name().replace("_"," "), label="synonym")
+
             if ss.hyponyms() != []:
                 for hyponym in ss.hyponyms():
                     for hh in hyponym.lemmas():
+                        G.add_node(hh.name().replace("_"," "), label=hh.name().replace("_"," "), pos=hyponym.pos())
                         for word in ss.lemmas():
-                            G.add_node(hh.name().replace("_"," "), label=hh.name().replace("_"," "))
-                            G.add_node(word.name().replace("_"," "), label=word.name().replace("_"," "))
                             G.add_edge(hh.name().replace("_"," "), word.name().replace("_"," "), label="hyponym")
 
         _save_to_tmp("wordnet",G)
@@ -366,4 +367,57 @@ def load_conceptNet():
                 g.add_edge(triple[1], triple[2], label=triple[0])
     _save_to_tmp("conceptnet",g)
     return g
+
+def load_afinn():
+    url = "https://raw.githubusercontent.com/fnielsen/afinn/master/afinn/data/AFINN-en-165.txt"
+    data = _load_from_tmp("afinn")
+    if data is not None:
+        return data
+    else:
+
+        resp = urlopen(url)
+        content = urlopen(url).read().decode().split("\n")[:-1]
+        edges = ([( str(int(int(x.split("\t")[1])/2)+3), x.split("\t")[0]) for x in content])
+        g = nx.OrderedGraph()
+        g.add_edges_from(edges)
+    _save_to_tmp("afinn", g)
+    return g
+
+#####################################################
+#       Getter
+
+register = {
+    "wordnet": load_wordnet,
+    "stw": load_stw,
+    "nasa": load_nasa,
+    "gesis": load_gesis,
+    "mesh": load_mesh,
+    "conceptnet": load_conceptNet,
+    "elsevier": load_elsevier,
+    "afinn": load_afinn
+
+}
+def get_graph(name: str):
+    """
+    Loads a graph.
+
+    :param name: Name of the graph (see register.keys())
+    :return: Function call of the chosen graph
+    """
+    fct = register.get(name)
+    if fct is None:
+        raise FileNotFoundError
+    else:
+        return fct()
+
+def get(name: [list, str]):
+    """
+    Loads a graph. If multiple names are provided the union of the graphs is returned.
+
+    :param name: Name(s) of the graph(s) to compose (see register.keys())
+    :return: Merged graph
+    """
+    if isinstance(name, str):
+        name = [name]
+    return nx.compose_all([get_graph(x) for x in name])
 

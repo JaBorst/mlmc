@@ -16,10 +16,13 @@ class PrecisionK(Precision):
 
         :param output: output of classification task in form (scores, truth, pred)
         """
-        transformed = torch.zeros_like(output[0]).scatter(1, torch.topk(output[0], k=self.k)[1], 1)
+        transformed = torch.zeros_like(output[0]).scatter(1, torch.topk(output[0], k=self.k, dim=-1)[1], 1)
         super(PrecisionK, self).update((transformed.int(), output[1].int()))
 
-    def print(self):
+    def compute(self, *args, **kwargs):
+        return super(PrecisionK, self).compute()
+
+    def print(self,*args, **kwargs):
         """
         Computes metric.
 
@@ -46,8 +49,34 @@ class AccuracyTreshold(Accuracy):
         :param output: output of classification task in form (scores, truth, pred)
         """
         super(AccuracyTreshold, self).update((self.trf(x=output[0]).int(), output[1].int()))
+        # super(AccuracyTreshold, self).update((output[2].int(), output[1].int()))
+    def compute(self, *args, **kwargs):
+        return super(AccuracyTreshold,self).compute()
 
-    def print(self):
+    def print(self,*args, **kwargs):
+        """
+        Computes metric.
+
+        :return: Accuracy threshold
+        """
+        return self.compute()
+
+class Accuracy(Accuracy):
+    """
+    Class for calculating a threshold regarding accuracy. Uses ignite's accuracy metric.
+    """
+    def update(self, output):
+        """
+        Adds classification output to class for computation of metric.
+
+        :param output: output of classification task in form (scores, truth, pred)
+        """
+        super(Accuracy, self).update((output[2].int(), output[1].int()))
+
+    def compute(self, *args, **kwargs):
+        return super(Accuracy, self).compute()
+
+    def print(self,*args, **kwargs):
         """
         Computes metric.
 

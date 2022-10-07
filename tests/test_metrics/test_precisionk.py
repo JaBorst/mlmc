@@ -1,6 +1,5 @@
 from mlmc.metrics import AccuracyTreshold
 from mlmc.thresholds import threshold_max, threshold_hard, threshold_mcut
-from mlmc.data import SingleLabelDataset, MultiLabelDataset
 import torch
 
 

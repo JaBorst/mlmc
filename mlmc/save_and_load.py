@@ -2,10 +2,10 @@
 A save and load function for models..
 """
 from pathlib import Path
+import dill
 
 import torch
 import warnings
-
 
 def save(model, path, only_inference=False):
     """Saving a model to disk
@@ -25,12 +25,13 @@ def save(model, path, only_inference=False):
     model.optimizer = None
     model.loss = None
     model.device = "cpu"
+    model = model.cpu()
 
     if only_inference:
         # Use torch.save to save the inference state. if save_all: Save the input representation (embedding or lm)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            torch.save(model, Path(path))
+            torch.save(model, Path(path), pickle_module=dill)
 
     else:
         with warnings.catch_warnings():
@@ -40,7 +41,7 @@ def save(model, path, only_inference=False):
                 "args": model._config,
                 "optimizer": optimizer_tmp,
                 "loss": loss_tmp,
-                "model_state_dict": model.state_dict()}, path)
+                "model_state_dict": model.state_dict()}, path, pickle_module=dill)
 
 
     # Reattach loss and optimizer and variables
@@ -50,7 +51,7 @@ def save(model, path, only_inference=False):
     return path
 
 
-def load(path, only_inference=False, only_cpu=False):
+def load(path, device="cpu"):
     """
     Load a model from disk
 
@@ -64,19 +65,17 @@ def load(path, only_inference=False, only_cpu=False):
         The loaded model.
 
     """
+    import mlmc
     additional_arguments = {}
-    if only_cpu:
-        additional_arguments["map_location"] = torch.device('cpu')
+    additional_arguments["map_location"] = torch.device(device)
 
-    if only_inference:
-        loaded = torch.load(Path(path),**additional_arguments)
-        return loaded
-    else:
-        #load all information
-        loaded = torch.load(Path(path),**additional_arguments)
-        # Create a model with the same parameters
-        model = loaded["type"](**loaded["args"])
-        model.load_state_dict(loaded["model_state_dict"])
-        model.optimizer = loaded["optimizer"]
-        model.loss = loaded["loss"]
-        return model
+    #load all information
+    loaded = torch.load(Path(path), pickle_module=dill, **additional_arguments)
+    loaded["args"]["device"] = device
+    loaded["args"]["finetune"] = "all" if loaded["args"]["finetune"] == "fixed" else loaded["args"]["finetune"]
+    # Create a model with the same parameters
+    model = loaded["type"](**loaded["args"])
+    model.load_state_dict(loaded["model_state_dict"])
+    model.optimizer = loaded["optimizer"]
+    model.loss = loaded["loss"]
+    return model

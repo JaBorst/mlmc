@@ -10,12 +10,14 @@ try:
 except:
     __version__ = "unknown"
 
-import mlmc.data
 import mlmc.models
-import mlmc.graph
+# import mlmc.graph
 import mlmc.metrics
 import mlmc.representation
 import mlmc.modules
+import mlmc.callbacks
+import mlmc.loss
+import mlmc.ensembles
 # Save and load models for inference
 from .save_and_load import save, load
 
@@ -27,8 +29,9 @@ import sys
 import torch
 
 
-def install_torch_geometric():
-    cuda = torch.version.cuda
+def install_torch_geometric(cuda=None):
+    if cuda is None:
+        cuda = torch.version.cuda
     if cuda is None:
         cuda = "cpu"
     else:

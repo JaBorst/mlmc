@@ -1,11 +1,9 @@
 from mlmc.thresholds.thresholds import *
-from mlmc.thresholds.scaling import mean_scaling
 
 thresholds_dict = {
     "hard": threshold_hard,
     "max": threshold_max,
     "mcut": threshold_mcut,
-    "scaling_mcut": threshold_scaling_mcut,
     "mean": threshold_mean,
 }
 
@@ -45,6 +43,3 @@ def get(name: str, *args, **kwargs):
         A callable threshold Object
     """
     return ThresholdWrapper(name, *args, **kwargs)
-
-#
-# get("scaling_mcut", torch.tensor([0,0,1]))(torch.tensor([[0.00001,0.00001,0.9]]))

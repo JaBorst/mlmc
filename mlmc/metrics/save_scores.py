@@ -11,7 +11,7 @@ class SaveScores:
         self.some_hash = str(hash(datetime.datetime.now()))[1:7]
         self.reset()
 
-    def init(self, classes, target, **kwargs):
+    def init(self, **kwargs):
         "an extra function for model specific parameters of the metric"
         self.counter +=1
         self._zeroshot_ind = kwargs["_config"]["zeroshot_ind"]
@@ -26,7 +26,7 @@ class SaveScores:
         self.truth.append(batch[1])
         self.pred.append(batch[0])
 
-    def compute(self):
+    def compute(self,*args, **kwargs):
         np.save(
             self.filename,
             {
@@ -37,7 +37,7 @@ class SaveScores:
         )
         return str(self.filename)
 
-    def print(self):
+    def print(self,*args, **kwargs):
         return str(self.filename)
 
 

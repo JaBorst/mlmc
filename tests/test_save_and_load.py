@@ -3,7 +3,7 @@ from pathlib import Path
 import mlmc
 import torch
 import networkx as nx
-mlmc.representation.representations.add_test_example()
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def compare_models(model_1, model_2):
@@ -28,21 +28,18 @@ def save_and_load(model):
 
 def assertion_function(model_type, **kwargs):
 
-    data = mlmc.data.MultiLabelDataset(
+    data = mlmc.data.dataset_classes.MultiLabelDataset(
         x = ["Sample 1", "Sample 2", "Sample 3", "Sample 4", "Sample 5"],
         y = [["label_0", "label_4"], ["label_0", "label_2"], ["label_2", "label_3"], ["label_1", "label_4"], ["label_1", "label_4"]],
         classes = {"label_%i" % (i,): i for i in range(5)}
     )
 
-    mo_data = mlmc.data.MultiOutputSingleLabelDataset(
+    mo_data = mlmc.data.dataset_classes.MultiOutputSingleLabelDataset(
         x=["Sample 1", "Sample 2", "Sample 3", "Sample 4", "Sample 5"],
         y=[[["label_0"], ["label_2"]], [["label_3"], ["label_1"]], [["label_4"], ["label_2"]], [["label_1"], ["label_2"]], [["label_3"], ["label_0"]]],
         classes= {"label_0": 0, "label_1": 1, "label_2": 3, "label_3": 2, "label_4": 4})
 
-    if model_type.__name__ in ["ZAGCNNLM", "SKGLM"]:
-        G = nx.DiGraph([("label_0", "label_1"), ("label_0", "label_4"), ("label_1", "label_2"), ("label_1", "label_3"), ("label_2", "label_4")])
-        model = model_type(classes=data.classes, graph=G, **kwargs)
-    elif model_type.__name__ in ["MoLSANNC", "MoTransformer", "MoKimCNN"]:
+    if model_type.__name__ in ["MoLSANNC", "MoTransformer", "MoKimCNN"]:
         model = model_type(classes=mo_data.classes, **kwargs)
     else:
         model = model_type(classes=data.classes, **kwargs)
@@ -60,32 +57,22 @@ def assertion_function(model_type, **kwargs):
     save_and_load(model)
 
 def test_KimCNN():
-    assertion_function(model_type=mlmc.models.KimCNN, representation="google/bert_uncased_L-2_H-128_A-2")
+    assertion_function(model_type=mlmc.models.KimCNN, target="multi", representation="google/bert_uncased_L-2_H-128_A-2", kernel_sizes=(2,3))
 
 def test_LSAN():
-    assertion_function(model_type=mlmc.models.LSAN, representation="google/bert_uncased_L-2_H-128_A-2", hidden_representations=10, d_a=10)
-
-def test_LSANNC():
-    assertion_function(model_type=mlmc.models.LSANNC, representation="google/bert_uncased_L-2_H-128_A-2", label_model="test", hidden_representations=10, d_a=10)
+    assertion_function(model_type=mlmc.models.LSAN, target="multi",representation="google/bert_uncased_L-2_H-128_A-2", hidden_representations=10, d_a=10)
 
 def test_MoKimCNN():
-    assertion_function(model_type=mlmc.models.MoKimCNN, representation="google/bert_uncased_L-2_H-128_A-2", target="single")
+    assertion_function(model_type=mlmc.models.MoKimCNN, representation="google/bert_uncased_L-2_H-128_A-2", target="single", kernel_sizes=(2,3))
 
 def test_MoLSANNC():
-    assertion_function(model_type=mlmc.models.MoLSANNC, representation="google/bert_uncased_L-2_H-128_A-2",label_model="test", target="single", hidden_representations=10, d_a=10)
+    assertion_function(model_type=mlmc.models.MoLSANNC, representation="google/bert_uncased_L-2_H-128_A-2",label_model="google/bert_uncased_L-2_H-128_A-2", target="single", hidden_representations=10, d_a=10)
 
 def test_MoTransformer():
     assertion_function(model_type=mlmc.models.MoTransformer, representation="google/bert_uncased_L-2_H-128_A-2", target="single")
 
 def test_Transformer():
-    assertion_function(model_type=mlmc.models.Transformer, representation="google/bert_uncased_L-2_H-128_A-2")
+    assertion_function(model_type=mlmc.models.Transformer, target="multi", representation="google/bert_uncased_L-2_H-128_A-2")
 
 def test_XMLCNN():
-    assertion_function(model_type=mlmc.models.XMLCNN, representation="google/bert_uncased_L-2_H-128_A-2")
-
-#Geometric Models:
-# def test_SKGLM():
-#     assertion_function(model_type=mlmc.models.SKGLM, representation="google/bert_uncased_L-2_H-128_A-2")
-#
-# def test_ZAGCNNLM():
-#     assertion_function(model_type=mlmc.models.ZAGCNNLM, representation="google/bert_uncased_L-2_H-128_A-2", n_layers=1)
+    assertion_function(model_type=mlmc.models.XMLCNN, target="multi", representation="google/bert_uncased_L-2_H-128_A-2", kernel_sizes=(2,3))

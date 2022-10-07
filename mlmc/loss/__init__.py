@@ -1,0 +1,1 @@
+from .loss_labelwise_ranking import RelativeRankingLoss
