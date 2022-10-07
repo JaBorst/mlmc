@@ -41,7 +41,7 @@ class LabelEmbeddingAbstract(TextClassificationAbstract):
                     self.tokenizer(list(self._config["classes"].keys()), padding=True, max_length=self._config["label_len"], truncation=True,
                                    add_special_tokens=True, return_tensors='pt').items()}
 
-    def transform(self, x, h=None, max_length=None) -> tuple[dict, dict]:
+    def transform(self, x, h=None, max_length=None):
         """
         A standard transformation function from text to network input format
 
