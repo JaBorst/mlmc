@@ -29,7 +29,7 @@ abc = mlmc.data.dataset_classes.ABCDataset(
 
 
 def f(model):
-    m = model(classes = classes, target="entailment", finetune="all", device="cuda:0")
+    m = model(classes = classes, target="entailment", finetune="all")
     try:
         m.single()
         m.evaluate(sl)
@@ -59,5 +59,3 @@ def f(model):
 
 def test_encoder(): f(mlmc.models.Encoder)
 def test_siamese(): f(mlmc.models.Siamese)
-
-test_encoder()
