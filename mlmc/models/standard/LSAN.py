@@ -20,12 +20,6 @@ class LSAN(TextClassificationAbstract):
         :param kwargs: Optimizer and loss function keyword arguments, see `mlmc.models.abstracts.abstracts.TextClassificationAbstract`
         """
         super(LSAN, self).__init__(**kwargs)
-        #My Stuff
-        # self.label_embedding = label_embedding
-        # self.label_freeze = label_freeze
-        # self.d_a = d_a
-        # self.lstm_hid_dim = lstm_hid_dim
-
         self._config["lstm_hid_dim"] = lstm_hid_dim
         self._config["d_a"] = d_a
         self._config["label_freeze"] = label_freeze

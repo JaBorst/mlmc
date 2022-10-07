@@ -1,24 +1,21 @@
 import torch
-from ...abstracts.abstract_embedding import LabelEmbeddingAbstract
+from mlmc.models.abstracts.abstract_embedding import LabelEmbeddingAbstract
 
 class Siamese(LabelEmbeddingAbstract):
     """
-     Zeroshot model based on cosine distance of embedding vectors.
+     Zeroshot model based on distance of embedding vectors.
     """
-    def __init__(self, dropout=0.5, vertical_dropout=0, word_noise=0, score ="cosine", *args, **kwargs):
+    def __init__(self, dropout=0.5, score ="cosine", *args, **kwargs):
         """
-         Zeroshot model based on cosine distance of embedding vectors.
+         Zeroshot model based on distance of embedding vectors.
         This changes the default activation to identity function (lambda x:x)
-        Args:
-            mode: one of ("vanilla", "max", "mean", "max_mean", "attention", "attention_max_mean"). determines how the sequence are weighted to build the input representation
-            entailment_output: the format of the entailment output if NLI pretraining is used. (experimental)
-            *args:
-            **kwargs:
+        :param dropout: Dropout Rate of the classifier
+        :param score: The scoring or distance function. One of ["cosine"; "scalar"; "entailment"]. if "entailment" is used the zeroshot capabilities are lost. (default: cosine)
+        :param args:
+        :param kwargs:
         """
         super(Siamese, self).__init__(*args, **kwargs)
         self._config["dropout"] = dropout
-        self._config["vertical_dropout"] = vertical_dropout
-        self._config["word_noise"] = word_noise
         if  self._config["target"] == "entailment" and score != "entailment":
             print("Setting scoring to entailment automatically")
             self.entailment()
@@ -120,13 +117,11 @@ class Siamese(LabelEmbeddingAbstract):
 
         return torch.cat(scores), torch.cat(embeddings)
 
-
-
     def _contrastive_embedding(self, x, y):
         x = self.transform(x)
-        input_embedding = self.embed_input(x)
-        input_embedding = self._mean_pooling(input_embedding, x["attention_mask"])
+        input_embedding = self.embed_input(x[0])
+        input_embedding = self._mean_pooling(input_embedding, x[0]["attention_mask"])
         y = self.transform(y)
-        y_embedding = self.embed_input(y)
-        y_embedding = self._mean_pooling(y_embedding, y["attention_mask"])
+        y_embedding = self.embed_input(y[0])
+        y_embedding = self._mean_pooling(y_embedding, y[0]["attention_mask"])
         return input_embedding, y_embedding

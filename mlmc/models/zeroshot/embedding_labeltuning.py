@@ -1,6 +1,6 @@
 import torch
-from ...abstracts.abstract_embedding import LabelEmbeddingAbstract
-from ....modules import Augment
+from mlmc.models.abstracts.abstract_embedding import LabelEmbeddingAbstract
+from mlmc.modules import Augment
 
 class LabelTuning(LabelEmbeddingAbstract):
     """

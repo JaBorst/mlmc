@@ -1,3 +1,3 @@
-from .encoder.simple import Encoder
-from .embedding import LabelTuning, Siamese
-from .generative import Generator
+from .encoder import Encoder
+from .embedding_siamese import Siamese
+from .embedding_labeltuning import LabelTuning

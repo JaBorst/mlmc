@@ -1005,9 +1005,6 @@ class TextClassificationAbstract(torch.nn.Module):
             r = list(zip(aspects,o))
         return r
 
-    def _contrastive_embedding(self, x, y):
-        raise NotImplementedError
-
     def _sample(self, C, n=10000):
         import random
         labels = torch.rand((n,)).round()
@@ -1021,7 +1018,38 @@ class TextClassificationAbstract(torch.nn.Module):
                                  random.choice(C[random.choice(list(set(self.classes.keys()) - set([cls])))]), label,))
         return triplets
 
-    def contrastive_pretrain(self, d, batch_size=16, steps=10000):
+    def _contrastive_embedding(self, x, y):
+        x = self.transform(x)
+        input_embedding = self.embed_input(x)
+        input_embedding = self._mean_pooling(input_embedding, x["attention_mask"])
+        y = self.transform(y)
+        y_embedding = self.embed_input(y)
+        y_embedding = self._mean_pooling(y_embedding, y["attention_mask"])
+        return input_embedding, y_embedding
+
+
+    def _contrastive_step(self, b):
+        if not hasattr(self, "_contrastive_loss" ):
+            self._contrastive_loss = torch.nn.CosineEmbeddingLoss()
+
+        x, y = self._contrastive_embedding(list(b[0]), list(b[1]))
+        l = self._contrastive_loss(x, y, 2 * b[2].to(self.device) - 1)
+        return l
+
+    def _tm_step(self, b):
+        if not hasattr(self, "_contrastive_loss" ):
+            self._contrastive_loss = torch.nn.CosineEmbeddingLoss()
+        x1 = self.forward(self.transform(list(b[0])))
+        y1 =self.forward(self.transform(list(b[1])))
+        x = self.tm_reproj(x1.softmax(-1))
+        y = self.tm_reproj(y1.softmax(-1))
+        # l = \#self._contrastive_loss(x1, y1, 2 * b[2].to(self.device) - 1) +  \
+        l=    self._contrastive_loss(y1, x, 2 * b[2].to(self.device) - 1) +  \
+            self._contrastive_loss(x1, y, 2 * b[2].to(self.device) - 1)
+
+        return l
+
+    def contrastive_pretrain(self, d, valid=None, valid_steps=100, batch_size=16, steps=10000):
         C = {k:[] for k in self._config["classes"].keys()}
         for x,c in zip(d.x,d.y):
             for cls in c:
@@ -1042,7 +1070,6 @@ class TextClassificationAbstract(torch.nn.Module):
         s = self._sample(C, steps*batch_size)
         data = CustomDataset(x1=[x[0] for x in s], x2=[x[1] for x in s], l=[x[2] for x in s])
         train_loader = torch.utils.data.DataLoader(data, shuffle=True, batch_size=batch_size)
-        loss = torch.nn.CosineEmbeddingLoss()
         optimizer = torch.optim.AdamW(filter(lambda p: p.requires_grad, self.parameters()), **self.optimizer_params)
         loss_avg = []
         i=0
@@ -1050,16 +1077,56 @@ class TextClassificationAbstract(torch.nn.Module):
                       postfix=[], desc="Contrastive Pretraining %i / %i" %(i, steps) , ncols=100) as pbar:
             for i,b in enumerate(train_loader):
                 optimizer.zero_grad()
-                x, y = self._contrastive_embedding(list(b[0]),list(b[1]))
-                l = loss(x,y, 2*b[2].to(self.device)-1)
+                l = self._contrastive_step(b)
                 l.backward()
                 loss_avg.append(l.detach().item())
                 optimizer.step()
                 pbar.postfix = {"loss":sum(loss_avg) / len(loss_avg)}
                 pbar.update()
-                # y = self._label_transform(b["labels"]).to(self.device)
-                # output = self(x)
-                # # if x.shape[0] == 1 and output.shape[0] != 1:
-                # #     output = output[None]
-                # l = self._loss(output, y)
-                # l = self._regularize(l)
+                if i % valid_steps == 0:
+                    if valid is not None:
+                        print(self.evaluate(valid))
+
+
+    def tm_pretrain(self, d, valid=None, valid_steps=100, batch_size=16, steps=10000):
+        C = {k:[] for k in self._config["classes"].keys()}
+        for x,c in zip(d.x,d.y):
+            for cls in c:
+                C[cls].append(x)
+
+
+        class CustomDataset(torch.utils.data.Dataset):
+            def __init__(self, x1, x2, l):
+                self.x1 = x1
+                self.x2 = x2
+                self.l = l
+
+            def __len__(self):
+                return len(self.x1)
+
+            def __getitem__(self, idx):
+                return (self.x1[idx], self.x2[idx], self.l[idx])
+        s = self._sample(C, steps*batch_size)
+        data = CustomDataset(x1=[x[0] for x in s], x2=[x[1] for x in s], l=[x[2] for x in s])
+        train_loader = torch.utils.data.DataLoader(data, shuffle=True, batch_size=batch_size)
+
+        self.tm_proj = torch.nn.Linear(self.embeddings_dim, self.n_classes)
+        self.tm_reproj = torch.nn.Linear(self.n_classes, self.embeddings_dim).to(self.device)
+        optimizer = torch.optim.AdamW(filter(lambda p: p.requires_grad, self.parameters()), **self.optimizer_params)
+        loss_avg = []
+        i=0
+        with tqdm(train_loader,
+                      postfix=[], desc="Contrastive Pretraining %i / %i" %(i, steps) , ncols=100) as pbar:
+            for i,b in enumerate(train_loader):
+                optimizer.zero_grad()
+                l = self._tm_step(b)
+                l.backward()
+                loss_avg.append(l.detach().item())
+                optimizer.step()
+                pbar.postfix = {"loss":sum(loss_avg) / len(loss_avg)}
+                pbar.update()
+                if i % valid_steps == 0:
+                    if valid is not None:
+                        print(self.evaluate(valid))
+        self.tm_proj = None
+        self.tm_reproj = None

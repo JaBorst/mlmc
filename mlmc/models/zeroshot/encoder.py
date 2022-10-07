@@ -51,14 +51,26 @@ class Encoder(EncoderAbstract):
                 cls = torch.nn.functional.one_hot(y, len(self.classes)).flatten()
                 label = torch.full_like(cls, self.contradiction_id)
                 label[cls==1] = self.entailment_id
-            torch.zeros((x.shape[0], len(self._entailment_classes)))
-            if self._config["target"] == "multi":
+
+            elif self._config["target"] == "multi":
                 label = torch.zeros_like(x)
-                label[..., self.entailment_id] = torch.nn.functional.one_hot(y, len(self.classes)).flatten()
-                label[..., self.contradiction_id] = 1 - torch.nn.functional.one_hot(y, len(self.classes)).flatten()
+                label[..., self.entailment_id] = y.flatten()
+                label[..., self.contradiction_id] = 1 - y.flatten()
+            else:
+                label = y
         else: label=y
         return self.loss(x,label)
 
+    def _contrastive_step(self, b):
+        if not hasattr(self, "_contrastive_loss" ):
+            self._contrastive_loss = torch.nn.CrossEntropyLoss()
+        classification_target = self._config["target"]
+        self._config["target"] = "entailment"
+        x = self._contrastive_embedding(list(b[0]), list(b[1]))
+        target = torch.tensor([self._entailment_classes[{0:"contradiction", 1:"entailment"}[l.int().item()]] for l in b[2]])
+        l = self._contrastive_loss(x, target.to(self.device))
+        self._config["target"] = classification_target
+        return l
 
     def _sample(self, C, n=10000):
         import random
@@ -66,24 +78,25 @@ class Encoder(EncoderAbstract):
         triplets = []
         for label in  labels:
             if label == 1:
-                cls = random.choices(list(self.classes.keys()), k=2)
-                if random.choice(["entailment", "not"]) == "entailment":
-                    sp1 = random.choices(C[cls[0]],k=2)
-                    sp2 = random.choices(C[cls[1]],k=2)
-                else:
-                    sp1 = random.choice(C[cls[0]]), random.choice(C[random.choice(list(set(self.classes.keys()) - set([cls[0]])))])
-                    sp2 = random.choice(C[cls[1]]), random.choice(C[random.choice(list(set(self.classes.keys()) - set([cls[1]])))])
+                cls = random.choice(list(self.classes.keys()))
+                sp = random.choices(C[cls],k=2)
             else:
-                cls = random.choices(list(self.classes.keys()), k=2)
-                sp1 = random.choices(C[cls[0]],k=2)
-                sp2 = random.choice(C[cls[1]]),  random.choice(C[random.choice(list(set(self.classes.keys()) - set([cls[1]])))])
-            triplets.append((sp1, sp2, label,))
-
+                cls1 = random.choice(list(self.classes.keys()))
+                cls2 = random.choice(list(set(self.classes.keys()) - set([cls1])))
+                sp = random.choice(C[cls1]), random.choice(C[cls2])
+            triplets.append((*sp, label,))
         return triplets
 
     def _contrastive_embedding(self, x, y):
-        h = self.transform(*x)
+        # activation = {}
+        # def get_activation(name):
+        #     def hook(model, input, output):
+        #         activation[name] = output
+        #     return hook
+        # # self.embedding.model.decoder.layernorm_embedding.register_forward_hook(get_activation('embedding'))
+        # self.embedding.base_model.pooler.register_forward_hook(get_activation('embedding'))
+        h = self.transform(x,y)
         h = self.embedding(**h).logits
-        h2 = self.transform(*y)
-        h2 = self.embedding(**h2).logits
-        return h, h2
+        return h
+
+

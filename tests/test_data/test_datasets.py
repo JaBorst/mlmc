@@ -62,6 +62,7 @@ def test_multilabeldataset_density():
 
 def test_multilabeldataset_map():
     d = mlmc.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
+                                                     hypothesis = ["1", "2", "4"],
                                                         y=[["a", "b"], ["b"], ["c"], ["d"]],
                                                         classes={"a": 0, "b": 1, "c": 2, "d": 3})
 
@@ -84,6 +85,23 @@ def test_multilabeldataset_add():
     assert set(d.x) == {"1", "2", "3", "4"}
     assert set([tuple(sorted(x)) for x in d.y]) == set(
         [tuple(sorted(x)) for x in [["b", "a"], ["e", "b"], ["c"], ["d"]]])
+
+    # With Hypothesis
+    d1 = mlmc.data.dataset_classes.MultiLabelDataset(x=["1", "2", "4"],
+                                                     hypothesis=["1", "2", "4"],
+                                                     y=[["a", "b"], ["b"], ["d"]],
+                                                     classes={"a": 0, "b": 1, "d": 2})
+    d2 = mlmc.data.dataset_classes.MultiLabelDataset(x=["2", "3", "4"],
+                                                     hypothesis=["1", "2", "4"],
+                                                     y=[["e"], ["c"], ["d"]],
+                                                     classes={"e": 0, "b": 1, "c": 2, "d": 3})
+
+    d = d1 + d2
+    d.one_hot = False
+    assert set(d.classes.keys()) == {"a", "b", "c", "d", "e"}
+    assert set(d.x) == {"1", "2", "3", "4"}
+    assert set([tuple(sorted(x)) for x in d.y]) == set(
+        [tuple(sorted(x)) for x in [["b", "a"], ["b"], ["c"], ["d"], ["e"]]])
 
 def test_singlelabeldataset():
     try:

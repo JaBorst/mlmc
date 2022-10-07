@@ -1,1 +1,0 @@
-from .pipeline_transfer_sampling import Transfer

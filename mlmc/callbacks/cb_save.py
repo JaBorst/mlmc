@@ -5,7 +5,19 @@ import shutil
 import tempfile
 
 class CallbackSaveAndRestore(Callback):
+    """
+    Save and Restores the best model of the training.
+    """
     def __init__(self, path=None, file="model", metric="valid_loss", mode="min", delete_after=True):
+        """
+        Call back saves the best model during training in a temporary folder and restores it at the end of the training.
+        If path is not provided, the class makes a new temporary directory, which is deleted at the end of the training.
+        :param path: The path where the intermediate models are saved. If None a temporary directory is created. (default: None)
+        :param file: The filename of the intermediate model. Intermediate models are saved as [path]/[filename]_[epoch].pth. (default: "model")
+        :param metric: The metric which defines the best model (default: valid_loss)
+        :param mode: Decides if the metric is better if smaller ("min") or if larger ("max") (default: "min")
+        :param delete_after: If set to True the temporary folder is automatically deleted in the end (default: True)
+        """
         super(CallbackSaveAndRestore, self).__init__()
         self.name = "callback_saveandrestore"
         if path is None:

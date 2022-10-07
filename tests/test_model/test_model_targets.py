@@ -57,6 +57,7 @@ def f(model):
         assert False, f"Error in {model} for single label"
 
 
-def test_generator():  f(mlmc.models.Generator)
 def test_encoder(): f(mlmc.models.Encoder)
 def test_siamese(): f(mlmc.models.Siamese)
+
+test_encoder()

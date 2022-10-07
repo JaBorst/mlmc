@@ -1,15 +1,41 @@
 import mlmc
 
-def test_MultiLabelDataset():
-    d = mlmc.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4"],
-                                                        y=[["a"],["b"],["c"],["d"]],
+def test_random_sampler():
+    source = mlmc.data.dataset_classes.MultiLabelDataset(x=["1", "2", "3", "4", "5"],
+                                                        y=[["a"],["b"],["c"],["d"],["d"]],
                                                         classes = {"a":0,"b":1,"c":2,"d":3})
+    d = mlmc.data.sampler(source, absolute=3)
+    assert len(d) == 3, f"sampling with absolute=3 produces dataset of size {len(d)}"
+    d = mlmc.data.sampler(source, fraction=0.2)
+    assert len(d) == 1, f"sampling with absolute=3 produces dataset of size {len(d)}"
 
-    assert len(d) == 4
-    assert list(d[0].keys()) == ["text", "labels"]
-    assert tuple(d[0]["labels"].shape) == (4,)
-    assert d[0]["labels"].tolist() == [1, 0, 0, 0]
-    assert isinstance(d[0]["text"],str)
+    source = mlmc.data.dataset_classes.SingleLabelDataset(x=["1", "2", "3", "4", "5"],
+                                                         y=[["a"], ["b"], ["c"], ["d"], ["d"]],
+                                                         classes={"a": 0, "b": 1, "c": 2, "d": 3})
+    d = mlmc.data.sampler(source, absolute=3)
+    assert len(d) == 3, f"sampling with absolute=3 produces dataset of size {len(d)}"
+    d = mlmc.data.sampler(source, fraction=0.2)
+    assert len(d) == 1, f"sampling with absolute=3 produces dataset of size {len(d)}"
+
+
+    source = mlmc.data.dataset_classes.ABCDataset(x=["1", "2", "3", "4", "5"],
+                                                         hypothesis=["1", "2", "3", "4", "5"],
+                                                         y=[["a"], ["b"], ["c"], ["d"], ["d"]],
+                                                         classes={"a": 0, "b": 1, "c": 2, "d": 3})
+    d = mlmc.data.sampler(source, absolute=3)
+    assert len(d) == 3, f"sampling with absolute=3 produces dataset of size {len(d)}"
+    d = mlmc.data.sampler(source, fraction=0.2)
+    assert len(d) == 1, f"sampling with absolute=3 produces dataset of size {len(d)}"
+
+    source = mlmc.data.dataset_classes.EntailmentDataset(x=["1", "2", "3", "4", "5"],
+                                                         hypothesis=["1", "2", "3", "4", "5"],
+                                                         y=[["a"], ["b"], ["c"], ["d"], ["d"]],
+                                                         classes={"a": 0, "b": 1, "c": 2, "d": 3})
+    d = mlmc.data.sampler(source, absolute=3)
+    assert len(d) == 3, f"sampling with absolute=3 produces dataset of size {len(d)}"
+    d = mlmc.data.sampler(source, fraction=0.2)
+    assert len(d) == 1, f"sampling with absolute=3 produces dataset of size {len(d)}"
+
 
 
 def test_MultiLabelDataset_add():

@@ -165,16 +165,26 @@ class MultiLabelDataset(Dataset):
             new_classes.sort()
             new_classes = dict(zip(new_classes, range(len(new_classes))))
 
-        new_data = dict(zip(self.x, self.y))
-
-        for x,y in zip(o.x, o.y):
-            if x not in new_data: new_data[x] = []
-            new_data[x].extend(y)
-        new_data = {k:list(set(v)) for k,v in new_data.items()}
-        try:
-            return SingleLabelDataset(x=list(new_data.keys()), y=list(new_data.values()), classes=new_classes)
-        except AssertionError:
-            return MultiLabelDataset(x=list(new_data.keys()), y=list(new_data.values()), classes=new_classes)
+        if self.hypothesis is None:
+            new_data = dict(zip(self.x, self.y))
+            for x,y in zip(o.x, o.y):
+                if x not in new_data: new_data[x] = []
+                new_data[x].extend(y)
+            new_data = {k:list(set(v)) for k,v in new_data.items()}
+            try:
+                return SingleLabelDataset(x=list(new_data.keys()), y=list(new_data.values()), classes=new_classes)
+            except AssertionError:
+                return MultiLabelDataset(x=list(new_data.keys()), y=list(new_data.values()), classes=new_classes)
+        else:
+            new_data = dict(zip(list(zip(self.x, self.hypothesis)), self.y))
+            for x, y, h in zip(o.x, o.y, o.hypothesis):
+                if (x, h) not in new_data:
+                    new_data[(x, h)] = []
+                new_data[(x, h)].extend(y)
+            new_data = {k: list(set(v)) for k, v in new_data.items()}
+            return type(self)(x=list(x[0] for x in new_data.keys()),
+                                     hypothesis=list(x[1] for x in new_data.keys()), y=list(new_data.values()),
+                                     classes=new_classes)
 
     def remove(self, classes):
         """
