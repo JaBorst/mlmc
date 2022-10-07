@@ -11,7 +11,7 @@ for your cuda setup. Download the right version from
 
 Install with
 ```
-pip install git+https://git.informatik.uni-leipzig.de/asv-ml/mlmc@v0.1.4
+pip install git+https://git.informatik.uni-leipzig.de/asv-ml/mlmc
 ```
 ## Workflow
 
@@ -21,13 +21,20 @@ The basic usage of the package is as follows:
 import mlmc
 
 #Load data
-data = mlmc.data.get_multilabel_dataset("rcv1")
+text = ["Scientists found out that breathing keeps you alive!",
+        "The Eagles won the Superbowl in 2018"]
+labels = [["Science"], ["Sports"]]
+
+classes = {"Science":0, "Sports":1}
+
+data = {"train": mlmc.data.SingleLabelDataset(x=text, y=label, classes=classes),
+        "test": mlmc.data.SingleLabelDataset(x=text, y=label, classes=classes)}
 
 #Create model
-model = mlmc.models.KimCNN(classes = data["classes"])
+model = mlmc.models.KimCNN(classes=classes, target="single")
 
 #Train model
-history = model.fit(train = data["train"], epochs = 10, batch_size = 50)
+history = model.fit(train=data["train"], epochs=10, batch_size=50)
 
 #Evaluate model
 results = model.evaluate(data["test"])
