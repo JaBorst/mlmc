@@ -2,7 +2,8 @@
 
 **M**ulti**l**abel **M**ulti**c**lass
 
-Packaging for experimenting with neural networks and multilabel text classification.
+Python package for application of neural networks for single label and multi label text classification.
+Contains capabilities for zero and few-shot scenarios.
 
 
 Before installing, make sure the right pytorch package is installed
