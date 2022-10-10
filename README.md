@@ -1,4 +1,6 @@
-# mlmc
+
+![](mlmc-logo.png)
+---
 
 **M**ulti**l**abel **M**ulti**c**lass
 
