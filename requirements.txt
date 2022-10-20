@@ -18,5 +18,4 @@ datasketch
 torch>=1.8.0,<=1.11.1
 beautifulsoup4~=4.9.3
 requests~=2.25.1
-dgl~=0.5.2
 dill
