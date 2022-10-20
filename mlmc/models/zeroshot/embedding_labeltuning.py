@@ -6,7 +6,7 @@ class LabelTuning(LabelEmbeddingAbstract):
     """
      https://arxiv.org/pdf/2203.14655.pdf
     """
-    def __init__(self, dropout=0.5, vertical_dropout=0.0, word_noise=0.0, *args, **kwargs):
+    def __init__(self, dropout=0.5, *args, **kwargs):
         """
          Zeroshot model based on cosine distance of embedding vectors.
         This changes the default activation to identity function (lambda x:x)
@@ -17,16 +17,11 @@ class LabelTuning(LabelEmbeddingAbstract):
         """
         super(LabelTuning, self).__init__(*args, **kwargs)
         self._config["dropout"] = dropout
-        self._config["vertical_dropout"] = vertical_dropout
-        self._config["word_noise"] = word_noise
         self.create_labels(self.classes)
         self.dropout = torch.nn.Dropout(dropout)
-        self.aug = Augment(vertical_dropout=vertical_dropout, word_noise=word_noise)
 
         self.projection = torch.nn.Linear(self.embeddings_dim, self.embeddings_dim, bias=False)
-        self.projection2 = torch.nn.Linear(self.embeddings_dim, self.embeddings_dim, bias=False)
         torch.nn.init.eye_(self.projection.weight)
-        torch.nn.init.eye_(self.projection2.weight)
         self.build()
         with torch.no_grad():
             self.label_start = self.embedding(**self.label_dict)[1].detach()
@@ -37,13 +32,11 @@ class LabelTuning(LabelEmbeddingAbstract):
         self._config["mode"] = mode
 
     def forward(self, x, embedding=False, *args, **kwargs):
-        input_embedding = self.dropout(self.embedding(**x)[0])
-        self.curr_label_embedding = self.projection(self.dropout(self.embedding(**self.label_dict)[0]))
+        input_embedding = self.embed_input(x[0])
+        self.curr_label_embedding = self.embed_input(x[1])
 
-        input_embedding = self.aug(input_embedding)
-
-        input_embedding = self._mean_pooling(input_embedding, x["attention_mask"])
-        self.curr_label_embedding = self._mean_pooling(self.curr_label_embedding, self.label_dict["attention_mask"])
+        input_embedding = self._mean_pooling(input_embedding, x[0]["attention_mask"])
+        self.curr_label_embedding = self.projection(self._mean_pooling(self.curr_label_embedding, x[1]["attention_mask"]))
 
         r = torch.matmul((input_embedding), (self.curr_label_embedding).t())
         if embedding:
@@ -67,3 +60,12 @@ class LabelTuning(LabelEmbeddingAbstract):
                     pbar.update()
 
         return torch.cat(scores), torch.cat(embeddings)
+
+    def _contrastive_embedding(self, x, y):
+        x = self.transform(x)
+        input_embedding = self.embed_input(x[0])
+        input_embedding = self._mean_pooling(input_embedding, x[0]["attention_mask"])
+        y = self.transform(y)
+        y_embedding = self.embed_input(y[0])
+        y_embedding = self._mean_pooling(y_embedding, y[0]["attention_mask"])
+        return input_embedding, y_embedding
