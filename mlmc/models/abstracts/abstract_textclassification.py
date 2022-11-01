@@ -507,7 +507,7 @@ class TextClassificationAbstract(torch.nn.Module):
         return r
 
 
-    def ktrain(self, data, test, n, *args, runs=5, **kwargs):
+    def ktrain(self, data, test, n, *args, runs=5, cb_fn, **kwargs):
         from ...data import sampler
         from ...metrics import flt
         import tempfile
@@ -522,7 +522,7 @@ class TextClassificationAbstract(torch.nn.Module):
                 self.load_state_dict(torch.load(Path(f)/"zero-model.pth"))
                 train = sampler(data, absolute=n)
 
-                _ = self.fit(train, test, *args, **kwargs)
+                _ = self.fit(train, test, *args, callbacks=cb_fn(), **kwargs)
                 history.append(self.evaluate(test, batch_size=kwargs["valid_batch_size"], metrics=kwargs.get("metrics")))
                 data_sizes = ((len(train), len(test)))
                 print(history[-1])
@@ -531,7 +531,7 @@ class TextClassificationAbstract(torch.nn.Module):
         r = r.applymap(lambda x: x[0])
         r = r.agg(["mean", "std", "min", "max"]).transpose().apply(tuple, axis=1).transpose()
         r["lengths"] = data_sizes
-        return r
+        return pd.DataFrame(r.to_list(),index=r.index, columns=["mean", "std", "min", "max"])
 
     def predict(self, x, h=None, return_scores=False):
         """
