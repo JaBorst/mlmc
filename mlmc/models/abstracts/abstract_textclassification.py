@@ -475,7 +475,7 @@ class TextClassificationAbstract(torch.nn.Module):
         return_copy = {"train": copy(self.train_history), "valid": copy(self.validation)}
         return return_copy
 
-    def kfold(self, data, validation=0.1, *args, k=10, **kwargs):
+    def kfold(self, data, validation=0.1, *args, k=10, cb_fn=None, **kwargs):
         from ...data import kfolds, validation_split
         from ...metrics import flt
         import tempfile
@@ -495,7 +495,7 @@ class TextClassificationAbstract(torch.nn.Module):
                     train,valid = split["train"], None
                     print(f"Train: {len(train)}, Valid: {0}, Test: {len(split['test'])}")
 
-                _ = self.fit(train, valid, *args, **kwargs)
+                _ = self.fit(train, valid, *args, callbacks=cb_fn(), **kwargs)
                 history.append(self.evaluate(split["test"], batch_size=kwargs["valid_batch_size"], metrics=kwargs.get("metrics")))
                 data_sizes = ((len(train), len(valid) if valid is not None else 0, len(split["test"])))
                 print(history[-1])
@@ -504,7 +504,7 @@ class TextClassificationAbstract(torch.nn.Module):
         r = r.applymap(lambda x: x[0])
         r = r.agg(["mean", "std", "min", "max"]).transpose().apply(tuple, axis=1).transpose()
         r["lengths"] = data_sizes
-        return r
+        return pd.DataFrame(r.to_list(),index=r.index, columns=["mean", "std", "min", "max"])
 
 
     def ktrain(self, data, test, n, *args, runs=5, cb_fn=None, **kwargs):
@@ -531,7 +531,7 @@ class TextClassificationAbstract(torch.nn.Module):
         r = r.applymap(lambda x: x[0])
         r = r.agg(["mean", "std", "min", "max"]).transpose().apply(tuple, axis=1).transpose()
         r["lengths"] = data_sizes
-        return pd.DataFrame(r.to_list(),index=r.index, columns=["mean", "std", "min", "max"])
+        return r
 
     def predict(self, x, h=None, return_scores=False):
         """
