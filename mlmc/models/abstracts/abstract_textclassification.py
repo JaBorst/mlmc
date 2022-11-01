@@ -507,7 +507,7 @@ class TextClassificationAbstract(torch.nn.Module):
         return pd.DataFrame(r.to_list(),index=r.index, columns=["mean", "std", "min", "max"])
 
 
-    def ktrain(self, data, test, n, *args, runs=5, cb_fn=None, **kwargs):
+    def ktrain(self, data, test, n, *args, runs=5, cb_fn=lambda: None, **kwargs):
         from ...data import sampler
         from ...metrics import flt
         import tempfile
