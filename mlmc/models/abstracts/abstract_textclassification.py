@@ -507,7 +507,7 @@ class TextClassificationAbstract(torch.nn.Module):
         return r
 
 
-    def ktrain(self, data, test, n, *args, runs=5, cb_fn, **kwargs):
+    def ktrain(self, data, test, n, *args, runs=5, cb_fn=None, **kwargs):
         from ...data import sampler
         from ...metrics import flt
         import tempfile
