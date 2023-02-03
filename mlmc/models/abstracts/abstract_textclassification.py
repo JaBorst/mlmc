@@ -25,7 +25,7 @@ class TextClassificationAbstract(torch.nn.Module):
 
 
     """
-    def __init__(self, classes, target=None, representation="google/bert_uncased_L-2_H-128_A-2",
+    def __init__(self, classes, target="single", representation="google/bert_uncased_L-2_H-128_A-2",
                  activation=None, loss=None, optimizer=torch.optim.Adam, max_len=450, label_len=20,
                  optimizer_params=None, device="cpu", finetune="fixed", threshold=None,
                  word_cutoff=0.0, feature_cutoff=0.0, span_cutoff=0.0, word_noise=0.0,
@@ -1054,7 +1054,7 @@ class TextClassificationAbstract(torch.nn.Module):
         for x,c in zip(d.x,d.y):
             for cls in c:
                 C[cls].append(x)
-
+        self.train()
 
         class CustomDataset(torch.utils.data.Dataset):
             def __init__(self, x1, x2, l):

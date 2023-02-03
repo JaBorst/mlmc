@@ -8,6 +8,8 @@ class Encoder(EncoderAbstract):
     """
     def __init__(self, *args, **kwargs):
         """Only there to initialize a projection for binary classification"""
+        kwargs["representation"] = kwargs["representation"] if "representation" in kwargs else "textattack/bert-base-uncased-MNLI"
+        kwargs["finetune"] = kwargs["finetune"] if "finetune" in kwargs else "all"
         super(Encoder, self).__init__(*args, **kwargs)
         self.entailment_id = self._entailment_classes["entailment"]
         self.contradiction_id = self._entailment_classes["contradiction"]
