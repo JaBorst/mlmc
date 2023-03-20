@@ -1087,6 +1087,79 @@ class TextClassificationAbstract(torch.nn.Module):
                     if valid is not None:
                         print(self.evaluate(valid))
 
+    def make_NSP_from_dataset(self, d, n=1000):
+        import spacy
+        from tqdm import tqdm
+        import random
+        nlp = spacy.load("en_core_web_sm", disable=["tagger", "parser", "lemmatizer", "ner"])
+        nlp.add_pipe('sentencizer')
+        docs = [list(str(s).strip() for s in nlp(x.replace("\n", ".")).sents if str(s).strip() != "") for x in tqdm(d.x)]
+        sentence_pairs = sum([[(doc[i+1], doc[i], 1) for i in range(len(doc) - 1)] for doc in docs], [])
+        sentences = sum(docs, [])
+
+        if (n+int(0.2*n)) > len(sentence_pairs):
+            n = len(sentence_pairs)-int(0.2*len(sentence_pairs))
+            Warning(f"Sample_size larger than possible combinations of positive exmaples. Setting positive sample size to {n}")
+        positive = random.sample(sentence_pairs, n + int(0.2*n))
+        negative = [(random.sample(sentences, 1)[0], random.sample(sentences, 1)[0], 0) for _ in range( n + int(0.2*n))]
+        examples = positive[:n] + negative[:n]
+        examples2 = positive[n:] + negative[n:]
+        return examples, examples2
+
+    def same_text_from_dataset(d, n=1000):
+        raise NotImplementedError
+    def zero_contrastive_pretrain(self, d, valid=None, valid_steps=100, batch_size=16, valid_batch_size=16, steps=10000):
+        self.train()
+        class CustomDataset(torch.utils.data.Dataset):
+            def __init__(self, x1, x2, l):
+                self.x1 = x1
+                self.x2 = x2
+                self.l = l
+
+            def __len__(self):
+                return len(self.x1)
+
+            def __getitem__(self, idx):
+                return (self.x1[idx], self.x2[idx], self.l[idx])
+        s1, s2 = self.make_NSP_from_dataset(d, steps*batch_size)
+        data = CustomDataset(x1=[x[0] for x in s1], x2=[x[1] for x in s1], l=[x[2] for x in s1])
+        validation = CustomDataset(x1=[x[0] for x in s2], x2=[x[1] for x in s2], l=[x[2] for x in s2])
+
+        train_loader = torch.utils.data.DataLoader(data, shuffle=True, batch_size=batch_size)
+        optimizer = torch.optim.AdamW(filter(lambda p: p.requires_grad, self.parameters()), **self.optimizer_params)
+        loss_avg = []
+        i=0
+
+        evaluations = {"loss":[], "valid_loss":[], "eval":[]}
+        with tqdm(train_loader,
+                      postfix=[], desc="Contrastive Pretraining %i / %i" %(i, steps) , ncols=100) as pbar:
+            for i,b in enumerate(train_loader):
+                optimizer.zero_grad()
+                l = self._contrastive_step(b)
+                l.backward()
+                loss_avg.append(l.detach().item())
+                optimizer.step()
+                pbar.postfix = {"loss":sum(loss_avg) / len(loss_avg)}
+                pbar.update()
+                evaluations["loss"].append(sum(loss_avg) / len(loss_avg))
+                if i % valid_steps == 0:
+                    self.eval()
+                    with torch.no_grad():
+                        validation_loader = torch.utils.data.DataLoader(validation, shuffle=True, batch_size=valid_batch_size)
+                        validation_loss = [self._contrastive_step(b) for b in validation_loader]
+                        validation_loss = sum(validation_loss)/len(validation_loss)
+                        print("valid_loss", validation_loss.cpu().item())
+                        evaluations["valid_loss"].append( validation_loss.cpu().item())
+
+                    if valid is not None:
+                        eval = self.evaluate(valid, valid_batch_size)
+                        print(eval)
+                        evaluations["eval"].append( eval)
+                    self.train()
+                pbar.update()
+        return evaluations
+
+
 
     def tm_pretrain(self, d, valid=None, valid_steps=100, batch_size=16, steps=10000):
         C = {k:[] for k in self._config["classes"].keys()}
