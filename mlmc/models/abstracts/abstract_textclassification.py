@@ -1108,7 +1108,7 @@ class TextClassificationAbstract(torch.nn.Module):
 
     def same_text_from_dataset(d, n=1000):
         raise NotImplementedError
-    def zero_contrastive_pretrain(self, d, valid=None, valid_steps=100, batch_size=16, valid_batch_size=16, steps=10000):
+    def zero_contrastive_pretrain(self, d, valid=None, valid_steps=100, batch_size=16, valid_batch_size=16, steps=10000, log_mlflow=False):
         self.train()
         class CustomDataset(torch.utils.data.Dataset):
             def __init__(self, x1, x2, l):
@@ -1130,6 +1130,7 @@ class TextClassificationAbstract(torch.nn.Module):
         loss_avg = []
         i=0
 
+        if log_mlflow: self.log_mlflow()
         evaluations = {"loss":[], "valid_loss":[], "eval":[]}
         with tqdm(train_loader,
                       postfix=[], desc="Contrastive Pretraining %i / %i" %(i, steps) , ncols=100) as pbar:
@@ -1150,11 +1151,16 @@ class TextClassificationAbstract(torch.nn.Module):
                         validation_loss = sum(validation_loss)/len(validation_loss)
                         print("valid_loss", validation_loss.cpu().item())
                         evaluations["valid_loss"].append( validation_loss.cpu().item())
-
+                        if log_mlflow:
+                            mlflow.log_metric("valid_loss", i)
                     if valid is not None:
-                        eval = self.evaluate(valid, valid_batch_size)
+                        eval = self.evaluate(valid, valid_batch_size, _fit=True)
+                        if log_mlflow: eval.log_mlflow(i)
+                        eval = eval.compute()
                         print(eval)
                         evaluations["eval"].append( eval)
+
+
                     self.train()
                 pbar.update()
         return evaluations
