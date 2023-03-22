@@ -1091,6 +1091,7 @@ class TextClassificationAbstract(torch.nn.Module):
         import spacy
         from tqdm import tqdm
         import random
+        # ToDo: This is not language independent
         nlp = spacy.load("en_core_web_sm", disable=["tagger", "parser", "lemmatizer", "ner"])
         nlp.add_pipe('sentencizer')
         docs = [list(str(s).strip() for s in nlp(x.replace("\n", ".")).sents if str(s).strip() != "") for x in tqdm(d.x)]
@@ -1109,6 +1110,8 @@ class TextClassificationAbstract(torch.nn.Module):
     def same_text_from_dataset(d, n=1000):
         raise NotImplementedError
     def zero_contrastive_pretrain(self, d, valid=None, valid_steps=100, batch_size=16, valid_batch_size=16, steps=10000, log_mlflow=False):
+        if log_mlflow:
+            import mlflow
         self.train()
         class CustomDataset(torch.utils.data.Dataset):
             def __init__(self, x1, x2, l):
