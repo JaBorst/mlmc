@@ -1,7 +1,9 @@
 from mlmc.models.abstracts.abstract_encoder import EncoderAbstract
+from mlmc.models.abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
+
 import torch
 
-class Encoder(EncoderAbstract):
+class Encoder(EncoderAbstract, TextClassificationAbstractZeroShot):
     """
     Trainin a model by entailing text and label into an entailment task. Offers good zeroshot capacities when pretrained
     on an NLI task. (you can pretrain (almost) any  transformer model with model.pretrain_snli() or model.pretrain_mnli().
@@ -90,15 +92,6 @@ class Encoder(EncoderAbstract):
         return triplets
 
     def _contrastive_embedding(self, x, y):
-        # activation = {}
-        # def get_activation(name):
-        #     def hook(model, input, output):
-        #         activation[name] = output
-        #     return hook
-        # # self.embedding.model.decoder.layernorm_embedding.register_forward_hook(get_activation('embedding'))
-        # self.embedding.base_model.pooler.register_forward_hook(get_activation('embedding'))
         h = self.transform(x,y)
         h = self.embedding(**h).logits
         return h
-
-

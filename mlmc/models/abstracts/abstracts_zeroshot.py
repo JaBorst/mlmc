@@ -37,7 +37,7 @@ class TextClassificationAbstractZeroShot(torch.nn.Module):
 
 
     def pretrain_entailment(self, train,
-            valid=None, steps=1000, eval_every=100, datasets = None, formatters=None,
+            valid=None, steps=10000, eval_every=1000, datasets = None, formatters=None,
                             batch_size=16, valid_batch_size=32, callbacks=None, lr_schedule=None, lr_param={}, log_mlflow=False,
                             sample_size=-1):
         """
