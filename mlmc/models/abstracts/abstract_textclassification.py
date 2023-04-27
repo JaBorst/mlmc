@@ -1157,7 +1157,7 @@ class TextClassificationAbstract(torch.nn.Module):
                         if log_mlflow:
                             mlflow.log_metric("valid_loss", i)
                     if valid is not None:
-                        eval = self.evaluate(valid, valid_batch_size, _fit=True)
+                        _,eval = self.evaluate(valid, valid_batch_size, _fit=True)
                         if log_mlflow: eval.log_mlflow(i)
                         eval = eval.compute()
                         print(eval)
