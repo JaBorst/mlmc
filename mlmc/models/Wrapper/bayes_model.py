@@ -68,3 +68,20 @@ class BayesNetwork:
         else:
             labels = sum([predictions[x] for x in list(range(0, len(predictions)))], [])
             return labels
+
+
+    def robustness_evaluation(self, data, batch_size=50, return_scores = False, n=10, dropout=0.3):
+        label, scores_, var_, bool_ = self.bayesian_predict_batch(data.x, batch_size=batch_size, return_scores=return_scores, n=n, p=dropout)
+
+        robustness = (bool_.max(-1)[0]).mean(-1)
+        variance = (var_ * torch.nn.functional.one_hot(bool_.argmax(-1),self.model._config["n_classes"])).mean(-1)
+
+        from ...metrics import get, MetricsDict
+        pr = MetricsDict(["accuracy", "singlelabel_report"])# "ProbabilisticReport"])
+        pr.init(self.model._config)
+        pr.update_metrics((scores_, torch.LongTensor([self.model.classes[e[0]] for e in data.y]), torch.nn.functional.one_hot(bool_.argmax(-1), self.model._config["n_classes"])))
+
+        pr.compute()
+
+        # pr["ProbabilisticReport"]._plot()
+        return pr["accuracy"].compute(), robustness,  variance.mean()
