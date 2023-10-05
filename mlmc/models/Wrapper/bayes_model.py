@@ -3,6 +3,8 @@ from tqdm import tqdm
 
 from mlmc.data.dataset_classes import PredictionDataset
 
+
+
 class BayesNetwork:
     def __init__(self, model):
         self.model = model
@@ -11,14 +13,23 @@ class BayesNetwork:
     #     return getattr(self.model, attr)
 
     def __call__(self, *args, **kwargs):
-        return self.model(*args, **kwargs)
+        if hasattr(self.model, "bayesian_forward"):
+            return self.model.bayesian_forward(*args, **kwargs)
+        else:
+            return self.model(*args, **kwargs)
 
+    def set_dropout(self,p=0.1):
+        if p is None:
+            return
+        for name, child in self.model.named_modules():
+            # print(name, child)
+            if isinstance(child, torch.nn.Dropout):
+                child.p = p
+            if "dropout" in name.lower():
+                child.drop_prob = p
     def bayesian_prediction(self, x, return_scores=False, n=10, p=0.3):
-        self.model = self.model.eval()
-        for param in self.model.modules():
-            if isinstance(param, torch.nn.Dropout):
-                param.p=p
-                param.training = True
+        self.model = self.model.train()
+        self.set_dropout(p=p)
         xt = self.model.transform(x)
         with torch.no_grad():
             outputs = []

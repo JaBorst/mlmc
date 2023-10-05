@@ -38,6 +38,24 @@ class Encoder(EncoderAbstract, TextClassificationAbstractZeroShot):
             assert not self._config["target"], f"Target {self._config['target']} not defined"
         return e
 
+    def bayesian_forward(self, x):
+        e = self.embedding(**x).logits
+        if self._config["target"] == "single":
+            e = e[:, self.entailment_id]
+            e = e.reshape((int(x["input_ids"].shape[0] / self._config["n_classes"]), self._config["n_classes"]))
+        elif self._config["target"] == "multi":
+            e = e[:, [self.contradiction_id, self.entailment_id]].log_softmax(-1)[:, -1]
+            e = e.reshape(
+                (int(x["input_ids"].shape[0] / len(self._config["classes"])), len(self._config["classes"])))
+        elif self._config["target"] == "entailment":
+            pass
+        elif self._config["target"] == "abc":
+            e = e[:, self.entailment_id]
+            e = e.reshape((int(x["input_ids"].shape[0] / self._config["n_classes"]), self._config["n_classes"]))
+        else:
+            assert not self._config["target"], f"Target {self._config['target']} not defined"
+        return e
+
     def _loss(self, x, y):
         """
         Calculating the loss getting  of two tensors using the initiated loss function
