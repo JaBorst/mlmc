@@ -2,7 +2,6 @@ import tempfile
 from pathlib import Path
 import mlmc
 import torch
-import networkx as nx
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
