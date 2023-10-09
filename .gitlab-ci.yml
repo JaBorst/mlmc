@@ -48,7 +48,7 @@ pypi_deploy:
   stage: deploy
   only:
     - tags
-  image: python:3.10-stretch
+  image: python:3.10
   before_script:
     - pip install -r requirements.txt
     - python setup.py sdist bdist_wheel

@@ -3,19 +3,33 @@ from tqdm import tqdm
 
 from mlmc.data.dataset_classes import PredictionDataset
 
+
+
 class BayesNetwork:
     def __init__(self, model):
         self.model = model
 
-    def __call__(self, *args, **kwargs):
-        return self.model(*args, **kwargs)
+    # def __getattr__(self, attr):
+    #     return getattr(self.model, attr)
 
+    def __call__(self, *args, **kwargs):
+        if hasattr(self.model, "bayesian_forward"):
+            return self.model.bayesian_forward(*args, **kwargs)
+        else:
+            return self.model(*args, **kwargs)
+
+    def set_dropout(self,p=0.1):
+        if p is None:
+            return
+        for name, child in self.model.named_modules():
+            # print(name, child)
+            if isinstance(child, torch.nn.Dropout):
+                child.p = p
+            if "dropout" in name.lower():
+                child.drop_prob = p
     def bayesian_prediction(self, x, return_scores=False, n=10, p=0.3):
-        self.model = self.model.eval()
-        for param in self.model.modules():
-            if isinstance(param, torch.nn.Dropout):
-                param.p=p
-                param.training = True
+        self.model = self.model.train()
+        self.set_dropout(p=p)
         xt = self.model.transform(x)
         with torch.no_grad():
             outputs = []
@@ -65,3 +79,20 @@ class BayesNetwork:
         else:
             labels = sum([predictions[x] for x in list(range(0, len(predictions)))], [])
             return labels
+
+
+    def robustness_evaluation(self, data, batch_size=50, return_scores = False, n=10, dropout=0.3):
+        label, scores_, var_, bool_ = self.bayesian_predict_batch(data.x, batch_size=batch_size, return_scores=return_scores, n=n, p=dropout)
+
+        robustness = (bool_.max(-1)[0]).mean(-1)
+        variance = (var_ * torch.nn.functional.one_hot(bool_.argmax(-1),self.model._config["n_classes"])).mean(-1)
+
+        from ...metrics import get, MetricsDict
+        pr = MetricsDict(["accuracy", "singlelabel_report"])# "ProbabilisticReport"])
+        pr.init(self.model._config)
+        pr.update_metrics((scores_, torch.LongTensor([self.model.classes[e[0]] for e in data.y]), torch.nn.functional.one_hot(bool_.argmax(-1), self.model._config["n_classes"])))
+
+        pr.compute()
+
+        # pr["ProbabilisticReport"]._plot()
+        return pr["accuracy"].compute(), robustness,  variance.mean()

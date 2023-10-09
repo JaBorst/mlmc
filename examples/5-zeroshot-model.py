@@ -3,8 +3,6 @@
 # Example for  using a zero shot model (experimental feature)
 #
 ##########################################################################
-import torch
-
 import mlmc
 
 # Zeroshot Models can be found in the mlmc.models.zeroshot submodule and can be instantiated without classes.

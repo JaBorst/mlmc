@@ -1,13 +1,17 @@
 from mlmc.models.abstracts.abstract_encoder import EncoderAbstract
+from mlmc.models.abstracts.abstracts_zeroshot import TextClassificationAbstractZeroShot
+
 import torch
 
-class Encoder(EncoderAbstract):
+class Encoder(EncoderAbstract, TextClassificationAbstractZeroShot):
     """
     Trainin a model by entailing text and label into an entailment task. Offers good zeroshot capacities when pretrained
     on an NLI task. (you can pretrain (almost) any  transformer model with model.pretrain_snli() or model.pretrain_mnli().
     """
     def __init__(self, *args, **kwargs):
         """Only there to initialize a projection for binary classification"""
+        kwargs["representation"] = kwargs["representation"] if "representation" in kwargs else "textattack/bert-base-uncased-MNLI"
+        kwargs["finetune"] = kwargs["finetune"] if "finetune" in kwargs else "all"
         super(Encoder, self).__init__(*args, **kwargs)
         self.entailment_id = self._entailment_classes["entailment"]
         self.contradiction_id = self._entailment_classes["contradiction"]
@@ -18,6 +22,24 @@ class Encoder(EncoderAbstract):
         e = self.embedding(**x).logits
         if self.training:
             return e
+        if self._config["target"] == "single":
+            e = e[:, self.entailment_id]
+            e = e.reshape((int(x["input_ids"].shape[0] / self._config["n_classes"]), self._config["n_classes"]))
+        elif self._config["target"] == "multi":
+            e = e[:, [self.contradiction_id, self.entailment_id]].log_softmax(-1)[:, -1]
+            e = e.reshape(
+                (int(x["input_ids"].shape[0] / len(self._config["classes"])), len(self._config["classes"])))
+        elif self._config["target"] == "entailment":
+            pass
+        elif self._config["target"] == "abc":
+            e = e[:, self.entailment_id]
+            e = e.reshape((int(x["input_ids"].shape[0] / self._config["n_classes"]), self._config["n_classes"]))
+        else:
+            assert not self._config["target"], f"Target {self._config['target']} not defined"
+        return e
+
+    def bayesian_forward(self, x):
+        e = self.embedding(**x).logits
         if self._config["target"] == "single":
             e = e[:, self.entailment_id]
             e = e.reshape((int(x["input_ids"].shape[0] / self._config["n_classes"]), self._config["n_classes"]))
@@ -88,15 +110,6 @@ class Encoder(EncoderAbstract):
         return triplets
 
     def _contrastive_embedding(self, x, y):
-        # activation = {}
-        # def get_activation(name):
-        #     def hook(model, input, output):
-        #         activation[name] = output
-        #     return hook
-        # # self.embedding.model.decoder.layernorm_embedding.register_forward_hook(get_activation('embedding'))
-        # self.embedding.base_model.pooler.register_forward_hook(get_activation('embedding'))
         h = self.transform(x,y)
         h = self.embedding(**h).logits
         return h
-
-

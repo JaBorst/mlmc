@@ -25,7 +25,7 @@ class TextClassificationAbstract(torch.nn.Module):
 
 
     """
-    def __init__(self, classes, target=None, representation="google/bert_uncased_L-2_H-128_A-2",
+    def __init__(self, classes, target="single", representation="google/bert_uncased_L-2_H-128_A-2",
                  activation=None, loss=None, optimizer=torch.optim.Adam, max_len=450, label_len=20,
                  optimizer_params=None, device="cpu", finetune="fixed", threshold=None,
                  word_cutoff=0.0, feature_cutoff=0.0, span_cutoff=0.0, word_noise=0.0,
@@ -475,7 +475,7 @@ class TextClassificationAbstract(torch.nn.Module):
         return_copy = {"train": copy(self.train_history), "valid": copy(self.validation)}
         return return_copy
 
-    def kfold(self, data, validation=0.1, *args, k=10, **kwargs):
+    def kfold(self, data, validation=0.1, *args, k=10, cb_fn=None, **kwargs):
         from ...data import kfolds, validation_split
         from ...metrics import flt
         import tempfile
@@ -495,7 +495,7 @@ class TextClassificationAbstract(torch.nn.Module):
                     train,valid = split["train"], None
                     print(f"Train: {len(train)}, Valid: {0}, Test: {len(split['test'])}")
 
-                _ = self.fit(train, valid, *args, **kwargs)
+                _ = self.fit(train, valid, *args, callbacks=cb_fn(), **kwargs)
                 history.append(self.evaluate(split["test"], batch_size=kwargs["valid_batch_size"], metrics=kwargs.get("metrics")))
                 data_sizes = ((len(train), len(valid) if valid is not None else 0, len(split["test"])))
                 print(history[-1])
@@ -504,10 +504,10 @@ class TextClassificationAbstract(torch.nn.Module):
         r = r.applymap(lambda x: x[0])
         r = r.agg(["mean", "std", "min", "max"]).transpose().apply(tuple, axis=1).transpose()
         r["lengths"] = data_sizes
-        return r
+        return pd.DataFrame(r.to_list(),index=r.index, columns=["mean", "std", "min", "max"])
 
 
-    def ktrain(self, data, test, n, *args, runs=5, **kwargs):
+    def ktrain(self, data, test, n, *args, runs=5, cb_fn=lambda: None, **kwargs):
         from ...data import sampler
         from ...metrics import flt
         import tempfile
@@ -522,7 +522,7 @@ class TextClassificationAbstract(torch.nn.Module):
                 self.load_state_dict(torch.load(Path(f)/"zero-model.pth"))
                 train = sampler(data, absolute=n)
 
-                _ = self.fit(train, test, *args, **kwargs)
+                _ = self.fit(train, test, *args, callbacks=cb_fn(), **kwargs)
                 history.append(self.evaluate(test, batch_size=kwargs["valid_batch_size"], metrics=kwargs.get("metrics")))
                 data_sizes = ((len(train), len(test)))
                 print(history[-1])
@@ -1054,7 +1054,7 @@ class TextClassificationAbstract(torch.nn.Module):
         for x,c in zip(d.x,d.y):
             for cls in c:
                 C[cls].append(x)
-
+        self.train()
 
         class CustomDataset(torch.utils.data.Dataset):
             def __init__(self, x1, x2, l):
@@ -1086,6 +1086,88 @@ class TextClassificationAbstract(torch.nn.Module):
                 if i % valid_steps == 0:
                     if valid is not None:
                         print(self.evaluate(valid))
+
+    def make_NSP_from_dataset(self, d, n=1000):
+        import spacy
+        from tqdm import tqdm
+        import random
+        # ToDo: This is not language independent
+        nlp = spacy.load("en_core_web_sm", disable=["tagger", "parser", "lemmatizer", "ner"])
+        nlp.add_pipe('sentencizer')
+        docs = [list(str(s).strip() for s in nlp(x.replace("\n", ".")).sents if str(s).strip() != "") for x in tqdm(d.x)]
+        sentence_pairs = sum([[(doc[i+1], doc[i], 1) for i in range(len(doc) - 1)] for doc in docs], [])
+        sentences = sum(docs, [])
+
+        if (n+int(0.2*n)) > len(sentence_pairs):
+            n = len(sentence_pairs)-int(0.2*len(sentence_pairs))
+            Warning(f"Sample_size larger than possible combinations of positive exmaples. Setting positive sample size to {n}")
+        positive = random.sample(sentence_pairs, n + int(0.2*n))
+        negative = [(random.sample(sentences, 1)[0], random.sample(sentences, 1)[0], 0) for _ in range( n + int(0.2*n))]
+        examples = positive[:n] + negative[:n]
+        examples2 = positive[n:] + negative[n:]
+        return examples, examples2
+
+    def same_text_from_dataset(d, n=1000):
+        raise NotImplementedError
+    def zero_contrastive_pretrain(self, d, valid=None, valid_steps=100, batch_size=16, valid_batch_size=16, steps=10000, log_mlflow=False):
+        if log_mlflow:
+            import mlflow
+        self.train()
+        class CustomDataset(torch.utils.data.Dataset):
+            def __init__(self, x1, x2, l):
+                self.x1 = x1
+                self.x2 = x2
+                self.l = l
+
+            def __len__(self):
+                return len(self.x1)
+
+            def __getitem__(self, idx):
+                return (self.x1[idx], self.x2[idx], self.l[idx])
+        s1, s2 = self.make_NSP_from_dataset(d, steps*batch_size)
+        data = CustomDataset(x1=[x[0] for x in s1], x2=[x[1] for x in s1], l=[x[2] for x in s1])
+        validation = CustomDataset(x1=[x[0] for x in s2], x2=[x[1] for x in s2], l=[x[2] for x in s2])
+
+        train_loader = torch.utils.data.DataLoader(data, shuffle=True, batch_size=batch_size)
+        optimizer = torch.optim.AdamW(filter(lambda p: p.requires_grad, self.parameters()), **self.optimizer_params)
+        loss_avg = []
+        i=0
+
+        if log_mlflow: self.log_mlflow()
+        evaluations = {"loss":[], "valid_loss":[], "eval":[]}
+        with tqdm(train_loader,
+                      postfix=[], desc="Contrastive Pretraining %i / %i" %(i, steps) , ncols=100) as pbar:
+            for i,b in enumerate(train_loader):
+                optimizer.zero_grad()
+                l = self._contrastive_step(b)
+                l.backward()
+                loss_avg.append(l.detach().item())
+                optimizer.step()
+                pbar.postfix = {"loss":sum(loss_avg) / len(loss_avg)}
+                pbar.update()
+                evaluations["loss"].append(sum(loss_avg) / len(loss_avg))
+                if i % valid_steps == 0:
+                    self.eval()
+                    with torch.no_grad():
+                        validation_loader = torch.utils.data.DataLoader(validation, shuffle=True, batch_size=valid_batch_size)
+                        validation_loss = [self._contrastive_step(b) for b in validation_loader]
+                        validation_loss = sum(validation_loss)/len(validation_loss)
+                        print("valid_loss", validation_loss.cpu().item())
+                        evaluations["valid_loss"].append( validation_loss.cpu().item())
+                        if log_mlflow:
+                            mlflow.log_metric("valid_loss", i)
+                    if valid is not None:
+                        _,eval = self.evaluate(valid, valid_batch_size, _fit=True)
+                        if log_mlflow: eval.log_mlflow(i)
+                        eval = eval.compute()
+                        print(eval)
+                        evaluations["eval"].append( eval)
+
+
+                    self.train()
+                pbar.update()
+        return evaluations
+
 
 
     def tm_pretrain(self, d, valid=None, valid_steps=100, batch_size=16, steps=10000):
