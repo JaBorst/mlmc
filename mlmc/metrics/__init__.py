@@ -7,6 +7,7 @@ from ..thresholds import get as thresholdget
 from .save_scores import SaveScores
 from .helpers import flatten, flt
 from .unsupervised import TopicCoherence, SilhouetteCoefficient,DaviesBouldinScore,CalinskiHarabaszScore, KeywordCoherence
+from .probabilistic import ProbabilisticReport
 
 metrics_dict= {
     "p@1": lambda: PrecisionK(k=1, is_multilabel=True, average=True),
@@ -23,7 +24,8 @@ metrics_dict= {
     "silhouette": lambda: SilhouetteCoefficient(),
     "daviesbouldinscore": lambda: DaviesBouldinScore(),
     "calinskiharabaszscore": lambda: CalinskiHarabaszScore(),
-    "keyword_coherence": lambda: KeywordCoherence()
+    "keyword_coherence": lambda: KeywordCoherence(),
+    "ProbabilisticReport": lambda: ProbabilisticReport(),
 }
 
 metrics_config = {

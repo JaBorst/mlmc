@@ -13,10 +13,10 @@ class Augment(torch.nn.Module):
         self.word_noise = word_noise
         self.span_cutoff = span_cutoff
         self.feature_cutoff = feature_cutoff
-
+        self.on()
 
     def forward(self, x, mask, *args, **kwargs):
-        if self.training:
+        if self.training and self._on:
             if self.word_noise > 0:
                 x = x + self.word_noise * torch.rand_like(x)[:, 0, None, 0, None].round() * torch.rand_like(x)
             if self.word_cutoff > 0:
@@ -28,8 +28,7 @@ class Augment(torch.nn.Module):
         return x*mask
 
     def off(self):
-        self.word_cutoff = 0
-        self.word_noise = 0
-        self.span_cutoff = 0
-        self.feature_cutoff = 0
+        self._on = False
 
+    def on(self):
+        self._on = True
