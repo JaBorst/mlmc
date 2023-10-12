@@ -41,7 +41,7 @@ coverage:
     image: python:3.10-slim-buster
     stage: test
     script:
-      - coverage run -m pytest tests/test_metrics/ | coverage report -i --format=total
+      - coverage run -m pytest tests/ | coverage report -i --format=total
 
 pypi_deploy:
   stage: deploy
