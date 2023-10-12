@@ -5,5 +5,4 @@ Submodule containing implementations of neural network models for Multilabel Arc
 # CNN Variants
 from .standard import *
 from .zeroshot import *
-from .KimCNN import KimCNN
 from .Wrapper import *
