@@ -42,6 +42,7 @@ coverage:
     stage: test
     script:
       - coverage run -m pytest tests && coverage xml -i
+    coverage: '/TOTAL.*\s+(\d+\%)/'
 
 pypi_deploy:
   stage: deploy
