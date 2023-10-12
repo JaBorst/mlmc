@@ -37,12 +37,11 @@ coverage:
     only:
         refs:
         - master
-        - merge_requests
         - dev
     image: python:3.10-slim-buster
     stage: test
     script:
-      - coverage run -m pytest tests && coverage report
+      - coverage run -m pytest tests && coverage xml -i
 
 pypi_deploy:
   stage: deploy
@@ -55,4 +54,3 @@ pypi_deploy:
 
   script:
     - twine upload -u $PYPI_USER -p $PYPI_PASSWORD dist/*
-
