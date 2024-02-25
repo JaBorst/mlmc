@@ -1,6 +1,6 @@
 ##########################################################################
 #
-# Example for  using a zero shot model (experimental feature)
+# Example for  using a zero shot model
 #
 ##########################################################################
 import mlmc
@@ -64,7 +64,7 @@ print("Accuracy without training with formatter:", m.evaluate(data["test"])[1]["
 
 
 # This Performance can still be improved of course by showing some of the training data.
-# We'll only take around 10 exapmles per class.
+# We'll only take around 10 examples per class.
 train = mlmc.data.sampler(data["train"], absolute=40)
 print(train.count())
 
