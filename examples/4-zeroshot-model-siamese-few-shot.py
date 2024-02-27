@@ -44,6 +44,7 @@ print(m.predict("I'm gonna have to stay late to finish this project."))
 # For example download agnews data. A data set containing news texts assigned to 4 categories
 data, classes = mlmc.data.load_agnews()
 data = {k: mlmc.data.SingleLabelDataset(x=v[0], y=v[1], classes=classes) for k,v in data.items()}
+data = {k: mlmc.data.sampler(v, absolute=100) for k,v in data.items()}
 
 
 ####

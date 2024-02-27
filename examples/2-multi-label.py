@@ -5,6 +5,7 @@
 ##########################################################################
 
 import mlmc
+from mlmc.data import MultiLabelDataset
 
 # Classes have to  be a mapping from strings to ascending indices
 
@@ -21,14 +22,14 @@ x = [
 y = [["class1", "class2"], ["class3"], ["class1", "class3"]]
 
 # With data in this format you can instanciate a multi label data set.
-dataset = mlmc_lab.data.dataset_classes.MultiLabelDataset(x=x, y=y, classes=classes)
+dataset = MultiLabelDataset(x=x, y=y, classes=classes)
 
 # .. and a model. make sure in this case to set the target to 'multi' to load default parameters for multi label
 # classification.
 m = mlmc.models.KimCNN(
     classes=classes,
     target="multi",
-    finetune=True,
+    finetune="compacter",
     # device="cuda:0" # uncomment if gpu
 )
 

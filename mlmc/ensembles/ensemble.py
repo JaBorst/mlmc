@@ -46,7 +46,7 @@ class Ensemble:
 
     def evaluate_ensemble(self, data, batch_size=50, metrics=None, _fit=False):
         """
-        Evaluation, return accuracy and loss and some multilabel measure
+        Evaluation, return accuracy and loss and some measures
 
         Returns p@1, p@3, p@5, AUC, loss, Accuracy@0.5, Accuracy@mcut, ROC Values, class-wise F1, Precision and Recall.
         Args:
@@ -116,24 +116,5 @@ class Ensemble:
         [m.set_sformatter(*args,**kwargs) for m in self.m]
     def create_labels(self, *args, **kwargs):
         [m.create_labels(*args,**kwargs) for m in self.m]
-#
-# r = "google/bert_uncased_L-4_H-256_A-4"
-# from mlmc_lab import mlmc_experimental as mlmce
-# d = mlmce.data.get("agnews")
-# device="cuda:0"
-# m = [
-#     mlmc.models.Siamese(representation=r, sformatter=mlmce.data.SFORMATTER["agnews"], finetune="all", classes=d["classes"], target="single", loss=mlmce.loss.EncourageLoss(0.75), device=device),
-#     mlmc.models.Siamese(representation=r, sformatter=mlmce.data.SFORMATTER["agnews"],  finetune="all", classes=d["classes"], target="single",loss=mlmce.loss.EncourageLoss(0.75), device=device),
-#     mlmc.models.Siamese(epresentation=r, sformatter=mlmce.data.SFORMATTER["agnews"], finetune="all", classes=d["classes"], target="single",loss=mlmce.loss.EncourageLoss(0.75),device=device),
-# ]
-# # m = m+[mlmc.models.SimpleEncoder(representation="roberta-large-mnli", sformatter=mlmc.data.SFORMATTER["agnews"], finetune=True, classes=d["classes"], target="single", device=device)]
-#
-# e = Ensemble(m)
-# # e.t[-1] = False
-# # e.fit(mlmc.data.sampler(d["train"], absolute=100), epochs=50)
-# test=mlmc.data.sampler(d["test"], absolute=100)
-#
-# print(e.evaluate(test))
-# e.predict_ensemble(test.x, vote=False)
-#
-#
+
+

@@ -9,7 +9,7 @@ thresholds_dict = {
 
 class ThresholdWrapper():
     """
-    A Wrapper around thresholding functions
+    A wrapper around thresholding functions
     """
     def __init__(self, name, *args, **kwargs):
         """
