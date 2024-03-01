@@ -1,6 +1,6 @@
 ##########################################################################
 #
-# Example for  using a zero shot model
+# Example for simply using a NLI-based zero-shot model
 #
 ##########################################################################
 import mlmc
@@ -9,6 +9,6 @@ m = mlmc.models.zeroshot.Encoder(
     classes={"Sports":0, "Science":1},
 )
 
-print(m.predict(["Did you watch the football match last night?",
+print(m.predict_batch(["Did you watch the football match last night?",
            "The laws of physics are complex."],
-                batchsize=2))
+                batch_size=2))

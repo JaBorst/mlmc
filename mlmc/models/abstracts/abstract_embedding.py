@@ -29,7 +29,7 @@ class LabelEmbeddingAbstract(TextClassificationAbstract):
         Returns:
 
         """
-        self._config["classes"] = classes
+        self._config["classes"] = {v:i for i,v in enumerate(classes)}
         self.classes = classes
         self._config["n_classes"] = len(self._config["classes"])
 

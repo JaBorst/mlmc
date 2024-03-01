@@ -56,7 +56,7 @@ class TextClassificationAbstract(torch.nn.Module):
         if optimizer_params is None:
             optimizer_params = {"lr": 5e-5, "betas": (0.9, 0.99)}
 
-        self.classes = classes
+        self.classes = {v:i for i,v in enumerate(classes)}
         self.n_classes = len(classes)
         self.use_amp = False
         self.finetune = finetune
@@ -67,7 +67,7 @@ class TextClassificationAbstract(torch.nn.Module):
         self.representation = representation
         self.max_len = max_len
         self._config = {
-            "classes": classes,
+            "classes": self.classes,
             "n_classes": len(classes),
             "target": target,
             "representation": representation,

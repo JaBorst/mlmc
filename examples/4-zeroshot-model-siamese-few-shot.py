@@ -71,9 +71,8 @@ print(train.count())
 
 
 # Use the fit method to train the model
-# m.loss = mlmc.loss.RelativeRankingLoss(0.5)
-m.single()
-m.fit(train, epochs=10)    # RelativeRankingLoss might go to zero. This is not bad thing but you can interrupt
+m.single(finetune="LoRA", optimizer_params={"lr":1e-4})
+m.fit(train, epochs=20)    # RelativeRankingLoss might go to zero. This is not bad thing but you can interrupt
                             # the training at this point or set the number of epochs accordingly
 
 

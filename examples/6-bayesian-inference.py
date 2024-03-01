@@ -31,5 +31,5 @@ m = BayesNetwork(m)
 
 
 labels, scores, variance, prediction = m.bayesian_predict_batch(data["test"].x, batchsize=10, return_scores=True, p=0.1)
-print(list(zip(labels, prediction.max(-1)[0])))
+print("\n".join([f"{label} {score}\n {text}\n" for text, label, score in zip(data["test"].x, labels, prediction.max(-1)[0].tolist())]))
 

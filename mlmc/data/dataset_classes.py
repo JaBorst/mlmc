@@ -54,7 +54,7 @@ class MultiLabelDataset(Dataset):
         """
 
         self.__dict__.update(kwargs)
-        self.classes = classes
+        self.classes = {v:i for i,v in enumerate(classes)} if classes is not None else None
         self.x = x
         self.y = y
         self.one_hot = one_hot
@@ -366,7 +366,7 @@ class MultiOutputMultiLabelDataset(Dataset):
         if isinstance(classes, dict):
             self.classes = [classes.copy() for _ in range(len(y[0]))]
         else:
-            self.classes = classes
+            self.classes = {v:i for i,v in enumerate(classes)}
 
         assert isinstance(y[0][0], list), "Each element of a multiple out multilabel dataset has to be a list"
 
@@ -435,7 +435,7 @@ class MultiOutputSingleLabelDataset(Dataset):
             if isinstance(classes, dict):
                 self.classes = [classes.copy() for _ in range(len(y[0]))]
             else:
-                self.classes = classes
+                self.classes = {v:i for i,v in enumerate(classes)}
         if y is not None:
             assert len(y[0]) == len(self.classes), "Number of labels and number of class dicts do not agree"
 
