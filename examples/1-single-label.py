@@ -5,6 +5,7 @@
 ##########################################################################
 
 import mlmc
+from mlmc.data import SingleLabelDataset
 
 # Classes have to  be a mapping from strings to ascending indices
 
@@ -21,14 +22,14 @@ x = [
 y = [["class1"], ["class3"], ["class2"]]
 
 # With data in this format you can instanciate a single label data set.
-dataset = mlmc_lab.data.dataset_classes.SingleLabelDataset(x=x, y=y, classes=classes)
+dataset = SingleLabelDataset(x=x, y=y, classes=classes)
 
 # .. and a model. make sure in this case to set the target to 'single' to load default parameters for single label
 # classification
 m = mlmc.models.KimCNN(
     classes=classes,
     target="single",
-    finetune=True,
+    finetune="compacter",
     # device="cuda:0" # uncomment if gpu
 )
 

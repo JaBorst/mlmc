@@ -14,9 +14,9 @@ else:
     try:
         # Get latest git tag
         result = subprocess.run("git describe --tags", shell=True, stdout=subprocess.PIPE)
-        version = result.stdout.decode('utf-8')[1:-1] + "-local"
+        version = result.stdout.decode('utf-8')[1:-1] #+ "-local"
     except:
-        version = "local"
+        version = 1
 
 
 with open("mlmc/_version.py", "w") as f:
@@ -33,6 +33,7 @@ setup(
     author_email='borst@informatik.uni-leipzig.de',
     description='A package specialized in neural multilabel and multiclass text classification with low-resource capabilities.',
     install_requires=['transformers',
+                      'adapters',
                       'nlpaug',
                       'nltk',
                       'scikit-learn',
@@ -47,7 +48,7 @@ setup(
                       'rdflib',
                       'h5py',
                       'datasketch',
-                      'torch>=1.5.1',
+                      'torch>=2',
                       'sentencepiece'
     ],
     include_package_data=True,

@@ -46,6 +46,8 @@ print(m.predict("I'm gonna have to stay late to finish this project."))
 # For example download agnews data. A data set containing news texts assigned to 4 categories
 data, classes = mlmc.data.load_agnews()
 data = {k: mlmc.data.SingleLabelDataset(x=v[0], y=v[1], classes=classes) for k,v in data.items()}
+data = {k: mlmc.data.sampler(v, absolute=100) for k,v in data.items()}
+
 
 
 ####
@@ -74,7 +76,7 @@ print(train.count())
 # Use the fit method to train the model
 # m.loss = mlmc.loss.RelativeRankingLoss(0.5)
 m.single()
-m.fit(train, epochs=10)    # RelativeRankingLoss might go to zero. This is not bad thing but you can interrupt
+m.fit(train, epochs=20)    # RelativeRankingLoss might go to zero. This is not bad thing but you can interrupt
                             # the training at this point or set the number of epochs accordingly
 
 

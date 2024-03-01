@@ -27,7 +27,7 @@ class BayesNetwork:
                 child.p = p
             if "dropout" in name.lower():
                 child.drop_prob = p
-    def bayesian_prediction(self, x, return_scores=False, n=10, p=0.3):
+    def bayesian_predict(self, x, return_scores=False, n=10, p=0.3):
         self.model = self.model.train()
         self.set_dropout(p=p)
         xt = self.model.transform(x)
@@ -49,7 +49,7 @@ class BayesNetwork:
         return labels
 
 
-    def bayesian_predict_batch(self, data, batch_size=50, return_scores=False, **kwargs):
+    def bayesian_predict_batch(self, data, batchsize=50, return_scores=False, **kwargs):
         """
         Predict all labels for a dataset int the mlmc.data.MultilabelDataset format.
 
@@ -63,12 +63,12 @@ class BayesNetwork:
             A list of labels
 
         """
-        train_loader = torch.utils.data.DataLoader(PredictionDataset(x=data), batch_size=batch_size, shuffle=False)
+        train_loader = torch.utils.data.DataLoader(PredictionDataset(x=data), batch_size=batchsize, shuffle=False)
         predictions = []
         if not hasattr(self, "classes_rev"):
             self.model.classes_rev = {v: k for k, v in self.model.classes.items()}
         for b in tqdm(train_loader, ncols=100):
-            predictions.extend(self.bayesian_prediction(b["text"], return_scores=return_scores,**kwargs))
+            predictions.extend(self.bayesian_predict(b["text"], return_scores=return_scores,**kwargs))
         del self.model.classes_rev
         if return_scores:
             labels = sum([predictions[x] for x in list(range(0, len(predictions), 4))],[])
@@ -81,8 +81,8 @@ class BayesNetwork:
             return labels
 
 
-    def robustness_evaluation(self, data, batch_size=50, return_scores = False, n=10, dropout=0.3):
-        label, scores_, var_, bool_ = self.bayesian_predict_batch(data.x, batch_size=batch_size, return_scores=return_scores, n=n, p=dropout)
+    def robustness_evaluation(self, data, batchsize=50, return_scores = False, n=10, dropout=0.3):
+        label, scores_, var_, bool_ = self.bayesian_predict_batch(data.x, batch_size=batchsize, return_scores=return_scores, n=n, p=dropout)
 
         robustness = (bool_.max(-1)[0]).mean(-1)
         variance = (var_ * torch.nn.functional.one_hot(bool_.argmax(-1),self.model._config["n_classes"])).mean(-1)
