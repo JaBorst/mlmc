@@ -533,17 +533,21 @@ class TextClassificationAbstract(torch.nn.Module):
         r["lengths"] = data_sizes
         return r
 
-    def predict(self, x, h=None, return_scores=False):
+    def predict(self, x, h=None, return_scores=False, batch_size=None):
         """
         Classify sentence string  or a list of strings.
 
         Args:
             x:  A list of the text instances.
             return_scores:  If True, the labels are returned with their corresponding confidence scores and prediction mask
+            batch_size: None If set to an integer the input is automatically batched
         Returns:
             A list of the labels or a tuple of (labels, scores, mask) if return_scores=True
 
         """
+        if batch_size is not None:
+            return self.predict_batch(self, data=x, h=h, batch_size=batch_size, return_scores=return_scores)
+
         self.eval()
         output = self.scores(x, h=h)
         prediction = self._threshold_fct(output).cpu()
