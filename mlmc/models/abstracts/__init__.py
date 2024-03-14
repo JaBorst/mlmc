@@ -2,11 +2,10 @@ from .abstract_textclassification import TextClassificationAbstract
 # from .abstract_label import LabelEmbeddingAbstract
 from .abstract_encoder import EncoderAbstract
 from .abstracts_zeroshot import TextClassificationAbstractZeroShot
-from .abstracts_graph import TextClassificationAbstractGraph
 from .abstract_embedding import  LabelEmbeddingAbstract
 
 def finetune_lm(representation, data, device="cpu", name=None,epochs=1, batch_size=8, valid=0.1):
-    import subprocess, pathlib, tempfile, os, sys, datetime
+    import subprocess, pathlib, os, sys, datetime
     CACHE = pathlib.Path.home() / ".mlmc" / "models"
 
     if name is None:

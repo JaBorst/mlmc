@@ -6,12 +6,12 @@ stages:
   - test
   - deploy
 
-test_python3.8:
+test_python3.11:
     only:
       - master
       - merge_requests
     stage: test
-    image: python:3.8-buster
+    image: python:3.11-rc-buster
     script:
     - python -m pytest tests
 
@@ -20,7 +20,7 @@ test_python3.9:
       - master
       - merge_requests
     stage: test
-    image: python:3.9-buster
+    image: python:3.9-rc-buster
     script:
     - python -m pytest tests
 
@@ -29,7 +29,7 @@ test_python3.10:
       - master
       - merge_requests
     stage: test
-    image: python:3.10-buster
+    image: python:3.10-rc-buster
     script:
     - python -m pytest tests
 
@@ -38,10 +38,17 @@ coverage:
         refs:
         - master
         - dev
-    image: python:3.10-slim-buster
+    image: python:3.12-rc-buster
     stage: test
     script:
-      - coverage run -m pytest tests/ | coverage report -i --format=total
+      - pip install pytest pytest-cov
+      - pytest --cov --cov-report term --cov-report xml:coverage.xml
+    coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+    artifacts:
+        reports:
+          coverage_report:
+            coverage_format: cobertura
+            path: coverage.xml
 
 pypi_deploy:
   stage: deploy

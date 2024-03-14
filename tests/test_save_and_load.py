@@ -33,23 +33,14 @@ def assertion_function(model_type, **kwargs):
         classes = {"label_%i" % (i,): i for i in range(5)}
     )
 
-    mo_data = mlmc.data.dataset_classes.MultiOutputSingleLabelDataset(
-        x=["Sample 1", "Sample 2", "Sample 3", "Sample 4", "Sample 5"],
-        y=[[["label_0"], ["label_2"]], [["label_3"], ["label_1"]], [["label_4"], ["label_2"]], [["label_1"], ["label_2"]], [["label_3"], ["label_0"]]],
-        classes= {"label_0": 0, "label_1": 1, "label_2": 3, "label_3": 2, "label_4": 4})
 
-    if model_type.__name__ in ["MoLSANNC", "MoTransformer", "MoKimCNN"]:
-        model = model_type(classes=mo_data.classes, **kwargs)
-    else:
-        model = model_type(classes=data.classes, **kwargs)
+
+    model = model_type(classes=data.classes, **kwargs)
 
     #test saving and loading before training
     loaded_model = save_and_load(model)
 
-    if model_type.__name__ in ["MoLSANNC", "MoTransformer", "MoKimCNN"]:
-        model.fit(train=mo_data, epochs=5, batch_size=3)
-    else:
-        model.fit(train=data, epochs=5, batch_size=3)
+    model.fit(train=data, epochs=5, batch_size=3)
     assert(compare_models(model, loaded_model) == False), "No parameter change after training"
 
     #test saving and loading after training
@@ -60,15 +51,6 @@ def test_KimCNN():
 
 def test_LSAN():
     assertion_function(model_type=mlmc.models.LSAN, target="multi",representation="google/bert_uncased_L-2_H-128_A-2", hidden_representations=10, d_a=10)
-
-def test_MoKimCNN():
-    assertion_function(model_type=mlmc.models.MoKimCNN, representation="google/bert_uncased_L-2_H-128_A-2", target="single", kernel_sizes=(2,3))
-
-def test_MoLSANNC():
-    assertion_function(model_type=mlmc.models.MoLSANNC, representation="google/bert_uncased_L-2_H-128_A-2",label_model="google/bert_uncased_L-2_H-128_A-2", target="single", hidden_representations=10, d_a=10)
-
-def test_MoTransformer():
-    assertion_function(model_type=mlmc.models.MoTransformer, representation="google/bert_uncased_L-2_H-128_A-2", target="single")
 
 def test_Transformer():
     assertion_function(model_type=mlmc.models.Transformer, target="multi", representation="google/bert_uncased_L-2_H-128_A-2")
