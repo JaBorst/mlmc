@@ -361,4 +361,4 @@ def is_multilabel(x):
     :param x: A dataset
     :return: True if multilabel, else False.
     """
-    return type(x) in  (MultiLabelDataset, MultiOutputMultiLabelDataset)
+    return type(x) in  (MultiLabelDataset)

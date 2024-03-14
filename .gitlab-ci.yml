@@ -6,12 +6,12 @@ stages:
   - test
   - deploy
 
-test_python3.8:
+test_python3.11:
     only:
       - master
       - merge_requests
     stage: test
-    image: python:3.8-buster
+    image: python:3.11-buster
     script:
     - python -m pytest tests
 
@@ -38,7 +38,7 @@ coverage:
         refs:
         - master
         - dev
-    image: python:3.10-slim-buster
+    image: python:3.11-slim-buster
     stage: test
     script:
       - coverage run -m pytest tests/ | coverage report -i --format=total
