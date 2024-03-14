@@ -15,12 +15,12 @@ test_python3.11:
     script:
     - python -m pytest tests
 
-test_python3.9:
+test_python3.12:
     only:
       - master
       - merge_requests
     stage: test
-    image: python:3.9-rc-buster
+    image: python:3.12-rc-buster
     script:
     - python -m pytest tests
 

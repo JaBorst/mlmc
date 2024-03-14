@@ -24,7 +24,7 @@ with open("mlmc/_version.py", "w") as f:
 
 setup(
     name='melmac',
-    python_requires='>=3.12',
+    python_requires='>=3.10',
     version=version,
     packages=find_packages(),
     url='',
