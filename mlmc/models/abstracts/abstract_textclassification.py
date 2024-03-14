@@ -725,20 +725,15 @@ class TextClassificationAbstract(torch.nn.Module):
             self.embedding.requires_grad = False
             for param in self.embedding.parameters(): param.requires_grad = False
         elif mode == "compacter":
-            from transformers.adapters import  CompacterConfig
-            self.embedding.add_adapter(
-                "compacter",
-                config=CompacterConfig()
-            )
+            import adapters
+            adapters.init(self.embedding)
+            self.embedding.add_adapter("compacter", config="compacter")
             self.embedding.train_adapter("compacter")
         elif mode == "LoRA":
-            from transformers.adapters import LoRAConfig
-            config = LoRAConfig(r=8, alpha=16)
-            self.embedding.add_adapter(
-                "LoRA",
-                config=config
-            )
-            self.embedding.train_adapter("LoRA")
+            import adapters
+            adapters.init(self.embedding)
+            self.embedding.add_adapter("lora", config="lora")
+            self.embedding.train_adapter("lora")
         else:
             raise ValueError(f"Finetuning mode [{mode}] unknown. Must be one of {modes}")
 

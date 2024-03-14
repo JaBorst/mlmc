@@ -1,6 +1,6 @@
 ##########################################################################
 #
-# Example for  using a zero shot model (experimental feature)
+# Example for  using a zero shot model
 #
 ##########################################################################
 import mlmc
@@ -44,6 +44,7 @@ print(m.predict("I'm gonna have to stay late to finish this project."))
 # For example download agnews data. A data set containing news texts assigned to 4 categories
 data, classes = mlmc.data.load_agnews()
 data = {k: mlmc.data.SingleLabelDataset(x=v[0], y=v[1], classes=classes) for k,v in data.items()}
+data = {k: mlmc.data.sampler(v, absolute=100) for k,v in data.items()}
 
 
 ####
@@ -64,7 +65,7 @@ print("Accuracy without training with formatter:", m.evaluate(data["test"])[1]["
 
 
 # This Performance can still be improved of course by showing some of the training data.
-# We'll only take around 10 exapmles per class.
+# We'll only take around 10 examples per class.
 train = mlmc.data.sampler(data["train"], absolute=40)
 print(train.count())
 
