@@ -38,7 +38,7 @@ coverage:
         refs:
         - master
         - dev
-    image: python:3.11-slim-buster
+    image: python:3.12-rc-buster
     stage: test
     script:
       - coverage run -m pytest tests/ | coverage report -i --format=total
