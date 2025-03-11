@@ -546,7 +546,7 @@ class TextClassificationAbstract(torch.nn.Module):
 
         """
         if batch_size is not None:
-            return self.predict_batch(self, data=x, h=h, batch_size=batch_size, return_scores=return_scores)
+            return self.predict_batch(data=x, h=h, batch_size=batch_size, return_scores=return_scores)
 
         self.eval()
         output = self.scores(x, h=h)
