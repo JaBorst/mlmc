@@ -14,7 +14,7 @@ else:
     try:
         # Get latest git tag
         result = subprocess.run("git describe --tags", shell=True, stdout=subprocess.PIPE)
-        version = result.stdout.decode('utf-8').split("-")[-1] #+ "-local"
+        version = result.stdout.decode('utf-8').split("-")[-1][:-1] #+ "-local"
     except:
         version = 1
 
