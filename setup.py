@@ -14,9 +14,9 @@ else:
     try:
         # Get latest git tag
         result = subprocess.run("git describe --tags", shell=True, stdout=subprocess.PIPE)
-        version = result.stdout.decode('utf-8')[1:-1] + "-local"
+        version = result.stdout.decode('utf-8')[1:-1] #+ "-local"
     except:
-        version = "local"
+        version = 1
 
 
 with open("mlmc/_version.py", "w") as f:
