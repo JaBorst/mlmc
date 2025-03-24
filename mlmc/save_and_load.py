@@ -70,7 +70,7 @@ def load(path, device="cpu"):
     additional_arguments["map_location"] = torch.device(device)
 
     #load all information
-    loaded = torch.load(Path(path), pickle_module=dill, **additional_arguments)
+    loaded = torch.load(path, pickle_module=dill, **additional_arguments)
     loaded["args"]["device"] = device
     loaded["args"]["finetune"] = "all" if loaded["args"]["finetune"] == "fixed" else loaded["args"]["finetune"]
     # Create a model with the same parameters
