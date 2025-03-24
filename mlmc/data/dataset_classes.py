@@ -54,7 +54,7 @@ class MultiLabelDataset(Dataset):
         """
 
         self.__dict__.update(kwargs)
-        self.classes = {k:i for i,k in enumerate(classes)}
+        self.classes = {k:i for i,k in enumerate(classes)} if classes is not None else None
         self.x = x
         self.y = y
         self.one_hot = one_hot

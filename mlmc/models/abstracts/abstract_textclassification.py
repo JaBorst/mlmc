@@ -235,7 +235,7 @@ class TextClassificationAbstract(torch.nn.Module):
         average = Average()
         data_loader = torch.utils.data.DataLoader(data, batch_size=batch_size)
         with torch.no_grad():
-            for i, b in enumerate(data_loader):
+            for i, b in tqdm(enumerate(data_loader)):
                 y = b["labels"]
                 l, output = self._step(b)
                 output = self.act(output).cpu()
@@ -546,7 +546,7 @@ class TextClassificationAbstract(torch.nn.Module):
 
         """
         if batch_size is not None:
-            return self.predict_batch(self, data=x, h=h, batch_size=batch_size, return_scores=return_scores)
+            return self.predict_batch(data=x, h=h, batch_size=batch_size, return_scores=return_scores)
 
         self.eval()
         output = self.scores(x, h=h)
